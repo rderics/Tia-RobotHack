@@ -20,7 +20,9 @@ const reserved = (domain) => /(^|\.)example$/i.test(domain) || /^example\.(com|o
 const leak = (both.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || []).find((a) => !reserved(a.split("@")[1]));
 if (leak) throw new Error(`Real-looking email address in demo data: ${leak} – use an .example address`);
 
-fs.rmSync(out, { recursive: true, force: true });
+// Empty the folder (not delete it – Windows refuses if a terminal is open inside it).
+fs.mkdirSync(out, { recursive: true });
+for (const f of fs.readdirSync(out)) fs.rmSync(path.join(out, f), { recursive: true, force: true });
 fs.mkdirSync(path.join(out, "data"), { recursive: true });
 
 let html = fs.readFileSync(path.join(ROOT, "src/renderer/index.html"), "utf8");
@@ -41,6 +43,16 @@ fs.copyFileSync(path.join(ROOT, "src/brain/guard.js"), path.join(out, "guard.js"
 fs.copyFileSync(path.join(ROOT, "src/static/static-bridge.js"), path.join(out, "web-bridge.js"));
 fs.writeFileSync(path.join(out, "data/inbox.json"), JSON.stringify(inbox));
 fs.writeFileSync(path.join(out, "data/replay.json"), JSON.stringify(replay));
+
+// Cache-busting: Cloudflare lets browsers keep scripts for hours, so each link gets ?v=<content hash>.
+// A changed file gets a new URL; an unchanged one stays cached.
+const crypto = require("crypto");
+const hashOf = (rel) => crypto.createHash("sha1").update(fs.readFileSync(path.join(out, rel))).digest("hex").slice(0, 10);
+let page = fs.readFileSync(path.join(out, "index.html"), "utf8");
+page = page.replace(/(src|href)="((?:assets\/)?[\w.-]+\.(?:js|css|png))"/g, (all, attr, rel) =>
+  fs.existsSync(path.join(out, rel)) ? `${attr}="${rel}?v=${hashOf(rel)}"` : all
+);
+fs.writeFileSync(path.join(out, "index.html"), page);
 
 console.log(`Built public replay site → ${out} (base ${base})`);
 for (const f of fs.readdirSync(out, { recursive: true })) console.log("  " + f);

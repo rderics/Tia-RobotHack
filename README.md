@@ -43,6 +43,24 @@ cd ../Website-Saldus && git add website/tia && git commit -m "Update /tia" && gi
 
 The build refuses to run if a message is missing from the recording or if the demo data has a real-looking email address (only `.example` / `example.com` allowed). Cloudflare Pages deploys the push in about 30 seconds.
 
+## The 3D stage
+
+`src/scene/scene.js` (three.js) draws Tia and animates every message: the card flies in from **INBOX**, she reads it (scan line), then the reply flies to **SENT**, a newsletter sinks into the floor (archived), or the card turns amber and flies to the owner's **phone**. After changing it, rebuild the bundle the screen loads:
+
+```
+npm run build:scene      # writes src/renderer/scene.js
+```
+
+Tia is built from simple shapes (no downloaded 3D model). To swap in a real character later, load a `.glb` model in `scene.js` in place of the body/head group.
+
+## Phone notifications (no spam)
+
+- **Urgent** (fraud, payment-detail changes, complaints) → buzzes right away.
+- **Everything else that needs the owner** → collected into **one** summary notification.
+- **Work Tia finished herself** → never buzzes.
+
+The phone on screen is a mock-up. A real push (e.g. a phone app or Telegram bot) would use the same three rules.
+
 ## Voice
 
 Tia reads her updates out loud with the computer's built-in voices (Windows: Microsoft Zira if installed), offline, no extra service. Each card appears while she says it. **Voice: on/off** in the top bar switches it; the choice is remembered. With voice off, cards appear as fast as they arrive.
