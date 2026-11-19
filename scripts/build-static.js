@@ -36,6 +36,7 @@ for (const f of fs.readdirSync(path.join(ROOT, "src/renderer/assets"))) {
   fs.copyFileSync(path.join(ROOT, "src/renderer/assets", f), path.join(out, "assets", f));
 }
 fs.copyFileSync(path.join(ROOT, "src/renderer/app.js"), path.join(out, "app.js"));
+fs.copyFileSync(path.join(ROOT, "src/renderer/scene.js"), path.join(out, "scene.js")); // 3D stage (npm run build:scene)
 fs.copyFileSync(path.join(ROOT, "src/brain/guard.js"), path.join(out, "guard.js"));
 fs.copyFileSync(path.join(ROOT, "src/static/static-bridge.js"), path.join(out, "web-bridge.js"));
 fs.writeFileSync(path.join(out, "data/inbox.json"), JSON.stringify(inbox));

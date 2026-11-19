@@ -5,6 +5,7 @@
   "main": "src/main.js",
   "private": true,
   "scripts": {
+    "build:scene": "esbuild src/scene/scene.js --bundle --format=iife --global-name=TiaScene --minify --outfile=src/renderer/scene.js",
     "web": "node src/web.js",
     "start": "electron .",
     "replay": "electron . --replay",
@@ -15,6 +16,8 @@
     "@anthropic-ai/sdk": "1.10.0"
   },
   "devDependencies": {
-    "electron": "45.4.1"
+    "electron": "45.4.1",
+    "esbuild": "0.24.0",
+    "three": "0.170.0"
   }
 }
