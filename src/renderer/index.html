@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:" />
+  <title>Tia</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><span class="t">T</span><span class="i"><span class="dot"></span></span><span class="a">A</span></div>
+      <div>
+        <div class="brand-name">Tia</div>
+        <div class="brand-sub">AI secretary · <span id="business">Liepa Interjers</span></div>
+      </div>
+    </div>
+    <div class="today" id="today"></div>
+    <div class="controls">
+      <span class="mode" id="mode"></span>
+      <button class="btn ghost" id="voiceBtn" title="Tia reads her updates out loud">Voice: on</button>
+      <button class="btn ghost" id="resetBtn" title="Forget what Tia learned and clear her log">Reset demo</button>
+      <button class="btn ghost" id="replayBtn" title="Play the last saved run (no internet needed)">Replay</button>
+      <button class="btn primary" id="runBtn">Start the day</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="secretary">
+      <div class="avatar" aria-label="Tia">
+        <div class="ring"></div>
+        <div class="face"><div class="eyes"><span></span><span></span></div><div class="mouth"></div></div>
+        <div class="avatar-note">3D secretary goes here</div>
+      </div>
+      <div class="bubble" id="speech">Good morning, Mārtiņš. Press “Start the day” and I'll go through the inbox.</div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="statHandled">0</div><div class="lbl">handled by me</div></div>
+        <div class="stat"><div class="num accent" id="statNeeds">0</div><div class="lbl">need you</div></div>
+        <div class="stat"><div class="num" id="statMinutes">0</div><div class="lbl">min saved (est.)</div></div>
+      </div>
+      <div class="progress"><div class="bar" id="progressBar"></div></div>
+      <div class="progress-label" id="progressLabel">Inbox: waiting</div>
+      <div class="howto">
+        <strong>How I decide</strong>
+        <ul>
+          <li>Routine + your notes allow it → I do it.</li>
+          <li>Money, complaints, partnerships, anything unsure → you decide, with my draft ready.</li>
+          <li>Every approval teaches me. After 2 approvals of a kind, I do it myself.</li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="column">
+      <h2>Handled by me <span class="count" id="countHandled">0</span></h2>
+      <div class="cards" id="handled"></div>
+    </section>
+
+    <section class="column needs">
+      <h2>Needs you <span class="count accent" id="countNeeds">0</span></h2>
+      <div class="cards" id="needs"></div>
+    </section>
+  </main>
+
+  <template id="cardTpl">
+    <article class="card">
+      <div class="card-head">
+        <span class="chip"></span>
+        <span class="from"></span>
+        <span class="time"></span>
+      </div>
+      <div class="summary"></div>
+      <ul class="actions"></ul>
+      <details class="draft"><summary>My reply</summary><div class="draft-text"></div></details>
+      <div class="reason"></div>
+      <div class="guard"></div>
+      <div class="sources"></div>
+      <div class="buttons"></div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

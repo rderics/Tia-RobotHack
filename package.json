@@ -1,0 +1,19 @@
+{
+  "name": "tia",
+  "version": "0.1.0",
+  "description": "Tia - AI personal secretary (RobotHack 2026 prototype)",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "replay": "electron . --replay",
+    "day": "node scripts/run-day.js",
+    "screenshot": "electron . --replay --screenshot=data/screenshot.png"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.10.0"
+  },
+  "devDependencies": {
+    "electron": "45.4.1"
+  }
+}
