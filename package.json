@@ -5,6 +5,7 @@
   "main": "src/main.js",
   "private": true,
   "scripts": {
+    "web": "node src/web.js",
     "start": "electron .",
     "replay": "electron . --replay",
     "day": "node scripts/run-day.js",

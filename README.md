@@ -10,10 +10,15 @@ You need Node.js and Claude Code installed and logged in (`claude` in a terminal
 
 ```
 npm install
-npm start            # opens the app; press "Start the day"
-npm run replay       # opens the app; "Replay" plays the last saved run (no internet needed)
+npm run web          # website: open http://localhost:4747 and press "Start the day"
+npm start            # the same screen as a desktop app
+npm run replay       # desktop app; "Replay" plays the last saved run (no internet needed)
 npm run day          # same day in the terminal, no window
 ```
+
+**Website and desktop app share one screen** (`src/renderer`). The desktop app connects it to the brain through `src/preload.js`; the website does it through `src/renderer/web-bridge.js` and the small server in `src/web.js`. Change the screen once and both get it.
+
+The web server listens on **this computer only** (127.0.0.1) and only accepts requests from its own page, because it runs Claude with the login of the person at this computer. Don't expose it to the internet. A public website needs the API-key provider (or a replay-only version).
 
 ## What happens when you press "Start the day"
 
