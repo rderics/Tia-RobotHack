@@ -29,13 +29,7 @@ body {
   padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
-.logo {
-  width: 46px; height: 46px; border-radius: 50%; border: 4px solid var(--purple);
-  display: flex; align-items: center; justify-content: center; gap: 1px;
-  font-weight: 800; font-size: 15px; color: var(--ink);
-}
-.logo .i { position: relative; width: 4px; height: 12px; background: var(--purple); border-radius: 2px; margin: 0 2px; }
-.logo .dot { position: absolute; top: -8px; left: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); }
+.logo { width: 52px; height: 52px; display: block; }
 .brand-name { font-weight: 700; font-size: 20px; }
 .brand-sub { color: var(--muted); font-size: 13px; }
 .today { color: var(--muted); font-size: 14px; }

@@ -30,6 +30,11 @@ html = html
   .replace("<title>Tia</title>", "<title>Tia – AI secretary demo</title>");
 fs.writeFileSync(path.join(out, "index.html"), html);
 fs.copyFileSync(path.join(ROOT, "src/renderer/styles.css"), path.join(out, "styles.css"));
+fs.mkdirSync(path.join(out, "assets"), { recursive: true });
+for (const f of fs.readdirSync(path.join(ROOT, "src/renderer/assets"))) {
+  if (f.endsWith(".ico")) continue; // desktop-app window icon only
+  fs.copyFileSync(path.join(ROOT, "src/renderer/assets", f), path.join(out, "assets", f));
+}
 fs.copyFileSync(path.join(ROOT, "src/renderer/app.js"), path.join(out, "app.js"));
 fs.copyFileSync(path.join(ROOT, "src/brain/guard.js"), path.join(out, "guard.js"));
 fs.copyFileSync(path.join(ROOT, "src/static/static-bridge.js"), path.join(out, "web-bridge.js"));

@@ -18,6 +18,7 @@ function createWindow() {
     minHeight: 640,
     title: "Tia",
     backgroundColor: "#F6F3FB",
+    icon: path.join(__dirname, "renderer", "assets", process.platform === "win32" ? "icon.ico" : "favicon-192.png"),
     show: !screenshotPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
