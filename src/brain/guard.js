@@ -45,4 +45,6 @@ function applyGuard(proposal, message, learning, cfg) {
   return { decision, guardNotes: notes, overridden: decision !== proposal.decision };
 }
 
-module.exports = { applyGuard };
+// Works in Node (the app) and in a plain browser (the public replay site).
+if (typeof module !== "undefined" && module.exports) module.exports = { applyGuard };
+else window.TiaGuard = { applyGuard };

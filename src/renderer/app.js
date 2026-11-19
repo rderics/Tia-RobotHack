@@ -251,8 +251,13 @@ async function start(mode) {
 async function init() {
   const info = await window.tia.info();
   $("today").textContent = info.today;
-  $("mode").textContent = info.provider === "api" ? `Claude API · ${info.model}` : `Claude subscription · ${info.model}`;
+  $("mode").textContent = info.static
+    ? "Recorded demo · a real Claude run, replayed"
+    : info.provider === "api"
+      ? `Claude API · ${info.model}`
+      : `Claude subscription · ${info.model}`;
   $("replayBtn").disabled = !info.hasReplay;
+  if (info.static) $("replayBtn").hidden = true; // on the public site "Start the day" plays the recording
   window.tia.onEvent(onEvent);
   $("runBtn").onclick = () => start("live");
   $("replayBtn").onclick = () => start("replay");

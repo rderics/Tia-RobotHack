@@ -30,6 +30,19 @@ The web server listens on **this computer only** (127.0.0.1) and only accepts re
 
 **Reset demo** clears what Tia learned and her log, so the demo can start over.
 
+## Public demo: https://rderics.id.lv/tia
+
+A **replay-only** copy anyone can open (phone too). It plays a real recorded Claude run through the same Guard; approvals and learning work but stay in the visitor's browser. No AI calls, no server.
+
+Update it after a new live run:
+
+```
+node scripts/build-static.js ../Website-Saldus/website/tia
+cd ../Website-Saldus && git add website/tia && git commit -m "Update /tia" && git push
+```
+
+The build refuses to run if a message is missing from the recording or if the demo data has a real-looking email address (only `.example` / `example.com` allowed). Cloudflare Pages deploys the push in about 30 seconds.
+
 ## Voice
 
 Tia reads her updates out loud with the computer's built-in voices (Windows: Microsoft Zira if installed), offline, no extra service. Each card appears while she says it. **Voice: on/off** in the top bar switches it; the choice is remembered. With voice off, cards appear as fast as they arrive.
