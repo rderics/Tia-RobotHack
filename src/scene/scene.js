@@ -1,8 +1,10 @@
 // Tia's 3D stage (three.js). Bundled by esbuild into src/renderer/scene.js → window.TiaScene.
-// Tia is built from simple shapes (no downloaded model): pearl body, glass visor face with glowing eyes,
-// and a clock halo (the logo). Each message flies in as a 3D card, she reads it, then the reply flies out
+// Tia is built from simple shapes (pearl body, glass visor face with glowing eyes, clock halo = the logo) until
+// loadAvatar(url) swaps in a real character model (.glb); the clock halo then floats above the character. Each message flies in as a 3D card, she reads it, then the reply flies out
 // to "Sent" (handled) or the card turns amber and flies to the owner's phone (needs you).
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 export const CHANNELS = {
   email: { color: "#4f8cff", label: "EMAIL" },
@@ -261,6 +263,11 @@ export function createScene(container, { reducedMotion = false } = {}) {
   const lerp = (a, b, t) => a + (b - a) * t;
 
   let talking = false;
+  let avatar = null; // the loaded character model (replaces the simple-shape body)
+  let avatarHeight = 0;
+  const talkLight = new THREE.PointLight(LAVENDER, 0, 6, 2); // glows on her while she speaks
+  talkLight.position.set(0, 2.4, 1.6);
+  scene.add(talkLight);
   let reading = 0; // 0..1 lean-in amount
   const READ = new THREE.Vector3(0, 2.05, 1.75);
 
@@ -450,8 +457,17 @@ export function createScene(container, { reducedMotion = false } = {}) {
       }
     }
     const motion = reducedMotion ? 0.2 : 1;
-    tia.position.y = Math.sin(t * 1.3) * 0.08 * motion;
-    tia.rotation.y = Math.sin(t * 0.4) * 0.12 * motion + mouseX * 0.08;
+    if (avatar) {
+      // A person doesn't float: she breathes, sways a little and turns towards the pointer.
+      tia.position.y = 0;
+      tia.rotation.y = Math.sin(t * 0.35) * 0.06 * motion + mouseX * 0.12;
+      avatar.scale.y = avatar.userData.baseScale * (1 + Math.sin(t * 1.6) * 0.004 * motion);
+      halo.position.y = avatarHeight + 0.45 + Math.sin(t * 1.3) * 0.05 * motion;
+    } else {
+      tia.position.y = Math.sin(t * 1.3) * 0.08 * motion;
+      tia.rotation.y = Math.sin(t * 0.4) * 0.12 * motion + mouseX * 0.08;
+    }
+    talkLight.intensity = lerp(talkLight.intensity, talking ? 9 + Math.sin(t * 9) * 3 : 0, 0.15);
     head.rotation.x = lerp(0, 0.22, reading) + Math.sin(t * 0.9) * 0.02;
     head.rotation.z = Math.sin(t * 0.7) * 0.03 * motion;
     minute.rotation.z = -t * 0.9;
@@ -479,5 +495,47 @@ export function createScene(container, { reducedMotion = false } = {}) {
       if (b != null) sent.userData.draw(b);
     },
     setSpeed: (k) => (speed.k = k),
+    loadAvatar,
   };
+
+  // Swap the simple-shape body for a real character (.glb). Keeps everything else: cards, portals, clock halo.
+  function loadAvatar(url, { height = 3.25 } = {}) {
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    return new Promise((resolve, reject) => {
+      loader.load(
+        url,
+        (gltf) => {
+          const model = gltf.scene;
+          model.traverse((o) => {
+            if (o.isMesh) {
+              o.castShadow = false;
+              o.receiveShadow = false;
+              if (o.material && o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+            }
+          });
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const k = height / (size.y || 1);
+          model.scale.setScalar(k);
+          model.userData.baseScale = k;
+          const box2 = new THREE.Box3().setFromObject(model);
+          const c = box2.getCenter(new THREE.Vector3());
+          model.position.set(-c.x, -box2.min.y, -c.z);
+          // hide the simple-shape body, keep the halo (the logo) above her head
+          for (const part of [body, belt, skull, visor, eyeL, eyeR, mouth, handL, handR]) part.visible = false;
+          head.remove(halo);
+          tia.add(halo);
+          halo.rotation.x = -0.2;
+          halo.scale.setScalar(0.7);
+          avatarHeight = height;
+          tia.add(model);
+          avatar = model;
+          resolve(model);
+        },
+        undefined,
+        reject
+      );
+    });
+  }
 }

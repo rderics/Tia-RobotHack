@@ -8,12 +8,12 @@ import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import Orb from "./Orb";
 import Card, { Btn } from "./Card";
-import { api, useDesk, forgetPair } from "./api";
+import { api, useDesk, forgetPair, savePair } from "./api";
 import { C } from "./theme";
 
 const DEFAULT_SUGGESTIONS = ["Brief me", "What needs me today?"];
 
-export default function HomeScreen({ pair, onUnpair }) {
+export default function HomeScreen({ pair, onUnpair, onRepair }) {
   const insets = useSafeAreaInsets();
   const { desk, online } = useDesk(pair, onUnpair);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -27,7 +27,7 @@ export default function HomeScreen({ pair, onUnpair }) {
   const [editing, setEditing] = useState(null);
   const [showDone, setShowDone] = useState(false);
   const [menu, setMenu] = useState(false);
-  const rec = useRef({ starting: null, startedAt: 0, active: false });
+  const rec = useRef({ starting: null, startedAt: 0, recording: false, stopOnRelease: false });
   const seenNeeds = useRef(null);
 
   // iPhone: let Tia's voice play even with the silent switch on, and route it to the loudspeaker.
@@ -48,10 +48,13 @@ export default function HomeScreen({ pair, onUnpair }) {
   }, [desk && desk.version]);
 
   // When the big screen or the inbox run makes Tia say something, show it here too (spoken only for this phone's own requests).
+  const lastLine = useRef(0);
   useEffect(() => {
     if (!desk || mode !== "idle") return;
     const last = [...desk.feed].reverse().find((f) => f.who === "tia");
-    if (last) setCaption(last.text);
+    if (!last || last.at === lastLine.current) return;
+    lastLine.current = last.at;
+    setCaption(last.text);
     const asked = [...desk.feed].reverse().find((f) => f.who === "owner");
     setHeard(asked ? asked.text : "");
   }, [desk && desk.version]);
@@ -77,48 +80,74 @@ export default function HomeScreen({ pair, onUnpair }) {
     speak(res.say || "Done.");
   }
 
-  // ---------- hold to talk ----------
-  async function startTalking() {
+  // ---------- talk: hold to talk, or tap to start and tap again to send ----------
+  // Every step reports to the computer's log (api.log), so a failure on the phone can be seen and fixed.
+  const log = (event, detail) => api.log(pair, event, detail);
+
+  async function micIn() {
     if (mode === "thinking") return;
+    if (rec.current.recording) {
+      rec.current.stopOnRelease = true; // second tap = done talking
+      return;
+    }
     Speech.stop();
-    rec.current.active = true;
+    rec.current.stopOnRelease = false;
     rec.current.starting = (async () => {
       let perm = await getRecordingPermissionsAsync();
+      log("mic-press", `permission ${perm.status}`);
       if (!perm.granted) {
         perm = await requestRecordingPermissionsAsync();
-        rec.current.active = false; // the permission popup interrupted the hold – ask to hold again
-        if (!perm.granted) Alert.alert("Microphone", "Tia needs the microphone to hear you. You can type instead.");
+        log("mic-permission", perm.status);
+        if (!perm.granted) {
+          Alert.alert("Microphone", "Tia needs the microphone to hear you. Allow it for Expo Go in the iPhone Settings, or type instead.");
+          return false;
+        }
+        setCaption("Thanks – now tap the mic and talk.");
         return false;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
+      rec.current.recording = true;
       rec.current.startedAt = Date.now();
+      log("mic-recording", "started");
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       setHeard("");
       setMode("listening");
       setCaption("Listening…");
       return true;
     })().catch((e) => {
-      setCaption(`I couldn't start the microphone (${e.message}).`);
+      log("mic-error", e.message);
+      setCaption(`I couldn't start the microphone: ${e.message}`);
       return false;
     });
   }
 
-  async function stopTalking() {
+  async function micOut() {
     const started = await rec.current.starting;
-    if (!started || !rec.current.active) return;
-    rec.current.active = false;
+    if (!started || !rec.current.recording) return;
+    if (rec.current.stopOnRelease) return finishTalking();
+    const held = Date.now() - rec.current.startedAt;
+    if (held < 700) {
+      // A quick tap: keep listening until the next tap.
+      setCaption("Listening… tap the mic again when you're done.");
+      return;
+    }
+    finishTalking();
+  }
+
+  async function finishTalking() {
+    rec.current.recording = false;
+    rec.current.stopOnRelease = false;
     const held = Date.now() - rec.current.startedAt;
     try {
       await recorder.stop();
-    } catch {}
-    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false }).catch(() => {});
-    if (held < 600) {
-      setMode("idle");
-      return setCaption("Hold the button while you talk, then let go.");
+    } catch (e) {
+      log("mic-stop-error", e.message);
     }
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false }).catch(() => {});
     const uri = recorder.uri;
+    log("mic-stopped", `${held} ms, file ${uri ? uri.split("/").pop() : "none"}`);
     if (!uri) {
       setMode("idle");
       return setCaption("I didn't get any sound. Try again?");
@@ -128,15 +157,16 @@ export default function HomeScreen({ pair, onUnpair }) {
     try {
       const res = await api.voice(pair, uri);
       if (res.error && !res.transcript) {
+        log("voice-answer", res.error);
         setMode("idle");
-        setCaption(`${res.say || "I couldn't hear that."}${res.error === "too short" || res.error === "empty" ? "" : `
-(${res.error})`}`);
+        setCaption(`${res.say || "I couldn't hear that."}${res.error === "too short" || res.error === "empty" ? "" : `\n(${res.error})`}`);
         return;
       }
       handleReply(res);
     } catch (e) {
+      log("voice-upload-error", e.message);
       setMode("idle");
-      setCaption(`I couldn't send the recording to the computer. ${e.message}`);
+      setCaption(`I couldn't send the recording to the computer: ${e.message}`);
     }
   }
 
@@ -287,12 +317,12 @@ export default function HomeScreen({ pair, onUnpair }) {
               <Text style={styles.sideIcon}>⌨</Text>
             </Pressable>
             <Pressable
-              onPressIn={startTalking}
-              onPressOut={stopTalking}
+              onPressIn={micIn}
+              onPressOut={micOut}
               disabled={mode === "thinking"}
               style={({ pressed }) => [styles.mic, (pressed || mode === "listening") && styles.micOn, mode === "thinking" && { opacity: 0.5 }]}
               accessibilityRole="button"
-              accessibilityLabel="Hold to talk to Tia"
+              accessibilityLabel="Talk to Tia"
             >
               {mode === "thinking" ? <ActivityIndicator color="#120E1C" /> : <View style={[styles.micGlyph, mode === "listening" && styles.micGlyphOn]} />}
             </Pressable>
@@ -301,7 +331,7 @@ export default function HomeScreen({ pair, onUnpair }) {
             </Pressable>
           </View>
         )}
-        {!typing && <Text style={styles.hint}>{mode === "listening" ? "Let go when you're done" : "Hold to talk"}</Text>}
+        {!typing && <Text style={styles.hint}>{mode === "listening" ? "Tap or let go when you're done" : "Tap or hold to talk"}</Text>}
       </KeyboardAvoidingView>
 
       {/* ---------- edit a draft ---------- */}
@@ -326,23 +356,51 @@ export default function HomeScreen({ pair, onUnpair }) {
               <Text style={styles.codeLabel}>Your Tia code – for opening Tia in a browser</Text>
               <Text selectable style={styles.code}>{pair.token}</Text>
             </View>
-            {desk && desk.profile !== "owner" && <Btn
-              label="Reset the demo"
-              onPress={() => {
-                setMenu(false);
-                Alert.alert("Reset the demo?", "Clears today's desk and what Tia learned, for the next visitor.", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Reset", style: "destructive", onPress: () => api.reset(pair).then(() => { setHeard(""); setCaption("Fresh start. Hold the button and tell me what you need."); }).catch((e) => setCaption(e.message)) },
-                ]);
-              }}
-            />}
+            {desk && desk.publicUrl && desk.publicUrl !== pair.url && (
+              <Btn
+                label="Use the web address (works anywhere)"
+                tone="accent"
+                onPress={() => {
+                  setMenu(false);
+                  // close the menu first – on iPhone, changing screens under a closing menu can freeze taps
+                  setTimeout(async () => {
+                    const next = { ...pair, url: desk.publicUrl };
+                    try {
+                      await api.hello(next);
+                      await savePair(next);
+                      onRepair(next);
+                    } catch (e) {
+                      setCaption(`The web address didn't answer: ${e.message}`);
+                    }
+                  }, 450);
+                }}
+              />
+            )}
+            {desk && desk.profile !== "owner" && (
+              <Btn
+                label="Reset the demo"
+                onPress={() => {
+                  setMenu(false);
+                  setTimeout(
+                    () =>
+                      Alert.alert("Reset the demo?", "Clears today's desk and what Tia learned, for the next visitor.", [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Reset", style: "destructive", onPress: () => api.reset(pair).then(() => { setHeard(""); setCaption("Fresh start. Tap the mic and tell me what you need."); }).catch((e) => setCaption(e.message)) },
+                      ]),
+                    450
+                  );
+                }}
+              />
+            )}
             <Btn
               label="Disconnect this phone"
               tone="ghost"
-              onPress={async () => {
+              onPress={() => {
                 setMenu(false);
-                await forgetPair();
-                onUnpair();
+                setTimeout(async () => {
+                  await forgetPair();
+                  onUnpair();
+                }, 450);
               }}
             />
           </View>
@@ -380,8 +438,8 @@ const styles = StyleSheet.create({
   pill: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: C.line, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5 },
   pillDot: { width: 7, height: 7, borderRadius: 4 },
   pillText: { color: C.muted, fontSize: 12, fontWeight: "600" },
-  menuBtn: { paddingHorizontal: 6, paddingVertical: 4 },
-  menuDots: { color: C.muted, fontSize: 14, letterSpacing: 1 },
+  menuBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: C.surface, borderWidth: 1, borderColor: C.line },
+  menuDots: { color: C.text, fontSize: 16, letterSpacing: 1, marginTop: -2 },
   hero: { alignItems: "center", paddingHorizontal: 28, paddingBottom: 18 },
   rec: { color: "#F08A8A", fontSize: 12.5, fontWeight: "700", letterSpacing: 0.3, marginBottom: 6 },
   heard: { color: C.muted, fontSize: 14, fontStyle: "italic", textAlign: "center", marginBottom: 6 },

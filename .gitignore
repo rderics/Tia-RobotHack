@@ -5,3 +5,6 @@ dist/
 __pycache__/
 config.json
 config.*.json
+
+# Third-party character model (Tripo community model, licence unclear) - served by the site, not published here
+src/renderer/assets/tia-avatar.glb

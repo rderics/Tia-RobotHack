@@ -20,7 +20,7 @@ const { loadConfig } = require("./brain/config");
 
 const PORT = Number(process.env.TIA_PORT || 4747);
 const STATIC_DIR = path.join(__dirname, "renderer");
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".glb": "model/gltf-binary" };
 
 // ---------- pairing ----------
 function pairToken() {
@@ -164,6 +164,11 @@ async function phoneApi(req, res, route, url) {
     return res.end(docPage(c));
   }
   if (req.method !== "POST") return sendJson(res, 405, { error: "method not allowed" });
+  if (route === "/api/m/log") {
+    const body = await readJson(req);
+    console.log(`[phone] ${String(body.event || "").slice(0, 40)} ${String(body.detail || "").slice(0, 300)}`);
+    return sendJson(res, 200, { ok: true });
+  }
   return actions(req, res, route.replace("/api/m/", "/api/"), "phone");
 }
 

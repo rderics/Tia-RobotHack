@@ -64,7 +64,7 @@
   }
 
   const listeners = [];
-  const stream = new EventSource(withToken("/api/events"));
+  const stream = new EventSource(withToken("api/events"));
   const connected = new Promise((resolve) => stream.addEventListener("open", resolve, { once: true }));
   stream.onmessage = (e) => {
     const ev = JSON.parse(e.data);
@@ -76,20 +76,20 @@
 
   window.tia = {
     remote,
-    info: () => get("/api/info"),
-    state: () => get("/api/state"),
+    info: () => get("api/info"),
+    state: () => get("api/state"),
     run: async (mode) => {
       await connected; // make sure we are listening before Tia starts talking
-      return post("/api/run", { mode });
+      return post("api/run", { mode });
     },
-    feedback: (payload) => post("/api/feedback", payload),
-    decide: (id, verdict, editedText) => post("/api/decide", { id, verdict, editedText }),
-    say: (text) => post("/api/say", { text }),
-    voice: (blob) => fetch("/api/voice", { method: "POST", headers: headers({ "content-type": blob.type || "audio/webm" }), body: blob }).then(check),
-    pair: (ip) => get(`/api/pair${ip ? `?ip=${encodeURIComponent(ip)}` : ""}`),
-    webLink: () => (token ? `${location.origin}/#t=${token}` : ""),
-    docUrl: (id) => withToken(`/doc/${id}`),
-    reset: () => post("/api/reset"),
+    feedback: (payload) => post("api/feedback", payload),
+    decide: (id, verdict, editedText) => post("api/decide", { id, verdict, editedText }),
+    say: (text) => post("api/say", { text }),
+    voice: (blob) => fetch("api/voice", { method: "POST", headers: headers({ "content-type": blob.type || "audio/webm" }), body: blob }).then(check),
+    pair: (ip) => get(`api/pair${ip ? `?ip=${encodeURIComponent(ip)}` : ""}`),
+    webLink: () => (token ? `${location.origin}${location.pathname}#t=${token}` : ""),
+    docUrl: (id) => withToken(`doc/${id}`),
+    reset: () => post("api/reset"),
     onEvent: (fn) => listeners.push(fn),
   };
 })();

@@ -1,6 +1,7 @@
 // Talking to Tia on the computer. The phone only knows the address + pairing token from the QR code.
 import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { File } from "expo-file-system";
 
 const KEY = "tia.pair.v1";
 
@@ -25,15 +26,15 @@ export async function forgetPair() {
   await AsyncStorage.removeItem(KEY);
 }
 
-async function call(pair, path, { method = "GET", body, timeout = 15000 } = {}) {
+async function call(pair, path, { method = "GET", body, timeout = 15000, contentType } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const isForm = body instanceof FormData;
+    const raw = contentType != null; // raw bytes (audio) go as they are
     const res = await fetch(`${pair.url}/api/m/${path}`, {
       method,
-      headers: { "x-tia-token": pair.token, ...(body && !isForm ? { "content-type": "application/json" } : {}) },
-      body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
+      headers: { "x-tia-token": pair.token, ...(body ? { "content-type": raw ? contentType : "application/json" } : {}) },
+      body: body ? (raw ? body : JSON.stringify(body)) : undefined,
       signal: ctrl.signal,
     });
     const json = await res.json().catch(() => ({}));
@@ -54,12 +55,15 @@ export const api = {
   say: (pair, text) => call(pair, "say", { method: "POST", body: { text }, timeout: 90000 }),
   decide: (pair, id, verdict, editedText) => call(pair, "decide", { method: "POST", body: { id, verdict, editedText } }),
   run: (pair) => call(pair, "run", { method: "POST", body: { mode: "auto" } }),
+  // fire-and-forget diagnostics into the computer's log
+  log: (pair, event, detail = "") => call(pair, "log", { method: "POST", body: { event, detail: String(detail) }, timeout: 8000 }).catch(() => {}),
   reset: (pair) => call(pair, "reset", { method: "POST", body: {} }),
-  voice: (pair, uri) => {
-    const form = new FormData();
+  // Expo's fetch can't upload a file by path (FormData {uri}), so the recording is read and sent as raw bytes.
+  voice: async (pair, uri) => {
     const ext = (uri.split(".").pop() || "m4a").toLowerCase();
-    form.append("file", { uri, name: `clip.${ext}`, type: ext === "webm" ? "audio/webm" : ext === "wav" ? "audio/wav" : "audio/m4a" });
-    return call(pair, "voice", { method: "POST", body: form, timeout: 120000 });
+    const bytes = await new File(uri).arrayBuffer();
+    const type = ext === "webm" ? "audio/webm" : ext === "wav" ? "audio/wav" : "audio/mp4";
+    return call(pair, "voice", { method: "POST", body: bytes, contentType: type, timeout: 120000 });
   },
 };
 

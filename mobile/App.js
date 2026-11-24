@@ -23,7 +23,7 @@ export default function App() {
           <ActivityIndicator color={C.accent} />
         </View>
       ) : pair ? (
-        <HomeScreen pair={pair} onUnpair={() => forgetPair().finally(() => setPair(null))} />
+        <HomeScreen pair={pair} onUnpair={() => forgetPair().finally(() => setPair(null))} onRepair={setPair} />
       ) : (
         <PairScreen onPaired={setPair} />
       )}

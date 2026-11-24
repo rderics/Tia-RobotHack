@@ -263,6 +263,7 @@ function snapshot() {
     owner: info.owner,
     profile: info.profile,
     inboxSource: info.inboxSource,
+    publicUrl: loadConfig().publicUrl || null,
     suggestions:
       info.profile === "owner"
         ? ["Brief me", "What needs me today?"]

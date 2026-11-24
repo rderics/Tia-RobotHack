@@ -20,6 +20,10 @@ try {
   stage3d = window.TiaScene.createScene($("stage"), { reducedMotion });
   if (SHOT) stage3d.setSpeed(0.05);
   window.__tiaStage = stage3d; // handy for testing (e.g. __tiaStage.setSpeed(0.3))
+  // A real character model, if one is installed (assets/tia-avatar.glb); otherwise the simple-shape Tia stays.
+  fetch("assets/tia-avatar.glb", { method: "HEAD" })
+    .then((r) => r.ok && stage3d.loadAvatar("assets/tia-avatar.glb"))
+    .catch((e) => console.warn("Avatar not loaded", e));
 } catch (e) {
   console.warn("3D stage unavailable", e); // the rest of the screen still works without WebGL
 }

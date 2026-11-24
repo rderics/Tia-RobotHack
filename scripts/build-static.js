@@ -6,7 +6,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const out = path.resolve(process.argv[2] || path.join(ROOT, "dist", "tia"));
-const base = process.argv[3] || "/tia/";
+const base = process.argv[3] || "/tia/demo/";
 
 const inbox = JSON.parse(fs.readFileSync(path.join(ROOT, "demo/inbox.json"), "utf8"));
 const replay = JSON.parse(fs.readFileSync(path.join(ROOT, "demo/replay.json"), "utf8"));
@@ -31,8 +31,8 @@ html = html
   .replace('<script src="web-bridge.js"></script>', '<script src="guard.js"></script>\n  <script src="web-bridge.js"></script>')
   .replace("<title>Tia</title>", "<title>Tia – AI secretary demo</title>")
   // Cloudflare Pages adds its Web Analytics beacon to every page – let it load and report.
-  .replace("script-src 'self';", "script-src 'self' https://static.cloudflareinsights.com;")
-  .replace("connect-src 'self';", "connect-src 'self' https://cloudflareinsights.com;");
+  .replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
+  .replace("connect-src 'self'", "connect-src 'self' https://cloudflareinsights.com");
 fs.writeFileSync(path.join(out, "index.html"), html);
 fs.copyFileSync(path.join(ROOT, "src/renderer/styles.css"), path.join(out, "styles.css"));
 fs.mkdirSync(path.join(out, "assets"), { recursive: true });
