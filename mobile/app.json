@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Tia",
+    "slug": "tia-secretary",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "lv.rderics.tia"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0C0B0F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "lv.rderics.tia"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "backgroundColor": "#0C0B0F",
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Tia listens only while you hold the talk button. Recordings are deleted right after they are turned into text."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "The camera is used only to scan the pairing QR code on Tia's screen.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ]
+  }
+}

@@ -1,11 +1,18 @@
-// Tia's screen: 3D stage + phone + list. Talks to the brain only through window.tia
-// (preload.js in the desktop app, web-bridge.js on the website, static-bridge.js on the public replay site).
+// Tia's big screen: 3D stage + conversation + the desk (Needs you / Done).
+// Talks to the brain only through window.tia (web-bridge.js from Tia's server, static-bridge.js on the public replay site).
+// The owner's real phone (Expo app) shares the same desk: what is approved there closes here, and the other way round.
 const $ = (id) => document.getElementById(id);
-const state = { handled: 0, needs: 0, done: 0, total: 0, running: false };
-const CHANNEL_LABEL = { email: "Email", whatsapp: "WhatsApp", instagram: "Instagram", slack: "Slack" };
+const state = { handled: 0, total: 0, done: 0, running: false, live: false };
+const CHANNEL_LABEL = { email: "Email", whatsapp: "WhatsApp", instagram: "Instagram", slack: "Slack", voice: "You asked" };
+const KIND_LABEL = { offer: "Offer", order: "Order", reply: "Reply", calendar: "Calendar", task: "Task" };
 const params = new URLSearchParams(location.search);
 const SHOT = !!params.get("shot");
 const reducedMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const eur = (n) => {
+  const v = Math.round(Number(n || 0) * 100) / 100;
+  const [i, d] = v.toFixed(2).split(".");
+  return `${i.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}${d === "00" ? "" : "," + d} €`;
+};
 
 // ---------- 3D stage ----------
 let stage3d = null;
@@ -65,13 +72,20 @@ function stopSpeaking() {
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 function say(text, { speak = true } = {}) {
-  $("speech").textContent = text;
+  $("speechText").textContent = text;
+  $("speech").classList.remove("pop");
+  void $("speech").offsetWidth;
+  $("speech").classList.add("pop");
   if (speak && voice.on) return speakAloud(text);
   if (stage3d && speak) {
     stage3d.setTalking(true);
     setTimeout(() => stage3d.setTalking(false), 1400);
   }
   return Promise.resolve();
+}
+function showSaid(text) {
+  $("said").hidden = !text;
+  $("saidText").textContent = text ? `“${text}”` : "";
 }
 function setVoice(on, persist = true) {
   voice.on = on;
@@ -81,10 +95,15 @@ function setVoice(on, persist = true) {
     } catch {}
   }
   $("voiceBtn").textContent = on ? "Voice on" : "Voice off";
+  $("voiceBtn").classList.toggle("off", !on);
   if (!on) stopSpeaking();
 }
+function setMode(kind, text) {
+  $("mode").className = `mode ${kind}`;
+  $("modeText").textContent = text;
+}
 
-// ---------- phone notifications: no spam ----------
+// ---------- phone mock-up: no spam ----------
 // Urgent (fraud, complaints) buzz right away. Everything else that needs the owner is collected into
 // ONE summary notification. Work Tia finished herself never buzzes.
 const phone = { digest: [], silent: 0 };
@@ -139,7 +158,7 @@ function resetPhone() {
   $("phoneQuiet").textContent = "Handled work stays silent.";
 }
 
-// ---------- list ----------
+// ---------- the desk ----------
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -153,23 +172,34 @@ function showTab(name) {
 }
 function focusItem(id) {
   showTab("needs");
-  const item = id ? document.querySelector(`.item[data-id="${id}"]`) : $("needs").firstElementChild;
+  const item = id ? document.querySelector(`.item[data-id="${id}"]`) : $("needs").querySelector(".item");
   if (!item) return;
   item.classList.add("open", "flash");
   item.scrollIntoView({ behavior: "smooth", block: "nearest" });
   setTimeout(() => item.classList.remove("flash"), 1500);
 }
+function dropEmpty(list) {
+  list.querySelectorAll(".empty").forEach((e) => e.remove());
+}
+function ensureEmpty() {
+  if (!$("needs").querySelector(".item") && !$("needs").querySelector(".empty"))
+    $("needs").appendChild(el("div", "empty", state.total ? "Nothing needs you right now." : "Things that need your decision land here, with my draft ready."));
+  if (!$("handled").querySelector(".item") && !$("handled").querySelector(".empty")) $("handled").appendChild(el("div", "empty", "Things I finish – and things you approve – land here."));
+}
 
+// Inbox message (result from the brain)
 function renderItem(r) {
   const node = $("itemTpl").content.firstElementChild.cloneNode(true);
   const m = r.message;
   const p = r.proposal || {};
   node.dataset.id = m.id;
+  node.dataset.kind = "message";
   node.querySelector(".dot").classList.add(m.channel);
   node.querySelector(".who").textContent = `${m.from}`;
   node.querySelector(".when").textContent = `${CHANNEL_LABEL[m.channel] || m.channel} · ${m.time}`;
   node.querySelector(".what").textContent = r.error ? `Couldn't process: ${r.error}` : p.summary;
   node.querySelector(".item-head").onclick = () => node.classList.toggle("open");
+  node.querySelector(".lines").remove();
   if (p.draft_reply) node.querySelector(".draft-text").textContent = p.draft_reply;
   else node.querySelector(".draft").remove();
   const ul = node.querySelector(".actions");
@@ -180,31 +210,62 @@ function renderItem(r) {
   g.textContent = (r.guardNotes || []).join(" ");
   if ((r.guardNotes || []).some((n) => n.startsWith("Learned"))) g.classList.add("learned");
   if (p.vault_sources && p.vault_sources.length) node.querySelector(".sources").textContent = "From your notes: " + p.vault_sources.join(", ");
-  if (r.decision === "escalate" && !r.error) addOwnerButtons(node, r);
+  if (isUrgent(r) && r.decision !== "handle") node.classList.add("urgent");
+  if (r.decision === "escalate" && !r.error) addOwnerButtons(node, { id: m.id, hasText: !!p.draft_reply, text: p.draft_reply, legacy: { message: m, proposal: p } });
+  if (r.decision === "handle") node.querySelector(".buttons").appendChild(el("span", "resolved", "Handled by Tia"));
   return node;
 }
 
-function addOwnerButtons(node, r) {
+// Proposal Tia prepared from a voice/typed request (offer, order, …)
+function renderProposal(c) {
+  const node = $("itemTpl").content.firstElementChild.cloneNode(true);
+  node.dataset.id = c.id;
+  node.dataset.kind = c.kind;
+  node.classList.add("proposal", "open");
+  node.querySelector(".dot").classList.add("voice");
+  node.querySelector(".who").textContent = c.title || c.from;
+  node.querySelector(".when").textContent = `${KIND_LABEL[c.kind] || "Task"} · for ${c.from}`;
+  node.querySelector(".what").textContent = c.summary;
+  node.querySelector(".item-head").onclick = () => node.classList.toggle("open");
+  const lines = node.querySelector(".lines");
+  if (c.lines && c.lines.length) {
+    for (const l of c.lines) {
+      const row = el("div", "line");
+      row.append(el("span", null, l.item), el("b", null, eur(l.amount_eur)));
+      lines.appendChild(row);
+    }
+    const tot = el("div", "line total");
+    tot.append(el("span", null, "Total"), el("b", null, eur(c.total)));
+    lines.appendChild(tot);
+  } else lines.remove();
+  if (c.text) {
+    node.querySelector(".label").textContent = "Message";
+    node.querySelector(".draft-text").textContent = c.text;
+  } else node.querySelector(".draft").remove();
+  node.querySelector(".actions").remove();
+  node.querySelector(".reason").remove();
+  node.querySelector(".guard").textContent = (c.guard || []).join(" ");
+  if (c.sources && c.sources.length) node.querySelector(".sources").textContent = "From your notes: " + c.sources.join(", ");
+  if (c.state === "open") addOwnerButtons(node, { id: c.id, hasText: !!c.text, text: c.text, kind: c.kind });
+  if (c.kind === "offer" && window.tia.docUrl) {
+    const view = el("button", "btn small ghost doc-btn", "Open document");
+    view.onclick = () => openDoc(c.id, c.title);
+    node.querySelector(".buttons").appendChild(view);
+  }
+  return node;
+}
+
+function addOwnerButtons(node, { id, hasText, text, kind, legacy }) {
   const box = node.querySelector(".buttons");
-  const p = r.proposal;
-  const approve = el("button", "btn small ok", p.draft_reply ? "Approve & send" : "Approve");
+  const approve = el("button", "btn small ok", kind === "order" ? "Approve order" : hasText ? "Approve & send" : "Approve");
   const edit = el("button", "btn small", "Edit");
   const reject = el("button", "btn small ghost", "Reject");
-  box.append(approve, edit, reject);
-  const resolve = async (verdict, editedReply) => {
-    const res = await window.tia.feedback({ message: r.message, proposal: p, verdict, editedReply });
-    box.innerHTML = "";
-    box.appendChild(
-      el(
-        "span",
-        verdict === "reject" ? "resolved rejected" : "resolved",
-        verdict === "reject" ? "Rejected – I'll be more careful with this kind." : `Done${p.draft_reply ? " – reply sent (simulated)" : ""} · learned ${Math.min(res.approvals, res.needed)}/${res.needed}`
-      )
-    );
-    node.classList.add("done");
-    node.classList.remove("open");
-    if (verdict !== "reject" && res.approvals === res.needed && p.category === "new_lead") say("Got it. I'll answer new leads like this myself from now on. Start the day again to see.");
-    else say(verdict === "reject" ? "Okay, I won't do that. Noted in your notes." : "Thanks, noted in your notes so I learn from it.");
+  box.prepend(approve, ...(hasText ? [edit] : []), reject);
+  const resolve = async (verdict, editedText) => {
+    [approve, edit, reject].forEach((b) => (b.disabled = true));
+    const res = window.tia.decide ? await window.tia.decide(id, verdict, editedText) : await window.tia.feedback({ ...legacy, verdict, editedReply: editedText });
+    // Tia's server also sends a "decided" event (that is what the phone sees); the public replay site doesn't.
+    if (!window.tia.decide) markDecided(id, verdict, { learn: res, line: null, via: "desktop" });
   };
   approve.onclick = () => resolve("approve");
   reject.onclick = () => resolve("reject");
@@ -213,7 +274,7 @@ function addOwnerButtons(node, r) {
     if (!d) return resolve("approve");
     node.classList.add("open");
     const ta = document.createElement("textarea");
-    ta.value = p.draft_reply;
+    ta.value = text || "";
     d.querySelector(".draft-text").replaceWith(ta);
     ta.focus();
     edit.textContent = "Save & send";
@@ -223,33 +284,181 @@ function addOwnerButtons(node, r) {
   };
 }
 
+// A decision was made – here or on the phone. Close the card and move it to Done.
+function markDecided(id, verdict, { learn, line, via, kind } = {}) {
+  const node = document.querySelector(`.item[data-id="${id}"]`);
+  if (!node || node.classList.contains("done")) return;
+  const box = node.querySelector(".buttons");
+  box.querySelectorAll("button:not(.doc-btn)").forEach((b) => b.remove());
+  const learned = learn && learn.needed ? ` · learned ${Math.min(learn.approvals, learn.needed)}/${learn.needed}` : "";
+  const where = via === "phone" ? " on your phone" : "";
+  const text = verdict === "reject" ? `Rejected${where}` : `${verdict === "edit" ? "Edited and approved" : "Approved"}${where}${learned}`;
+  box.prepend(el("span", verdict === "reject" ? "resolved rejected" : "resolved", text));
+  node.classList.add("done");
+  node.classList.remove("open", "urgent");
+  dropEmpty($("handled"));
+  $("handled").prepend(node);
+  ensureEmpty();
+  updateStats();
+  if (line) say(line, { speak: via !== "phone" });
+  else
+    say(
+      verdict === "reject" ? "Okay, I won't do that. Noted in your notes." : learn && learn.approvals === learn.needed ? "Got it. I'll answer messages like this myself from now on." : "Thanks, noted in your notes so I learn from it."
+    );
+  if (verdict !== "reject" && (kind || node.dataset.kind) === "offer" && window.tia.docUrl) openDoc(id, node.querySelector(".who").textContent);
+}
+
 function updateStats() {
+  const needs = $("needs").querySelectorAll(".item").length;
   $("statHandled").textContent = state.handled;
-  $("statNeeds").textContent = state.needs;
-  $("countHandled").textContent = state.handled;
-  $("countNeeds").textContent = state.needs;
+  $("statNeeds").textContent = needs;
+  $("countHandled").textContent = $("handled").querySelectorAll(".item").length;
+  $("countNeeds").textContent = needs;
   $("statMinutes").textContent = state.handled * 4;
   $("progressBar").style.width = (state.total ? Math.round((state.done / state.total) * 100) : 0) + "%";
+  if (stage3d && stage3d.setCounts) stage3d.setCounts({ inbox: Math.max(0, state.total - state.done), sent: $("handled").querySelectorAll(".resolved:not(.rejected)").length });
 }
-function clearBoard() {
-  $("handled").innerHTML = "";
-  $("needs").innerHTML = "";
-  Object.assign(state, { handled: 0, needs: 0, done: 0, total: 0 });
+function clearInbox() {
+  // A new day: inbox cards go, cards Tia prepared from your requests stay.
+  document.querySelectorAll('.item[data-kind="message"]').forEach((n) => n.remove());
+  Object.assign(state, { handled: 0, done: 0, total: 0 });
   resetPhone();
+  ensureEmpty();
   updateStats();
   $("progressLabel").textContent = "Inbox waiting";
 }
+function clearAll() {
+  $("needs").innerHTML = "";
+  $("handled").innerHTML = "";
+  clearInbox();
+  showSaid("");
+}
 function setRunning(on) {
   state.running = on;
-  for (const id of ["runBtn", "replayBtn", "resetBtn"]) $(id).disabled = on;
+  for (const id of ["runBtn", "resetBtn"]) $(id).disabled = on;
 }
 
-// ---------- events from the brain: one at a time, animated ----------
+// ---------- documents ----------
+function openDoc(id, title) {
+  $("docTitle").textContent = title || "Document";
+  $("docFrame").src = window.tia.docUrl(id);
+  if (!$("docModal").open) $("docModal").showModal();
+}
+
+// ---------- phone pairing ----------
+async function openPair(ip) {
+  const res = await window.tia.pair(ip);
+  $("qr").innerHTML = res.svg || "";
+  const list = $("addrList");
+  list.innerHTML = "";
+  for (const a of res.addresses || []) {
+    const b = el("button", "addr-btn" + (res.selected && a.ip === res.selected.ip ? " on" : ""), a.ip);
+    b.title = a.name;
+    b.type = "button";
+    b.onclick = () => openPair(a.ip);
+    list.appendChild(b);
+  }
+  if (!$("pairModal").open) $("pairModal").showModal();
+}
+
+// ---------- talking to Tia from the big screen ----------
+let thinkingTimer = null;
+function setThinking(on) {
+  $("stage").classList.toggle("thinking", on);
+  $("askbar").classList.toggle("busy", on);
+  clearTimeout(thinkingTimer);
+  if (on) thinkingTimer = setTimeout(() => setThinking(false), 90000);
+}
+async function ask(text) {
+  text = (text || "").trim();
+  if (!text) return;
+  $("askInput").value = "";
+  showSaid(text);
+  setThinking(true);
+  say("One moment…", { speak: false });
+  const res = await window.tia.say(text);
+  if (res.error && !res.heard) {
+    setThinking(false);
+    say(res.say || res.error);
+  }
+}
+const rec = { media: null, chunks: [], stream: null, started: 0 };
+async function micDown(e) {
+  e.preventDefault();
+  if (rec.media || $("askbar").classList.contains("busy")) return;
+  stopSpeaking();
+  try {
+    rec.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    say("I can't use the microphone here – type instead.", { speak: false });
+    return;
+  }
+  rec.chunks = [];
+  rec.media = new MediaRecorder(rec.stream);
+  rec.media.ondataavailable = (ev) => ev.data.size && rec.chunks.push(ev.data);
+  rec.media.start();
+  rec.started = Date.now();
+  $("micBtn").classList.add("on");
+  $("recNote").hidden = false;
+  showSaid("");
+  say("Listening…", { speak: false });
+}
+async function micUp() {
+  if (!rec.media) return;
+  const media = rec.media;
+  rec.media = null;
+  $("micBtn").classList.remove("on");
+  $("recNote").hidden = true;
+  const stopped = new Promise((r) => (media.onstop = r));
+  media.stop();
+  await stopped;
+  rec.stream.getTracks().forEach((t) => t.stop());
+  if (Date.now() - rec.started < 600) return say("Hold the mic while you talk, then let go.", { speak: false });
+  const blob = new Blob(rec.chunks, { type: media.mimeType || "audio/webm" });
+  setThinking(true);
+  say("One moment…", { speak: false });
+  const res = await window.tia.voice(blob);
+  if (res.error && !res.heard) {
+    setThinking(false);
+    say(res.say || "I didn't catch that.");
+  }
+}
+
+// ---------- events from the brain ----------
+// Inbox events are queued and animated one at a time; conversation and decisions show at once.
 const queue = [];
 let draining = false;
 let runId = 0;
 function onEvent(ev) {
   if (ev.type === "thinking") return; // the stage shows what Tia is reading, in step with the animation
+  if (ev.type === "heard") {
+    showSaid(ev.text);
+    setThinking(true);
+    if (ev.via === "phone") say("One moment…", { speak: false });
+    return;
+  }
+  if (ev.type === "reply") {
+    setThinking(false); // "heard" already showed the owner's own words
+    if (ev.mode === "scripted") setMode("script", "Offline demo script");
+    else if (ev.mode === "live") setMode("live", state.live);
+    if (ev.item) {
+      dropEmpty($("needs"));
+      $("needs").prepend(renderProposal(ev.item));
+      showTab("needs");
+      focusItem(ev.item.id);
+      updateStats();
+    }
+    say(ev.say, { speak: ev.via !== "phone" }); // the phone speaks its own answers
+    return;
+  }
+  if (ev.type === "decided") return markDecided(ev.id, ev.verdict, ev);
+  if (ev.type === "reset") {
+    runId++;
+    queue.length = 0;
+    stopSpeaking();
+    clearAll();
+    return;
+  }
   queue.push({ ev, run: runId });
   drain();
 }
@@ -265,7 +474,10 @@ async function drain() {
 }
 async function handleEvent(ev) {
   if (ev.type === "start") {
+    clearInbox();
+    setRunning(true);
     state.total = ev.total;
+    if (ev.mode === "replay" && !state.isStatic) setMode("script", "Saved real run");
     updateStats();
     await say(ev.mode === "replay" ? "Going through today's inbox." : `Reading ${ev.total} new messages.`, { speak: false });
   } else if (ev.type === "result") {
@@ -275,17 +487,17 @@ async function handleEvent(ev) {
       : r.decision === "handle"
         ? r.proposal.narration || `Handled: ${r.proposal.summary}`
         : `This one needs you: ${r.proposal.summary}`;
-    $("speech").textContent = `Reading ${CHANNEL_LABEL[r.message.channel] || r.message.channel} from ${r.message.from}…`;
+    $("speechText").textContent = `Reading ${CHANNEL_LABEL[r.message.channel] || r.message.channel} from ${r.message.from}…`;
     $("progressLabel").textContent = `Message ${state.done + 1} of ${state.total}`;
-    await animate(r).then(() => null);
+    await animate(r);
     state.done++;
-    document.querySelectorAll(".list .empty").forEach((e) => e.remove());
     const item = renderItem(r);
     if (r.decision === "handle") {
       state.handled++;
+      dropEmpty($("handled"));
       $("handled").prepend(item);
     } else {
-      state.needs++;
+      dropEmpty($("needs"));
       $("needs").prepend(item);
     }
     phoneOnResult(r);
@@ -296,7 +508,9 @@ async function handleEvent(ev) {
     phoneOnDone();
     setRunning(false);
     $("progressLabel").textContent = "Inbox done";
+    ensureEmpty();
     await say(`Done. I handled ${s.handled} things myself, about ${s.minutesSaved} minutes saved. ${s.needsYou} need you, and my drafts are ready.`);
+    if (SHOT) console.log("TIA-DONE");
   } else if (ev.type === "error") {
     setRunning(false);
     await say(`Something went wrong: ${ev.error}`, { speak: false });
@@ -308,50 +522,79 @@ async function start(mode) {
   runId++;
   queue.length = 0;
   stopSpeaking();
-  clearBoard();
   showTab("needs");
   setRunning(true);
-  await window.tia.run(mode);
+  await window.tia.run(state.isStatic ? "replay" : mode || "auto");
+}
+
+// Rebuild the desk after a page reload (the server keeps it).
+async function restore() {
+  if (!window.tia.state) return;
+  const snap = await window.tia.state();
+  for (const c of [...snap.done].reverse()) {
+    if (c.kind === "message") continue; // inbox cards come back with the next run
+    const n = renderProposal(c);
+    $("handled").prepend(n);
+    markDecidedQuiet(n, c.state);
+  }
+  for (const c of [...snap.needs].reverse()) if (c.kind !== "message") $("needs").prepend(renderProposal(c));
+  if (snap.mode === "scripted") setMode("script", "Offline demo script");
+}
+function markDecidedQuiet(node, st) {
+  node.classList.add("done");
+  node.classList.remove("open");
+  node.querySelector(".buttons").prepend(el("span", st === "rejected" ? "resolved rejected" : "resolved", st === "rejected" ? "Rejected" : "Approved"));
 }
 
 async function init() {
   const info = await window.tia.info();
+  state.isStatic = !!info.static;
   $("today").textContent = info.today;
-  $("mode").textContent = info.static
-    ? "Recorded demo · a real Claude run, replayed"
-    : info.provider === "api"
-      ? `Claude API · ${info.model}`
-      : `Claude subscription · ${info.model}`;
-  $("replayBtn").disabled = !info.hasReplay;
-  if (info.static) $("replayBtn").hidden = true; // on the public site "Start the day" plays the recording
+  state.live = info.provider === "api" ? `Claude API · ${info.model}` : `Live · ${info.model}`;
+  if (info.static) setMode("script", "Recorded demo · a real Claude run, replayed");
+  else setMode("live", state.live);
+
+  const canTalk = !!window.tia.say;
+  $("askbar").hidden = !canTalk;
+  $("pairBtn").hidden = !window.tia.pair;
+  document.body.classList.toggle("can-talk", canTalk);
+
   window.tia.onEvent(onEvent);
-  $("runBtn").onclick = () => start("live");
-  $("replayBtn").onclick = () => start("replay");
+  $("runBtn").onclick = () => start("auto");
   $("resetBtn").onclick = async () => {
     await window.tia.reset();
-    runId++;
-    queue.length = 0;
-    stopSpeaking();
-    clearBoard();
-    say("I've forgotten what you taught me today. Fresh start.");
+    if (!window.tia.state) {
+      runId++;
+      queue.length = 0;
+      stopSpeaking();
+      clearAll();
+    }
+    say("Fresh start. I've forgotten what you taught me today.");
   };
   $("voiceBtn").onclick = () => setVoice(!voice.on);
+  $("pairBtn").onclick = () => openPair();
+  $("printBtn").onclick = () => $("docFrame").contentWindow && $("docFrame").contentWindow.print();
+  document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
+  document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => e.target === d && d.close()));
   document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => showTab(t.dataset.tab)));
-  $("needs").appendChild(el("div", "empty", "Things that need your decision land here, with my reply ready."));
-  $("handled").appendChild(el("div", "empty", "Things I finish on my own land here."));
+  $("askbar").onsubmit = (e) => {
+    e.preventDefault();
+    ask($("askInput").value);
+  };
+  $("micBtn").addEventListener("pointerdown", micDown);
+  window.addEventListener("pointerup", micUp);
+  window.addEventListener("pointercancel", micUp);
 
+  ensureEmpty();
   setVoice(voice.on, false);
+  await restore().catch(() => {});
+  updateStats();
   if (SHOT) {
     document.body.classList.add("no-anim");
     setVoice(false, false); // screenshot test runs silently (not saved)
-    setTimeout(() => {
-      const vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-      console.log(`TIA-VOICES ${vs.length} | chosen: ${voice.chosen ? voice.chosen.name : "none"} | 3D: ${stage3d ? "on" : "off"}`);
-    }, 800);
   }
   const autorun = params.get("autorun");
-  if (autorun === "replay") start("replay");
-  if (autorun === "live") start("live");
+  if (autorun === "replay" || autorun === "live") start(autorun);
 }
 
 init();

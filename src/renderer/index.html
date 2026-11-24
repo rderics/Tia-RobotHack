@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:" />
   <title>Tia</title>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png" />
@@ -13,17 +13,17 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <img class="logo" src="assets/logo-light.png" alt="TiA" width="44" height="44" />
+      <img class="logo" src="assets/logo-light.png" alt="TiA" width="40" height="40" />
       <div>
-        <div class="brand-name">Tia</div>
+        <div class="brand-name">Tia <span class="brand-role">secretary</span></div>
         <div class="brand-sub"><span id="business">Liepa Interjers</span> · <span id="today"></span></div>
       </div>
     </div>
     <div class="controls">
-      <span class="mode" id="mode"></span>
-      <button class="btn ghost" id="voiceBtn" title="Tia reads her updates out loud">Voice on</button>
-      <button class="btn ghost" id="resetBtn" title="Forget what Tia learned and clear her log">Reset</button>
-      <button class="btn ghost" id="replayBtn" title="Play the last saved run (no internet needed)">Replay</button>
+      <span class="mode" id="mode"><i></i><span id="modeText"></span></span>
+      <button class="btn ghost" id="pairBtn" title="Connect the owner's phone"><i class="pair-dot" id="pairDot"></i>Connect phone</button>
+      <button class="btn ghost icon" id="voiceBtn" title="Tia reads her updates out loud" aria-label="Voice on">Voice on</button>
+      <button class="btn ghost" id="resetBtn" title="Clear the desk and what Tia learned – for the next visitor">Reset</button>
       <button class="btn primary" id="runBtn">Start the day</button>
     </div>
   </header>
@@ -37,7 +37,17 @@
         <div class="chip-stat"><b id="statMinutes">0</b> min saved</div>
       </div>
       <div class="status" id="progressLabel">Inbox waiting</div>
-      <div class="caption" id="speech">Good morning. Press “Start the day” and I'll go through the inbox.</div>
+
+      <div class="talk" id="talk">
+        <div class="said" id="said" hidden><span class="who-tag">You</span><span id="saidText"></span></div>
+        <div class="caption" id="speech"><span class="who-tag tia">Tia</span><span id="speechText">Good morning. Press “Start the day” and I'll go through the inbox.</span></div>
+        <form class="askbar" id="askbar" hidden>
+          <button type="button" class="mic" id="micBtn" title="Hold to talk to Tia" aria-label="Hold to talk to Tia"><span></span></button>
+          <input id="askInput" type="text" autocomplete="off" placeholder="Hold the mic and talk – or type: “Prepare Ieva's kitchen offer”" />
+          <button type="submit" class="btn small" id="askSend">Send</button>
+        </form>
+        <div class="rec-note" id="recNote" hidden>● Listening · nothing is saved</div>
+      </div>
 
       <div class="phone" id="phone" aria-label="Owner's phone">
         <div class="phone-notch"></div>
@@ -51,15 +61,47 @@
     <aside class="panel">
       <div class="tabs" role="tablist">
         <button class="tab active" data-tab="needs" role="tab">Needs you <span class="count warn" id="countNeeds">0</span></button>
-        <button class="tab" data-tab="handled" role="tab">Handled <span class="count ok" id="countHandled">0</span></button>
+        <button class="tab" data-tab="handled" role="tab">Done <span class="count ok" id="countHandled">0</span></button>
       </div>
       <div class="list" id="needs"></div>
       <div class="list" id="handled" hidden></div>
       <div class="rules">
-        <strong>Phone rules</strong> · urgent buzzes now · the rest arrive as one summary · handled work never buzzes
+        <strong>Tia's rules</strong> · money, complaints and anything new wait for you · urgent buzzes your phone now, the rest as one summary
       </div>
     </aside>
   </main>
+
+  <!-- Connect the phone -->
+  <dialog class="modal" id="pairModal">
+    <div class="modal-head">
+      <h2>Connect the owner's phone</h2>
+      <button class="btn ghost small" data-close>Close</button>
+    </div>
+    <div class="pair-body">
+      <div class="qr" id="qr"></div>
+      <ol class="pair-steps">
+        <li>Open the <b>Tia</b> app on the phone (in Expo Go).</li>
+        <li>Tap <b>Scan the code</b> and point it at this QR code.</li>
+        <li>The phone must be on the <b>same Wi-Fi</b> as this computer – or connect both to the phone's hotspot.</li>
+      </ol>
+    </div>
+    <div class="pair-foot">
+      <span>Phone connects to</span>
+      <div class="addr" id="addrList"></div>
+    </div>
+  </dialog>
+
+  <!-- Offer / document preview -->
+  <dialog class="modal doc-modal" id="docModal">
+    <div class="modal-head">
+      <h2 id="docTitle">Document</h2>
+      <div class="modal-actions">
+        <button class="btn primary small" id="printBtn">Print / Save as PDF</button>
+        <button class="btn ghost small" data-close>Close</button>
+      </div>
+    </div>
+    <iframe id="docFrame" title="Document preview"></iframe>
+  </dialog>
 
   <template id="itemTpl">
     <article class="item">
@@ -70,6 +112,7 @@
         <span class="what"></span>
       </button>
       <div class="item-body">
+        <div class="lines"></div>
         <div class="draft"><div class="label">My reply</div><div class="draft-text"></div></div>
         <ul class="actions"></ul>
         <div class="reason"></div>

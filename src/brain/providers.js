@@ -7,7 +7,7 @@ const { DECISION_SCHEMA, systemPrompt, userPrompt } = require("./prompt");
 
 // 1) Claude Code in the background, logged in as the person at this computer (their Claude subscription).
 //    For testing and the demo only – a shipped product must use the API key provider.
-function viaClaudeCode(cfg, prompt) {
+function viaClaudeCode(cfg, prompt, system = systemPrompt(), schema = DECISION_SCHEMA) {
   // Run from an empty folder so Claude Code does not pick up this project's files or settings.
   const cwd = path.join(os.tmpdir(), "tia-claude-run");
   fs.mkdirSync(cwd, { recursive: true });
@@ -19,8 +19,8 @@ function viaClaudeCode(cfg, prompt) {
     "--setting-sources", "",
     "--strict-mcp-config",
     "--no-session-persistence",
-    "--system-prompt", systemPrompt(),
-    "--json-schema", JSON.stringify(DECISION_SCHEMA),
+    "--system-prompt", system,
+    "--json-schema", JSON.stringify(schema),
   ];
   return new Promise((resolve, reject) => {
     const child = spawn(cfg.claudePath || "claude", args, { cwd, windowsHide: true });
@@ -44,7 +44,7 @@ function viaClaudeCode(cfg, prompt) {
 
 // 2) Claude API with an API key (ANTHROPIC_API_KEY in the environment).
 let apiClient = null;
-async function viaApi(cfg, prompt) {
+async function viaApi(cfg, prompt, system = systemPrompt(), schema = DECISION_SCHEMA) {
   if (!apiClient) {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     apiClient = new Anthropic();
@@ -54,9 +54,9 @@ async function viaApi(cfg, prompt) {
     max_tokens: 4000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default", // if the model declines, the API retries on a fallback model in the same call
-    system: systemPrompt(),
+    system,
     messages: [{ role: "user", content: prompt }],
-    output_config: { effort: "medium", format: { type: "json_schema", schema: DECISION_SCHEMA } },
+    output_config: { effort: "medium", format: { type: "json_schema", schema } },
   });
   if (response.stop_reason === "refusal") throw new Error("Claude declined this message");
   if (response.stop_reason === "max_tokens") throw new Error("Answer was cut off (max_tokens)");
@@ -70,4 +70,10 @@ async function decide(cfg, vaultContext, message, today) {
   return viaClaudeCode(cfg, prompt);
 }
 
-module.exports = { decide };
+// Any other structured question (used by voice commands): own system prompt + own answer shape.
+async function ask(cfg, { system, schema, prompt }) {
+  const r = cfg.provider === "api" ? await viaApi(cfg, prompt, system, schema) : await viaClaudeCode(cfg, prompt, system, schema);
+  return { answer: r.proposal, costUsd: r.costUsd };
+}
+
+module.exports = { decide, ask };

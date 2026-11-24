@@ -42,7 +42,7 @@ function finish(cfg, message, proposal, learning, extra = {}) {
 }
 
 // mode: "live" (calls Claude) or "replay" (plays a saved run – for bad venue Wi-Fi)
-async function runDay({ mode = "live", onEvent = () => {} } = {}) {
+async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false } = {}) {
   const cfg = loadConfig();
   const inbox = JSON.parse(fs.readFileSync(cfg.inboxFile, "utf8"));
   const learning = loadLearning(cfg);
@@ -64,7 +64,9 @@ async function runDay({ mode = "live", onEvent = () => {} } = {}) {
   } else {
     const vaultContext = readVaultContext(cfg.vaultDir);
     const saved = {};
+    let limitHit = null;
     await runPool(inbox, cfg.concurrency, async (msg) => {
+      if (limitHit) return;
       onEvent({ type: "thinking", message: msg });
       const t0 = Date.now();
       try {
@@ -74,11 +76,20 @@ async function runDay({ mode = "live", onEvent = () => {} } = {}) {
         results.push(r);
         onEvent({ type: "result", result: r });
       } catch (e) {
+        if (stopOnLimit && /limit/i.test(String(e.message || e))) {
+          limitHit = String(e.message || e);
+          return;
+        }
         const r = { message: msg, error: String(e.message || e), decision: "escalate", guardNotes: ["I couldn't process this one – please look at it yourself."] };
         results.push(r);
         onEvent({ type: "result", result: r });
       }
     });
+    if (limitHit) {
+      const err = new Error(limitHit);
+      err.code = "LIMIT";
+      throw err;
+    }
     // Keep the newest successful run for replay mode.
     if (Object.keys(saved).length === inbox.length) fs.writeFileSync(cfg.replayFile, JSON.stringify(saved, null, 2));
   }
@@ -127,7 +138,8 @@ function resetDemo() {
 
 function info() {
   const cfg = loadConfig();
-  return { provider: cfg.provider, model: cfg.model, hasReplay: fs.existsSync(cfg.replayFile), today: TODAY };
+  // canGoLive = false when config.json says the inbox should always use the saved run
+  return { provider: cfg.provider, model: cfg.model, hasReplay: fs.existsSync(cfg.replayFile), today: TODAY, canGoLive: cfg.inboxMode !== "replay" };
 }
 
 module.exports = { runDay, recordFeedback, resetDemo, info };

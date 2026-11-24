@@ -13,7 +13,8 @@
     "screenshot": "electron . --replay --screenshot=data/screenshot.png"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.10.0"
+    "@anthropic-ai/sdk": "1.10.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "electron": "45.4.1",

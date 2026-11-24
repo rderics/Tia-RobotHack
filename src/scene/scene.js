@@ -10,7 +10,7 @@ export const CHANNELS = {
   instagram: { color: "#e1306c", label: "INSTAGRAM" },
   slack: { color: "#b062e8", label: "SLACK" },
 };
-const PURPLE = 0x7c3aed;
+const PURPLE = 0x8a63e0;
 const LAVENDER = 0xc8b4ee;
 const OK = "#34d399";
 const WARN = "#f5a524";
@@ -198,31 +198,41 @@ export function createScene(container, { reducedMotion = false } = {}) {
   handR.position.copy(handRestR);
   tia.add(handL, handR);
 
-  // Portals: inbox (left), sent (right).
-  function portal(color, x, label) {
+  // Portals: inbox (left), sent (right). Each shows a live number in its centre and a small label under it.
+  function portal(color, css, x, label) {
     const g = new THREE.Group();
     g.position.set(x, 3.15, -1.2);
-    const m = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.025, 16, 96), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 }));
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.6, 64), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08 }));
-    g.add(m, disc);
+    const m = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.014, 16, 128), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75 }));
+    const halo = new THREE.Mesh(new THREE.RingGeometry(0.64, 0.78, 96), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, depthWrite: false }));
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.6, 64), new THREE.MeshBasicMaterial({ color: 0x0e0d13, transparent: true, opacity: 0.55 }));
+    g.add(disc, halo, m);
     const c = document.createElement("canvas");
     c.width = 512;
-    c.height = 96;
+    c.height = 512;
     const ctx = c.getContext("2d");
-    ctx.font = "600 52px 'Segoe UI', system-ui, sans-serif";
-    ctx.fillStyle = "#cfc8de";
-    ctx.textAlign = "center";
-    ctx.fillText(label, 256, 66);
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
-    const lbl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.26), new THREE.MeshBasicMaterial({ map: t, transparent: true }));
-    lbl.position.y = -0.9;
-    g.add(lbl);
+    function draw(n) {
+      ctx.clearRect(0, 0, 512, 512);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#f3f1f6";
+      ctx.font = "300 190px 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif";
+      ctx.fillText(String(n), 256, 268);
+      ctx.fillStyle = css;
+      ctx.font = "600 44px 'Segoe UI', system-ui, sans-serif";
+      ctx.fillText(label.split("").join(String.fromCharCode(8202)), 256, 500);
+      t.needsUpdate = true;
+    }
+    draw(0);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+    face.position.set(0, -0.2, 0.01);
+    g.add(face);
+    g.userData.draw = draw;
     scene.add(g);
     return g;
   }
-  const inbox = portal(0x8b7bb0, -3.7, "INBOX");
-  const sent = portal(0x34d399, 3.7, "SENT");
+  const inbox = portal(0xb9a3f2, "#b9a3f2", -3.7, "INBOX");
+  const sent = portal(0x4cc38a, "#4cc38a", 3.7, "SENT");
 
   // Particles for little bursts.
   const bursts = [];
@@ -464,6 +474,10 @@ export function createScene(container, { reducedMotion = false } = {}) {
     play,
     screenToWorld,
     setTalking: (on) => (talking = on),
+    setCounts: ({ inbox: a, sent: b }) => {
+      if (a != null) inbox.userData.draw(a);
+      if (b != null) sent.userData.draw(b);
+    },
     setSpeed: (k) => (speed.k = k),
   };
 }
