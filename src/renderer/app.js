@@ -354,6 +354,9 @@ function openDoc(id, title) {
 async function openPair(ip) {
   const res = await window.tia.pair(ip);
   $("qr").innerHTML = res.svg || "";
+  $("appQr").innerHTML = res.appSvg || "";
+  $("openBlock").hidden = !res.appSvg;
+  document.querySelector(".pair-alt").open = !res.appSvg;
   const list = $("addrList");
   list.innerHTML = "";
   for (const a of res.addresses || []) {

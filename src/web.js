@@ -55,6 +55,20 @@ function addresses() {
 }
 const pairCode = (url, token) => `tia:${url}?t=${token}`;
 
+// The phone app as published to Expo (npx eas-cli update → data/eas-update.json). Opening this link on a phone
+// starts the app in Expo Go; the part after /--/ tells the app where Tia is and her code, so it connects by itself.
+function appLink(url, token) {
+  try {
+    const app = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "mobile", "app.json"), "utf8")).expo;
+    const projectId = app.extra.eas.projectId;
+    const updates = JSON.parse(fs.readFileSync(path.join(loadConfig().dataDir, "eas-update.json"), "utf8").replace(/^\uFEFF/, ""));
+    const group = updates[0].group;
+    return `exp://u.expo.dev/${projectId}/group/${group}/--/connect?u=${encodeURIComponent(url)}&t=${token}`;
+  } catch {
+    return ""; // app not published yet
+  }
+}
+
 // ---------- helpers ----------
 // A request through the Cloudflare tunnel also comes from 127.0.0.1 – Cloudflare's own headers tell them apart.
 const viaInternet = (req) => !!(req.headers["cf-ray"] || req.headers["cf-connecting-ip"] || req.headers["cf-visitor"]);
@@ -230,9 +244,14 @@ async function localApi(req, res, route, url) {
     const pick = list.find((a) => a.ip === url.searchParams.get("ip")) || list[0];
     if (!pick) return sendJson(res, 200, { addresses: [], error: "No network found – connect this computer to Wi-Fi." });
     const code = pairCode(pick.url, pairToken());
-    const svg = await QRCode.toString(code, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#111013", light: "#ffffff" } });
+    const qr = (text) => QRCode.toString(text, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#111013", light: "#ffffff" } });
+    const svg = await qr(code);
+    const open = appLink(pick.url, pairToken());
+    const appSvg = open ? await qr(open) : "";
     const pub = loadConfig().publicUrl;
-    return sendJson(res, 200, { addresses: list, selected: pick, svg, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
+    // Through the website only the public address makes sense – the home network addresses are hidden there.
+    const shown = isLocal(req) ? list : list.filter((a) => a.url === (pub || "").replace(/\/$/, ""));
+    return sendJson(res, 200, { addresses: shown, selected: pick, svg, appSvg, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
   }
   if (req.method === "GET" && route === "/api/events") {
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });

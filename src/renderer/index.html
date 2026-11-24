@@ -77,14 +77,27 @@
       <h2>Connect the owner's phone</h2>
       <button class="btn ghost small" data-close>Close</button>
     </div>
-    <div class="pair-body">
-      <div class="qr" id="qr"></div>
-      <ol class="pair-steps">
-        <li>Open the <b>Tia</b> app on the phone (in Expo Go).</li>
-        <li>Tap <b>Scan the code</b> and point it at this QR code.</li>
-        <li>The phone must be on the <b>same Wi-Fi</b> as this computer – or connect both to the phone's hotspot.</li>
-      </ol>
+    <div class="pair-body" id="openBlock">
+      <div class="qr" id="appQr"></div>
+      <div>
+        <p class="pair-lead">Scan with the phone's <b>camera</b> – Tia opens and connects by herself.</p>
+        <ol class="pair-steps">
+          <li>The first time, install the free <b>Expo Go</b> app (App Store / Google Play), then scan again.</li>
+          <li>Tap <b>Open in Expo Go</b>. Tia starts already connected – hold or tap the mic and talk.</li>
+          <li>Works anywhere with internet, not only at home.</li>
+        </ol>
+      </div>
     </div>
+    <details class="pair-alt">
+      <summary>Tia app already open? Scan this code inside the app instead</summary>
+      <div class="pair-body small">
+        <div class="qr" id="qr"></div>
+        <ol class="pair-steps">
+          <li>In the Tia app tap <b>Scan the code</b> (or ••• → Disconnect first).</li>
+          <li>Point it at this code.</li>
+        </ol>
+      </div>
+    </details>
     <div class="pair-foot">
       <span>Phone connects to</span>
       <div class="addr" id="addrList"></div>

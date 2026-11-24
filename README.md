@@ -37,7 +37,9 @@ What the phone does:
 - **Approve / Edit / Reject** every card from the desk. Buzzes for urgent items only.
 - **Start the day**, **Reset the demo**, **Disconnect** from the ••• menu.
 
-An installable app without Expo Go (APK) needs an Expo account and `eas build` – not set up yet.
+**Published app (works anywhere):** the app is also published to Expo (`npx eas-cli@latest update --branch main --environment production` in `mobile/`, result saved to `data/eas-update.json`). Tia's **Connect phone** dialog then shows one QR: scan it with the phone camera → the app opens in Expo Go and connects to Tia by itself (the link carries the address and the Tia code after `/--/connect`). Publish again after every change in `mobile/` – the dialog always uses the newest one.
+
+**Installable Android app (APK):** `npx eas-cli@latest build -p android --profile preview` (Expo account `rderics`, project `@rderics/tia-secretary`).
 
 ### How the phone connects (security)
 
