@@ -10,8 +10,11 @@
   const remote = !["localhost", "127.0.0.1"].includes(location.hostname);
   const KEY = "tia.token";
   let token = "";
+  let wantsConnect = false;
   try {
-    const fromLink = new URLSearchParams(location.hash.slice(1)).get("t");
+    const hash = new URLSearchParams(location.hash.slice(1));
+    wantsConnect = hash.get("connect") === "1";
+    const fromLink = hash.get("t");
     if (fromLink) {
       localStorage.setItem(KEY, fromLink);
       history.replaceState(null, "", location.pathname + location.search); // don't leave the code in the address bar
@@ -76,6 +79,7 @@
 
   window.tia = {
     remote,
+    wantsConnect,
     info: () => get("api/info"),
     state: () => get("api/state"),
     run: async (mode) => {

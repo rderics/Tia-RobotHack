@@ -367,6 +367,9 @@ async function openPair(ip) {
     list.appendChild(b);
   }
   $("webLinkRow").hidden = !res.webLink;
+  // Logs that browser in once (the code is kept there) and opens the phone QR straight away.
+  $("openSite").href = res.webLink ? `${res.webLink}&connect=1` : "#";
+  $("openSite").hidden = !res.webLink || window.tia.remote;
   $("copyLink").onclick = async () => {
     try {
       await navigator.clipboard.writeText(res.webLink);
@@ -639,6 +642,7 @@ async function init() {
     document.body.classList.add("no-anim");
     setVoice(false, false); // screenshot test runs silently (not saved)
   }
+  if (window.tia.wantsConnect && window.tia.pair) openPair().catch(() => {});
   const autorun = params.get("autorun");
   if (autorun === "replay" || autorun === "live") start(autorun);
 }
