@@ -169,7 +169,7 @@ async function phoneApi(req, res, route, url) {
 async function actions(req, res, route, via) {
   if (route === "/api/run") {
     const body = await readJson(req);
-    hub.runDay(["replay", "live", "auto"].includes(body.mode) ? body.mode : "auto").catch(() => {});
+    hub.runDay(["replay", "live", "auto"].includes(body.mode) ? body.mode : "auto").catch((e) => console.warn(`[inbox] ${e.message}`));
     return sendJson(res, 200, { ok: true });
   }
   if (route === "/api/decide") {

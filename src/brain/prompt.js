@@ -71,7 +71,7 @@ ${vaultContext}
 INCOMING MESSAGE:
 channel: ${message.channel}
 time: ${message.time}
-from: ${message.from} <${message.address}>
+from: ${message.from} <${message.address}>${message.mailbox ? `\nto mailbox: ${message.mailbox}` : ""}
 ${message.subject ? `subject: ${message.subject}\n` : ""}text: ${message.text}`;
 }
 

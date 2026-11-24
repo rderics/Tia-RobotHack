@@ -62,7 +62,7 @@ export default function Card({ card, onDecide, onEdit, busy, defaultOpen = false
 
       {isOpenItem ? (
         <View style={styles.buttons}>
-          <Btn label={card.kind === "order" ? "Approve order" : card.text ? "Approve & send" : "Approve"} tone="ok" onPress={() => onDecide(card, "approve")} disabled={busy} />
+          <Btn label={card.approveLabel || (card.kind === "order" ? "Approve order" : card.text ? "Approve & send" : "Approve")} tone="ok" onPress={() => onDecide(card, "approve")} disabled={busy} />
           {!!card.text && <Btn label="Edit" onPress={() => onEdit(card)} disabled={busy} />}
           <Btn label="Reject" tone="ghost" onPress={() => onDecide(card, "reject")} disabled={busy} />
         </View>

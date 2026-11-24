@@ -3,6 +3,7 @@
 const engine = require("./brain/engine");
 const { loadConfig } = require("./brain/config");
 const { contextFor, logActivity } = require("./brain/vault");
+const outlook = require("./connectors/outlook");
 const { runCommand, liveBlocked } = require("./brain/command");
 
 const URGENT_CATEGORIES = new Set(["payment_change", "complaint"]);
@@ -77,13 +78,17 @@ function onEngineEvent(ev) {
 async function runDay(mode) {
   if (desk.run.running) throw new Error("Tia is already working on the inbox");
   const auto = mode === "auto";
-  if (auto) mode = loadConfig().commandMode === "scripted" || liveBlocked() || !engine.info().canGoLive ? "replay" : "live";
+  if (auto && loadConfig().profile === "owner") {
+    if (liveBlocked()) throw new Error("My Claude allowance is used up for now, so I can't read your inbox yet.");
+    mode = "live";
+  } else if (auto) mode = loadConfig().commandMode === "scripted" || liveBlocked() || !engine.info().canGoLive ? "replay" : "live";
   desk.run.running = true;
   try {
     try {
       await engine.runDay({ mode, onEvent: onEngineEvent, stopOnLimit: auto });
     } catch (e) {
       if (!(auto && e.code === "LIMIT")) throw e;
+      if (loadConfig().profile === "owner") throw new Error("My Claude allowance is used up for now, so I can't read your inbox yet. I'll be able to again when it resets.");
       console.log(`Claude limit reached – playing the saved real run instead (${e.message})`);
       await engine.runDay({ mode: "replay", onEvent: onEngineEvent });
     }
@@ -102,11 +107,20 @@ async function decide({ id, verdict, editedText, via }) {
   let line;
   if (item.kind === "message") {
     const r = item.result;
+    const reply = verdict === "edit" ? editedText : r.proposal && r.proposal.draft_reply;
+    if (verdict !== "reject" && reply && r.message.entryId) {
+      // A real mailbox: the reply goes to Outlook Drafts. Tia never presses Send.
+      await outlook.saveDraft(loadConfig(), r.message, reply);
+    }
     learn = engine.recordFeedback({ message: r.message, proposal: r.proposal, verdict, editedReply: editedText });
     line =
       verdict === "reject"
-        ? `Okay, I won't send that to ${r.message.from}.`
-        : `Done, my reply to ${r.message.from} is sent.`;
+        ? `Okay, I won't answer ${r.message.from}.`
+        : r.message.entryId
+          ? reply
+            ? `Saved my reply to ${r.message.from} in your Outlook drafts – you press Send.`
+            : `Noted for ${r.message.from}.`
+          : `Done, my reply to ${r.message.from} is sent.`;
   } else {
     const p = item.proposal;
     const cfg = loadConfig();
@@ -208,6 +222,8 @@ function card(i) {
       summary: r.error ? "I couldn't process this one" : p.summary,
       reason: p.reason || "",
       text: p.draft_reply || "",
+      approveLabel: r.message.entryId ? "Save as draft" : "",
+      mailbox: r.message.mailbox || "",
       guard: r.guardNotes || [],
       sources: p.vault_sources || [],
       money: p.money_eur || 0,

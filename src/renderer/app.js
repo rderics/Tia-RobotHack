@@ -211,7 +211,8 @@ function renderItem(r) {
   if ((r.guardNotes || []).some((n) => n.startsWith("Learned"))) g.classList.add("learned");
   if (p.vault_sources && p.vault_sources.length) node.querySelector(".sources").textContent = "From your notes: " + p.vault_sources.join(", ");
   if (isUrgent(r) && r.decision !== "handle") node.classList.add("urgent");
-  if (r.decision === "escalate" && !r.error) addOwnerButtons(node, { id: m.id, hasText: !!p.draft_reply, text: p.draft_reply, legacy: { message: m, proposal: p } });
+  if (m.mailbox) node.querySelector(".when").textContent = `${m.mailbox.split("@")[0]} · ${m.time}`;
+  if (r.decision === "escalate" && !r.error) addOwnerButtons(node, { id: m.id, hasText: !!p.draft_reply, text: p.draft_reply, legacy: { message: m, proposal: p }, label: m.entryId ? "Save as draft" : "" });
   if (r.decision === "handle") node.querySelector(".buttons").appendChild(el("span", "resolved", "Handled by Tia"));
   return node;
 }
@@ -255,9 +256,9 @@ function renderProposal(c) {
   return node;
 }
 
-function addOwnerButtons(node, { id, hasText, text, kind, legacy }) {
+function addOwnerButtons(node, { id, hasText, text, kind, legacy, label }) {
   const box = node.querySelector(".buttons");
-  const approve = el("button", "btn small ok", kind === "order" ? "Approve order" : hasText ? "Approve & send" : "Approve");
+  const approve = el("button", "btn small ok", label || (kind === "order" ? "Approve order" : hasText ? "Approve & send" : "Approve"));
   const edit = el("button", "btn small", "Edit");
   const reject = el("button", "btn small ghost", "Reject");
   box.prepend(approve, ...(hasText ? [edit] : []), reject);
@@ -522,7 +523,8 @@ async function handleEvent(ev) {
     if (SHOT) console.log("TIA-DONE");
   } else if (ev.type === "error") {
     setRunning(false);
-    await say(`Something went wrong: ${ev.error}`, { speak: false });
+    $("progressLabel").textContent = state.owner ? "Inbox not read" : "Error";
+    await say(state.owner ? ev.error : `Something went wrong: ${ev.error}`, { speak: false });
   }
 }
 

@@ -6,6 +6,7 @@ const { loadConfig } = require("./config");
 const { contextFor, logActivity, addLearnedRule, resetNotes } = require("./vault");
 const { decide } = require("./providers");
 const { applyGuard } = require("./guard");
+const outlook = require("../connectors/outlook");
 
 const DEMO_TODAY = "Thursday 19 November 2026, 13:00"; // the demo business lives on one fixed day
 
@@ -51,7 +52,12 @@ function finish(cfg, message, proposal, learning, extra = {}) {
 async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false } = {}) {
   const cfg = loadConfig();
   if (cfg.inboxSource === "none") throw new Error("No inbox is connected yet.");
-  const inbox = JSON.parse(fs.readFileSync(cfg.inboxFile, "utf8"));
+  let inbox;
+  if (cfg.inboxSource === "outlook") {
+    if (mode === "replay") throw new Error("A real inbox can't be replayed – Claude is needed to read it.");
+    onEvent({ type: "fetching", source: "Outlook" });
+    inbox = await outlook.fetchInbox(cfg); // newest mail, read-only
+  } else inbox = JSON.parse(fs.readFileSync(cfg.inboxFile, "utf8"));
   const learning = loadLearning(cfg);
   onEvent({ type: "start", total: inbox.length, mode, provider: cfg.provider, model: cfg.model });
 
@@ -121,7 +127,8 @@ function recordFeedback({ message, proposal, verdict, editedReply }) {
     learning.approvals[cat] = (learning.approvals[cat] || 0) + 1;
     if (verdict === "edit") learning.edits[cat] = (learning.edits[cat] || 0) + 1;
     const sent = verdict === "edit" ? editedReply : proposal.draft_reply;
-    logActivity(cfg.notesDir, `Owner ${verdict === "edit" ? "edited and approved" : "approved"}: ${message.from} – ${proposal.summary}${sent ? ` → reply sent (simulated)` : ""}`);
+    const outcome = message.entryId ? "reply saved as an Outlook draft" : "reply sent (simulated)";
+    logActivity(cfg.notesDir, `Owner ${verdict === "edit" ? "edited and approved" : "approved"}: ${message.from} – ${proposal.summary}${sent ? ` → ${outcome}` : ""}`);
     addLearnedRule(
       cfg.notesDir,
       verdict === "edit"
