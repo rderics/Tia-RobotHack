@@ -31,7 +31,7 @@
         <p>${message || "Enter your Tia code to open your desk."}</p>
         <input name="code" autocomplete="one-time-code" placeholder="Tia code" required />
         <button class="btn primary" type="submit">Open</button>
-        <small>The code is in the Tia app (••• menu) or the QR code on Tia's screen at home.</small>
+        <small>Where's the code? In the Tia app on your phone: ••• menu.<br>On the computer Tia runs on, no code is needed: open <a href="http://localhost:4747/">localhost:4747</a> → <b>Connect phone</b> shows the QR code and <b>Copy private link</b> logs this browser in.</small>
       </form>`;
     box.querySelector("form").onsubmit = (e) => {
       e.preventDefault();
