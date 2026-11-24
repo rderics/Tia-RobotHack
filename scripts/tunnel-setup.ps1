@@ -25,5 +25,5 @@ ingress:
     service: http://localhost:$Port
   - service: http_status:404
 "@
-Set-Content -Path (Join-Path $dir "tia.yml") -Value $config -Encoding utf8
-Write-Host "Saved $dir\tia.yml – start with:  & '$cf' tunnel --config '$dir\tia.yml' run $Name"
+[IO.File]::WriteAllText((Join-Path $dir "tia.yml"), $config) # no BOM - cloudflared reads plain UTF-8
+Write-Host "Saved $dir\tia.yml - start with:  & '$cf' tunnel --config '$dir\tia.yml' run $Name"

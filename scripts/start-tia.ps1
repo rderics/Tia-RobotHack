@@ -1,4 +1,4 @@
-# Starts Tia (server + web address) – the same thing every time, e.g. at logon.
+# Starts Tia (server + web address) - the same thing every time, e.g. at logon.
 # Server: node src/web.js (this folder). Web address: the Cloudflare Tunnel from scripts/tunnel-setup.ps1.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -16,5 +16,5 @@ if (Test-Path $tunnelConfig) {
     -RedirectStandardOutput (Join-Path $logs "tunnel.log") -RedirectStandardError (Join-Path $logs "tunnel.err.log")
   Write-Host "Web address tunnel started (pid $($tunnel.Id))"
 } else {
-  Write-Host "No tunnel set up yet – run scripts\tunnel-setup.ps1 once."
+  Write-Host "No tunnel set up yet - run scripts\tunnel-setup.ps1 once."
 }

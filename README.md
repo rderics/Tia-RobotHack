@@ -46,6 +46,28 @@ An installable app without Expo Go (APK) needs an Expo account and `eas build` �
 - `/api/m/*` needs the **pairing token** from the QR code (stored in `data/pair.json`; delete the file to make a new one, which unpairs every phone).
 - It runs Claude with the login of the person at this computer – never put it on the public internet.
 
+## Owner mode and the web address (Tia for a real owner)
+
+`config.json` in the project root (never committed – it is in `.gitignore`) turns Tia into a real owner's secretary:
+
+```json
+{ "profile": "owner", "owner": "Your Name", "business": "Your Business",
+  "vaultDir": "../Obsidian Vault", "notesDir": "data/owner-notes", "alwaysNotes": ["System/USER.md"],
+  "inboxSource": "outlook", "publicUrl": "https://tia.example.com" }
+```
+
+- **Vault:** read-only. Tia searches it per request (BM25, `src/brain/retrieval.js`) and sends only the matching notes. Her own log and learned rules go to `notesDir`, not into the vault.
+- **Inbox:** `outlook` = classic Outlook through COM, started hidden in the background (`src/connectors/outlook.py`); the owner can keep using new Outlook. **Approve saves a reply draft in Outlook – Tia never sends.**
+- **No Claude?** A real owner gets an honest answer; the hand-written script is only for the stand. `TIA_CONFIG=none` runs the fictional stand business even when `config.json` exists.
+
+**Web address** (Cloudflare Tunnel, runs on this computer):
+
+1. `& 'C:\Program Files (x86)\cloudflared\cloudflared.exe' tunnel login` – pick the domain, click Authorize (once).
+2. `powershell -ExecutionPolicy Bypass -File scripts	unnel-setup.ps1 -Hostname tia.example.com` (once).
+3. `powershell -ExecutionPolicy Bypass -File scripts\start-tia.ps1` – starts the server and the tunnel.
+
+Everything private behind the web address needs the **Tia code** (the pairing token): the web screen asks for it once, the phone app shows it in its ••• menu, **Connect phone → Copy private link** gives a link with it. A new code: delete `data/pair.json` and restart (every phone and browser must log in again).
+
 ## The stand script (3 minutes)
 
 1. **Start the day** → Tia goes through 12 messages; 5 handled, 7 need you, the fraud email is caught.

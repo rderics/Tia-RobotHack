@@ -116,8 +116,10 @@ async function readAudio(req) {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const eur = (n) => `${Math.round(n).toLocaleString("en-US").replace(/,/g, " ")} €`;
 function docPage(c) {
+  const info = engine.info();
+  const stand = info.profile !== "owner";
   const lines = (c.lines || []).map((l) => `<tr><td>${esc(l.item)}</td><td class="n">${eur(l.amount_eur)}</td></tr>`).join("");
-  const stamp = c.state === "open" ? `<div class="stamp draft">Draft – waiting for approval</div>` : c.state === "rejected" ? `<div class="stamp draft">Rejected</div>` : `<div class="stamp ok">Approved by Mārtiņš Ozols</div>`;
+  const stamp = c.state === "open" ? `<div class="stamp draft">Draft – waiting for approval</div>` : c.state === "rejected" ? `<div class="stamp draft">Rejected</div>` : `<div class="stamp ok">Approved by ${esc(info.owner)}</div>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(c.title)}</title><style>
   @page{size:A4;margin:22mm 20mm}
   *{box-sizing:border-box}body{margin:0;background:#EDEBE6;font:14px/1.55 "Segoe UI",system-ui,sans-serif;color:#1C1B1F}
@@ -135,12 +137,12 @@ function docPage(c) {
   .stamp.ok{color:#1E6B4A;border-color:#1E6B4A}.stamp.draft{color:#9A5B12;border-color:#9A5B12}
   @media print{body{background:#fff}.page{box-shadow:none;margin:0;padding:0;max-width:none}}
   </style></head><body><div class="page">
-  <header><div class="co">Liepa Interjers<small>Custom kitchens · built-in furniture · Riga</small></div>
-  <div class="meta">${esc(engine.info().today.split(",")[0])}<br>Prepared by Tia for Mārtiņš Ozols</div></header>
+  <header><div class="co">${esc(info.business)}${stand ? "<small>Custom kitchens · built-in furniture · Riga</small>" : ""}</div>
+  <div class="meta">${esc(info.today.split(",")[0])}<br>Prepared by Tia for ${esc(info.owner)}</div></header>
   <h1>${esc(c.title)}</h1><div class="to">For ${esc(c.from)}${c.validUntil ? ` · valid until ${esc(c.validUntil)}` : ""}</div>
   ${c.text ? `<p class="note">${esc(c.text)}</p>` : ""}
   ${lines ? `<table>${lines}<tr class="total"><td>Total</td><td class="n">${eur(c.total)}</td></tr></table>` : ""}
-  <div class="fine">Prices include installation. Appliances, plumbing and electrical works not included. Demo document – fictional business.</div>
+  <div class="fine">${stand ? "Prices include installation. Appliances, plumbing and electrical works not included. Demo document – fictional business." : ""}</div>
   ${stamp}</div></body></html>`;
 }
 
@@ -148,7 +150,7 @@ function docPage(c) {
 async function phoneApi(req, res, route, url) {
   if (!hasToken(req, url)) return sendJson(res, 401, { error: "Not paired – scan the QR code on Tia's screen again." });
 
-  if (req.method === "GET" && route === "/api/m/hello") return sendJson(res, 200, { ok: true, business: "Liepa Interjers", owner: "Mārtiņš Ozols" });
+  if (req.method === "GET" && route === "/api/m/hello") { const i = engine.info(); return sendJson(res, 200, { ok: true, business: i.business, owner: i.owner }); }
   if (req.method === "GET" && route === "/api/m/state") {
     const since = Number(url.searchParams.get("v") || 0);
     await hub.waitForChange(since, 20000); // long-poll: answers as soon as something changes
