@@ -63,7 +63,7 @@ An installable app without Expo Go (APK) needs an Expo account and `eas build` �
 **Web address** (Cloudflare Tunnel, runs on this computer):
 
 1. `& 'C:\Program Files (x86)\cloudflared\cloudflared.exe' tunnel login` – pick the domain, click Authorize (once).
-2. `powershell -ExecutionPolicy Bypass -File scripts	unnel-setup.ps1 -Hostname tia.example.com` (once).
+2. `powershell -ExecutionPolicy Bypass -File scripts\tunnel-setup.ps1 -Hostname tia.example.com` (once).
 3. `powershell -ExecutionPolicy Bypass -File scripts\start-tia.ps1` – starts the server and the tunnel.
 
 Everything private behind the web address needs the **Tia code** (the pairing token): the web screen asks for it once, the phone app shows it in its ••• menu, **Connect phone → Copy private link** gives a link with it. A new code: delete `data/pair.json` and restart (every phone and browser must log in again).
