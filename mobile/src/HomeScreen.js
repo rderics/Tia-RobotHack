@@ -11,7 +11,7 @@ import Card, { Btn } from "./Card";
 import { api, useDesk, forgetPair } from "./api";
 import { C } from "./theme";
 
-const SUGGESTIONS = ["Prepare Ieva's kitchen offer", "What needs me today?", "Order the team lunch"];
+const DEFAULT_SUGGESTIONS = ["Brief me", "What needs me today?"];
 
 export default function HomeScreen({ pair, onUnpair }) {
   const insets = useSafeAreaInsets();
@@ -29,6 +29,11 @@ export default function HomeScreen({ pair, onUnpair }) {
   const [menu, setMenu] = useState(false);
   const rec = useRef({ starting: null, startedAt: 0, active: false });
   const seenNeeds = useRef(null);
+
+  // iPhone: let Tia's voice play even with the silent switch on, and route it to the loudspeaker.
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false, shouldRouteThroughEarpiece: false }).catch(() => {});
+  }, []);
 
   // Buzz when something new needs the owner (urgent = strong buzz). Handled work never buzzes.
   useEffect(() => {
@@ -108,7 +113,7 @@ export default function HomeScreen({ pair, onUnpair }) {
     try {
       await recorder.stop();
     } catch {}
-    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false }).catch(() => {});
     if (held < 600) {
       setMode("idle");
       return setCaption("Hold the button while you talk, then let go.");
@@ -121,10 +126,17 @@ export default function HomeScreen({ pair, onUnpair }) {
     setMode("thinking");
     setCaption("One moment…");
     try {
-      handleReply(await api.voice(pair, uri));
+      const res = await api.voice(pair, uri);
+      if (res.error && !res.transcript) {
+        setMode("idle");
+        setCaption(`${res.say || "I couldn't hear that."}${res.error === "too short" || res.error === "empty" ? "" : `
+(${res.error})`}`);
+        return;
+      }
+      handleReply(res);
     } catch (e) {
       setMode("idle");
-      setCaption(`I couldn't reach the computer. ${e.message}`);
+      setCaption(`I couldn't send the recording to the computer. ${e.message}`);
     }
   }
 
@@ -158,10 +170,17 @@ export default function HomeScreen({ pair, onUnpair }) {
   }
 
   const tiaMode = mode !== "idle" ? mode : desk && (desk.thinking || desk.run.running) ? "thinking" : "idle";
-  const status = !online ? { label: "Offline", color: C.danger } : desk && desk.mode === "scripted" ? { label: "Demo script", color: C.warn } : { label: "Live", color: C.ok };
+  const status = !online
+    ? { label: "Offline", color: C.danger }
+    : desk && desk.mode === "scripted"
+      ? { label: "Demo script", color: C.warn }
+      : desk && desk.mode === "offline"
+        ? { label: "Claude unavailable", color: C.warn }
+        : { label: "Live", color: C.ok };
   const needs = desk ? desk.needs : [];
   const done = desk ? desk.done : [];
-  const neverRan = desk && !desk.run.running && !desk.run.total;
+  const canRun = desk && desk.inboxSource !== "none";
+  const neverRan = canRun && !desk.run.running && !desk.run.total;
   const dockHeight = 196 + insets.bottom;
 
   return (
@@ -169,7 +188,7 @@ export default function HomeScreen({ pair, onUnpair }) {
       <View style={styles.top}>
         <View>
           <Text style={styles.brand}>Tia</Text>
-          <Text style={styles.business}>{pair.business || "Your business"}</Text>
+          <Text style={styles.business}>{(desk && desk.business) || pair.business || "Your business"}</Text>
         </View>
         <View style={styles.topRight}>
           <View style={styles.pill}>
@@ -205,7 +224,13 @@ export default function HomeScreen({ pair, onUnpair }) {
           {desk && needs.length === 0 && (
             <View style={styles.empty}>
               <Text style={styles.emptyText}>
-                {neverRan ? "I haven't been through today's inbox yet." : desk.run.running ? "Working through the inbox…" : "Nothing needs you. I've handled the rest."}
+                {neverRan
+                  ? "I haven't been through today's inbox yet."
+                  : desk.run.running
+                    ? "Working through the inbox…"
+                    : canRun
+                      ? "Nothing needs you. I've handled the rest."
+                      : "Nothing needs you right now. Tell me what you need and I'll prepare it here for your OK."}
               </Text>
               {neverRan && <Btn label="Start the day" tone="accent" onPress={() => api.run(pair).catch((e) => setCaption(e.message))} style={{ marginTop: 12 }} />}
             </View>
@@ -232,7 +257,7 @@ export default function HomeScreen({ pair, onUnpair }) {
       {/* ---------- dock: suggestions + hold to talk ---------- */}
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.dock, { paddingBottom: insets.bottom + 14 }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
-          {SUGGESTIONS.map((s) => (
+          {((desk && desk.suggestions) || DEFAULT_SUGGESTIONS).map((s) => (
             <Pressable key={s} onPress={() => send(s)} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}>
               <Text style={styles.chipText}>{s}</Text>
             </Pressable>
@@ -296,8 +321,12 @@ export default function HomeScreen({ pair, onUnpair }) {
       <Modal visible={menu} animationType="fade" transparent onRequestClose={() => setMenu(false)}>
         <Pressable style={styles.backdrop} onPress={() => setMenu(false)}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
-            <Text style={styles.sheetTitle}>Connected to {pair.url.replace("http://", "")}</Text>
-            <Btn
+            <Text style={styles.sheetTitle}>Connected to {pair.url.replace(/^https?:\/\//, "")}</Text>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeLabel}>Your Tia code – for opening Tia in a browser</Text>
+              <Text selectable style={styles.code}>{pair.token}</Text>
+            </View>
+            {desk && desk.profile !== "owner" && <Btn
               label="Reset the demo"
               onPress={() => {
                 setMenu(false);
@@ -306,7 +335,7 @@ export default function HomeScreen({ pair, onUnpair }) {
                   { text: "Reset", style: "destructive", onPress: () => api.reset(pair).then(() => { setHeard(""); setCaption("Fresh start. Hold the button and tell me what you need."); }).catch((e) => setCaption(e.message)) },
                 ]);
               }}
-            />
+            />}
             <Btn
               label="Disconnect this phone"
               tone="ghost"
@@ -382,5 +411,8 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 10, borderWidth: 1, borderColor: C.line },
   sheetTitle: { color: C.muted, fontSize: 13.5, marginBottom: 4 },
   editInput: { minHeight: 180, backgroundColor: C.surface2, borderRadius: 14, color: C.text, padding: 14, fontSize: 15, lineHeight: 21, borderWidth: 1, borderColor: C.lineStrong },
+  codeBox: { backgroundColor: C.surface2, borderRadius: 12, padding: 12, gap: 4 },
+  codeLabel: { color: C.faint, fontSize: 12 },
+  code: { color: C.text, fontSize: 15, fontWeight: "600", letterSpacing: 0.5 },
   editHint: { color: C.faint, fontSize: 12.5 },
 });

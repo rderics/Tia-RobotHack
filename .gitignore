@@ -3,3 +3,5 @@ data/
 .claude/
 dist/
 __pycache__/
+config.json
+config.*.json

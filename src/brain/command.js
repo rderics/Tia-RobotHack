@@ -44,8 +44,9 @@ const COMMAND_SCHEMA = {
   },
 };
 
-function system() {
-  return `You are Tia, the AI personal secretary of a small business owner. The owner is talking to you by voice on their phone. You know the business only from the owner's notes (the vault) and from what is on your desk today.
+function system(cfg = {}) {
+  const who = cfg.profile === "owner" ? `You work for ${cfg.owner}${cfg.business && cfg.business !== cfg.owner ? ` (${cfg.business})` : ""}. ` : "";
+  return `You are Tia, the AI personal secretary of a small business owner. ${who} The owner is talking to you by voice on their phone. You know the business only from the owner's notes (the vault) and from what is on your desk today.
 
 Rules:
 - Speak like a calm, competent human secretary: short, warm, concrete. English only. 1-2 sentences in "say".
@@ -78,21 +79,73 @@ OWNER NOW SAYS: ${text}`;
 
 let liveBlockedUntil = 0; // after a usage-limit error, don't wait for Claude again for a while
 
+// ---------- spoken briefing (the shape of OpenJarvis' morning digest, github.com/open-jarvis/openjarvis, Apache-2.0) ----------
+const BRIEFING = /\b(brief|briefing|catch me up|good morning|run me through|summari[sz]e)/i;
+const BRIEFING_SCHEMA = { type: "object", additionalProperties: false, required: ["say"], properties: { say: { type: "string" } } };
+function briefingSystem(cfg) {
+  return `You are Tia, the personal secretary of ${cfg.owner}. Produce a short spoken briefing of their desk, most important first.
+Rules: only facts from the data given; never invent anything; no markdown, lists or emojis; plain spoken English; at most 90 words; open with one short greeting using their first name; end after the last item.`;
+}
+// Without Claude: the same briefing, put together by plain code from the desk – nothing invented.
+function plainBriefing(cfg, desk) {
+  const first = String(cfg.owner || "").split(" ")[0];
+  const open = desk.filter((d) => d.state === "needs owner");
+  const done = desk.filter((d) => d.state !== "needs owner");
+  if (!desk.length) return `Hi ${first}. Your desk is clear – nothing is waiting for you right now.`;
+  const parts = [`Hi ${first}.`];
+  if (open.length) parts.push(`${open.length} ${open.length === 1 ? "thing needs" : "things need"} you: ${open.slice(0, 3).map((d) => `${d.from} – ${d.summary}`).join("; ")}${open.length > 3 ? `, and ${open.length - 3} more` : ""}.`);
+  else parts.push("Nothing needs you right now.");
+  if (done.length) parts.push(`I've already handled ${done.length}.`);
+  return parts.join(" ");
+}
+const none = (heard_as, say) => ({
+  heard_as,
+  say,
+  missing_info: "",
+  proposal: { kind: "none", title: "", to: "", summary: "", message_text: "", lines: [], total_eur: 0, valid_until: "", when: "" },
+  vault_sources: [],
+});
+
 async function runCommand(cfg, ctx) {
   let answer, costUsd = 0, mode = "live", why = "";
-  if (cfg.commandMode === "scripted" || Date.now() < liveBlockedUntil) {
-    answer = scripted.answer(ctx);
-    mode = "scripted";
+  const offline = cfg.commandMode === "scripted" || Date.now() < liveBlockedUntil;
+
+  if (BRIEFING.test(ctx.text)) {
+    const data = `TODAY: ${ctx.today}\nDESK:\n${ctx.desk.map((d) => `- [${d.state}] ${d.from}: ${d.summary}`).join("\n") || "(empty)"}`;
+    try {
+      if (offline) throw new Error("offline");
+      const r = await ask(cfg, { system: briefingSystem(cfg), schema: BRIEFING_SCHEMA, prompt: data });
+      return { ...none("Brief me", r.answer.say), costUsd: r.costUsd, mode: "live", why: "" };
+    } catch (e) {
+      if (/limit/i.test(String(e.message))) liveBlockedUntil = Date.now() + 10 * 60 * 1000;
+      return { ...none("Brief me", plainBriefing(cfg, ctx.desk)), costUsd: 0, mode: "offline", why: String(e.message || e).slice(0, 160) };
+    }
+  }
+
+  const fallback = (reason) => {
+    // The stand (fictional business) has a hand-written script; a real owner gets an honest answer instead.
+    if (cfg.profile !== "owner") return { answer: scripted.answer(ctx), mode: "scripted" };
+    const limit = /limit/i.test(reason);
+    return {
+      answer: none(
+        ctx.text,
+        limit
+          ? "My Claude allowance is used up for now, so I can't work on that yet. I can still brief you on your desk."
+          : "I can't reach Claude right now. Try again in a minute – just say it again."
+      ),
+      mode: "offline",
+    };
+  };
+  if (offline) {
+    ({ answer, mode } = fallback(cfg.commandMode === "scripted" ? "" : "limit"));
     why = cfg.commandMode === "scripted" ? "set in config.json" : "Claude usage limit reached";
   } else {
     try {
-      ({ answer, costUsd } = await ask(cfg, { system: system(), schema: COMMAND_SCHEMA, prompt: prompt(ctx) }));
+      ({ answer, costUsd } = await ask(cfg, { system: system(cfg), schema: COMMAND_SCHEMA, prompt: prompt(ctx) }));
     } catch (e) {
-      // No Claude right now (limit reached, no internet) → the stand keeps working on the hand-written script.
-      answer = scripted.answer(ctx);
-      mode = "scripted";
       why = String(e.message || e).slice(0, 160);
       if (/limit/i.test(why)) liveBlockedUntil = Date.now() + 10 * 60 * 1000;
+      ({ answer, mode } = fallback(why));
     }
   }
   const p = answer.proposal || { kind: "none" };

@@ -3,11 +3,17 @@
 const fs = require("fs");
 const path = require("path");
 const { loadConfig } = require("./config");
-const { readVaultContext, logActivity, addLearnedRule, resetVault } = require("./vault");
+const { contextFor, logActivity, addLearnedRule, resetNotes } = require("./vault");
 const { decide } = require("./providers");
 const { applyGuard } = require("./guard");
 
-const TODAY = "Thursday 19 November 2026, 13:00";
+const DEMO_TODAY = "Thursday 19 November 2026, 13:00"; // the demo business lives on one fixed day
+
+// The real date and time for a real owner; the fixed demo day for the stand.
+function today(cfg = loadConfig()) {
+  if (cfg.profile !== "owner") return DEMO_TODAY;
+  return new Date().toLocaleString("en-GB", { timeZone: cfg.timezone, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 function learningFile(cfg) {
   return path.join(cfg.dataDir, "learning.json");
@@ -36,7 +42,7 @@ function finish(cfg, message, proposal, learning, extra = {}) {
   const result = { message, proposal, ...guard, ...extra };
   if (guard.decision === "handle") {
     const acts = (proposal.actions || []).map((a) => `${a.type}: ${a.detail}`).join("; ");
-    logActivity(cfg.vaultDir, `Handled ${message.channel} from ${message.from} – ${proposal.summary}${acts ? ` (${acts})` : ""}`);
+    logActivity(cfg.notesDir, `Handled ${message.channel} from ${message.from} – ${proposal.summary}${acts ? ` (${acts})` : ""}`);
   }
   return result;
 }
@@ -44,6 +50,7 @@ function finish(cfg, message, proposal, learning, extra = {}) {
 // mode: "live" (calls Claude) or "replay" (plays a saved run – for bad venue Wi-Fi)
 async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false } = {}) {
   const cfg = loadConfig();
+  if (cfg.inboxSource === "none") throw new Error("No inbox is connected yet.");
   const inbox = JSON.parse(fs.readFileSync(cfg.inboxFile, "utf8"));
   const learning = loadLearning(cfg);
   onEvent({ type: "start", total: inbox.length, mode, provider: cfg.provider, model: cfg.model });
@@ -62,7 +69,6 @@ async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false }
       onEvent({ type: "result", result: r });
     }
   } else {
-    const vaultContext = readVaultContext(cfg.vaultDir);
     const saved = {};
     let limitHit = null;
     await runPool(inbox, cfg.concurrency, async (msg) => {
@@ -70,7 +76,8 @@ async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false }
       onEvent({ type: "thinking", message: msg });
       const t0 = Date.now();
       try {
-        const { proposal, costUsd } = await decide(cfg, vaultContext, msg, TODAY);
+        const ctx = contextFor(cfg, `${msg.from} ${msg.subject || ""} ${msg.text}`);
+        const { proposal, costUsd } = await decide(cfg, ctx.text, msg, today(cfg));
         saved[msg.id] = { proposal };
         const r = finish(cfg, msg, proposal, learning, { seconds: Math.round((Date.now() - t0) / 1000), costUsd });
         results.push(r);
@@ -114,17 +121,17 @@ function recordFeedback({ message, proposal, verdict, editedReply }) {
     learning.approvals[cat] = (learning.approvals[cat] || 0) + 1;
     if (verdict === "edit") learning.edits[cat] = (learning.edits[cat] || 0) + 1;
     const sent = verdict === "edit" ? editedReply : proposal.draft_reply;
-    logActivity(cfg.vaultDir, `Owner ${verdict === "edit" ? "edited and approved" : "approved"}: ${message.from} – ${proposal.summary}${sent ? ` → reply sent (simulated)` : ""}`);
+    logActivity(cfg.notesDir, `Owner ${verdict === "edit" ? "edited and approved" : "approved"}: ${message.from} – ${proposal.summary}${sent ? ` → reply sent (simulated)` : ""}`);
     addLearnedRule(
-      cfg.vaultDir,
+      cfg.notesDir,
       verdict === "edit"
         ? `${cat}: owner changed my reply to "${message.from}". Owner's version: "${(editedReply || "").replace(/\s+/g, " ").slice(0, 300)}" – write like this next time.`
         : `${cat}: owner approved my proposal for "${message.from}" (${proposal.summary}). Approvals so far: ${learning.approvals[cat]}.`
     );
   } else {
     learning.rejections[cat] = (learning.rejections[cat] || 0) + 1;
-    logActivity(cfg.vaultDir, `Owner rejected: ${message.from} – ${proposal.summary}`);
-    addLearnedRule(cfg.vaultDir, `${cat}: owner rejected my proposal for "${message.from}" (${proposal.summary}). Be more careful with this kind.`);
+    logActivity(cfg.notesDir, `Owner rejected: ${message.from} – ${proposal.summary}`);
+    addLearnedRule(cfg.notesDir, `${cat}: owner rejected my proposal for "${message.from}" (${proposal.summary}). Be more careful with this kind.`);
   }
   saveLearning(cfg, learning);
   return { approvals: learning.approvals[cat] || 0, needed: cfg.approvalsToLearn };
@@ -132,14 +139,24 @@ function recordFeedback({ message, proposal, verdict, editedReply }) {
 
 function resetDemo() {
   const cfg = loadConfig();
-  resetVault(cfg.vaultDir);
+  if (cfg.profile !== "owner") resetNotes(cfg.notesDir); // never wipe a real owner's log
   if (fs.existsSync(learningFile(cfg))) fs.unlinkSync(learningFile(cfg));
 }
 
 function info() {
   const cfg = loadConfig();
   // canGoLive = false when config.json says the inbox should always use the saved run
-  return { provider: cfg.provider, model: cfg.model, hasReplay: fs.existsSync(cfg.replayFile), today: TODAY, canGoLive: cfg.inboxMode !== "replay" };
+  return {
+    provider: cfg.provider,
+    model: cfg.model,
+    hasReplay: fs.existsSync(cfg.replayFile),
+    today: today(cfg),
+    canGoLive: cfg.inboxMode !== "replay",
+    profile: cfg.profile,
+    business: cfg.business,
+    owner: cfg.owner,
+    inboxSource: cfg.inboxSource,
+  };
 }
 
-module.exports = { runDay, recordFeedback, resetDemo, info };
+module.exports = { runDay, recordFeedback, resetDemo, info, today };

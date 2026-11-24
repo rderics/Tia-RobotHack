@@ -2,7 +2,7 @@
 // the same conversation and the same decisions. Approve on the phone → the card closes on the desktop too.
 const engine = require("./brain/engine");
 const { loadConfig } = require("./brain/config");
-const { readVaultContext, logActivity } = require("./brain/vault");
+const { contextFor, logActivity } = require("./brain/vault");
 const { runCommand, liveBlocked } = require("./brain/command");
 
 const URGENT_CATEGORIES = new Set(["payment_change", "complaint"]);
@@ -111,12 +111,12 @@ async function decide({ id, verdict, editedText, via }) {
     const p = item.proposal;
     const cfg = loadConfig();
     if (verdict === "reject") {
-      logActivity(cfg.vaultDir, `Owner rejected: ${p.title}`);
+      logActivity(cfg.notesDir, `Owner rejected: ${p.title}`);
       line = `Okay, I've dropped the ${p.kind}.`;
     } else {
       if (verdict === "edit" && editedText) p.message_text = editedText;
       const what = { offer: "Offer sent", reply: "Reply sent", calendar: "Booked", order: "Order placed", task: "Task created" }[p.kind] || "Done";
-      logActivity(cfg.vaultDir, `Owner approved ${p.kind}: ${p.title}${p.total_eur ? ` (${p.total_eur} €)` : ""} → ${what.toLowerCase()} (simulated)`);
+      logActivity(cfg.notesDir, `Owner approved ${p.kind}: ${p.title}${p.total_eur ? ` (${p.total_eur} €)` : ""} → ${what.toLowerCase()} (simulated)`);
       line = p.kind === "offer" ? `${what} to ${p.to}. The printable copy is ready on the big screen.` : `${what}.`;
     }
   }
@@ -147,8 +147,9 @@ async function command(text, via) {
   emit({ type: "heard", text, via });
   try {
     const cfg = loadConfig();
+    const ctx = contextFor(cfg, [text, ...history.map((h) => h.text)].join(" "));
     const res = await runCommand(cfg, {
-      vaultContext: readVaultContext(cfg.vaultDir),
+      vaultContext: ctx.text,
       today: engine.info().today,
       desk: deskForPrompt(),
       history,
@@ -157,7 +158,7 @@ async function command(text, via) {
     let item = null;
     const p = res.proposal;
     if (p && p.kind !== "none") {
-      item = { id: `c${++seq}`, kind: p.kind, state: "open", at: Date.now(), proposal: p, sources: res.vault_sources || [] };
+      item = { id: `c${++seq}`, kind: p.kind, state: "open", at: Date.now(), proposal: p, sources: res.vault_sources && res.vault_sources.length ? res.vault_sources : ctx.sources };
       desk.items.push(item);
     }
     say(res.say, via);
@@ -165,7 +166,7 @@ async function command(text, via) {
     bump();
     const out = { heard: res.heard_as || text, say: res.say, question: res.missing_info || "", item: item ? card(item) : null, mode: res.mode };
     desk.mode = res.mode;
-    if (res.mode === "scripted") console.log(`Command answered from the offline script (${res.why})`);
+    if (res.mode !== "live") console.log(`Command answered without Claude – ${res.mode} (${res.why})`);
     emit({ type: "reply", via, ...out });
     return out;
   } catch (e) {
@@ -237,13 +238,20 @@ function card(i) {
   };
 }
 function snapshot() {
+  const info = engine.info();
   const cards = desk.items.map(card);
   const handled = cards.filter((c) => c.state === "handled").length;
   return {
     version: desk.version,
-    business: "Liepa Interjers",
-    owner: "Mārtiņš Ozols",
-    today: engine.info().today,
+    business: info.business,
+    owner: info.owner,
+    profile: info.profile,
+    inboxSource: info.inboxSource,
+    suggestions:
+      info.profile === "owner"
+        ? ["Brief me", "What needs me today?"]
+        : ["Prepare Ieva's kitchen offer", "What needs me today?", "Order the team lunch", "Brief me"],
+    today: info.today,
     run: desk.run,
     thinking: desk.thinking,
     mode: desk.mode || "live",

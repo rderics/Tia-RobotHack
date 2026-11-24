@@ -206,6 +206,17 @@ button, input, textarea { font: inherit; color: inherit; }
 .doc-modal[open] { display: flex; flex-direction: column; }
 .doc-modal iframe { flex: 1; width: 100%; border: 0; background: #edebe6; border-radius: 0 0 22px 22px; }
 
+/* ---------- login (Tia web address) ---------- */
+.login { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--bg); padding: 16px; }
+.login-card { width: min(380px, 100%); display: grid; gap: 12px; justify-items: center; text-align: center; background: var(--panel); border: 1px solid var(--line-2); border-radius: 22px; padding: 30px 26px; }
+.login-card h1 { margin: 0; font-family: var(--font-display); font-size: 26px; }
+.login-card p { margin: 0; color: var(--soft); line-height: 1.5; }
+.login-card input { width: 100%; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; font-size: 15px; outline: none; }
+.login-card input:focus { border-color: var(--accent); }
+.login-card .btn { width: 100%; justify-content: center; padding: 11px; }
+.login-card small { color: var(--faint); line-height: 1.45; }
+.copied { color: var(--ok); font-weight: 600; }
+
 /* ---------- narrower screens ---------- */
 @media (max-width: 1180px) {
   .layout { grid-template-columns: 1fr; grid-template-rows: minmax(520px, 66vh) auto; }

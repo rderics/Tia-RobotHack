@@ -48,12 +48,23 @@ function addresses() {
   }
   if (process.env.TIA_HOST_IP) out.push({ ip: process.env.TIA_HOST_IP, name: "set by TIA_HOST_IP", score: -1 });
   const real = out.filter((a) => a.score < 3); // hide WSL / VMware / Hyper-V adapters unless nothing else exists
-  return (real.length ? real : out).sort((a, b) => a.score - b.score).map(({ ip, name }) => ({ ip, name, url: `http://${ip}:${PORT}` }));
+  const list = (real.length ? real : out).sort((a, b) => a.score - b.score).map(({ ip, name }) => ({ ip, name, url: `http://${ip}:${PORT}` }));
+  const pub = loadConfig().publicUrl;
+  if (pub) list.unshift({ ip: new URL(pub).host, name: "Internet (works anywhere)", url: pub.replace(/\/$/, "") });
+  return list;
 }
 const pairCode = (url, token) => `tia:${url}?t=${token}`;
 
 // ---------- helpers ----------
-const isLocal = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
+// A request through the Cloudflare tunnel also comes from 127.0.0.1 – Cloudflare's own headers tell them apart.
+const viaInternet = (req) => !!(req.headers["cf-ray"] || req.headers["cf-connecting-ip"] || req.headers["cf-visitor"]);
+const isLocal = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress) && !viaInternet(req);
+// The pairing code is the login for everything that is not this computer itself.
+function hasToken(req, url) {
+  const token = String(req.headers["x-tia-token"] || url.searchParams.get("t") || "");
+  const expected = pairToken();
+  return token.length === expected.length && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+}
 
 function sendJson(res, code, body) {
   res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -135,10 +146,7 @@ function docPage(c) {
 
 // ---------- routes ----------
 async function phoneApi(req, res, route, url) {
-  const token = req.headers["x-tia-token"] || url.searchParams.get("t");
-  const expected = pairToken();
-  if (!token || token.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected)))
-    return sendJson(res, 401, { error: "Not paired – scan the QR code on Tia's screen again." });
+  if (!hasToken(req, url)) return sendJson(res, 401, { error: "Not paired – scan the QR code on Tia's screen again." });
 
   if (req.method === "GET" && route === "/api/m/hello") return sendJson(res, 200, { ok: true, business: "Liepa Interjers", owner: "Mārtiņš Ozols" });
   if (req.method === "GET" && route === "/api/m/state") {
@@ -177,14 +185,26 @@ async function actions(req, res, route, via) {
     }
   }
   if (route === "/api/voice") {
+    const t0 = Date.now();
+    let size = 0;
     try {
       const { audio, ext } = await readAudio(req);
-      if (audio.length < 2000) return sendJson(res, 200, { error: "too short", say: "I didn't hear anything – hold the button while you talk." });
+      size = audio.length;
+      console.log(`[voice] ${via}: ${Math.round(size / 1024)} KB .${ext}`);
+      if (audio.length < 2000) {
+        console.warn(`[voice] ${via}: too short (${audio.length} bytes)`);
+        return sendJson(res, 200, { error: "too short", say: "I didn't hear anything – hold the button while you talk." });
+      }
       const t = await stt.transcribe(loadConfig(), audio, ext);
-      if (!t.text) return sendJson(res, 200, { error: "empty", say: "I didn't catch that. Could you say it again?" });
+      if (!t.text) {
+        console.warn(`[voice] ${via}: no words found in the audio (${t.ms} ms)`);
+        return sendJson(res, 200, { error: "empty", say: "I didn't catch that. Could you say it again?" });
+      }
+      console.log(`[voice] heard "${t.text}" (${t.ms} ms)`);
       const out = await hub.command(t.text, via);
       return sendJson(res, 200, { ...out, transcript: t.text, sttMs: t.ms });
     } catch (e) {
+      console.warn(`[voice] ${via}: failed after ${Date.now() - t0} ms (${Math.round(size / 1024)} KB): ${e.message}`);
       return sendJson(res, 200, { error: String(e.message || e), say: "Sorry, I couldn't hear that properly. Try again or type it." });
     }
   }
@@ -204,7 +224,8 @@ async function localApi(req, res, route, url) {
     if (!pick) return sendJson(res, 200, { addresses: [], error: "No network found – connect this computer to Wi-Fi." });
     const code = pairCode(pick.url, pairToken());
     const svg = await QRCode.toString(code, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#111013", light: "#ffffff" } });
-    return sendJson(res, 200, { addresses: list, selected: pick, svg });
+    const pub = loadConfig().publicUrl;
+    return sendJson(res, 200, { addresses: list, selected: pick, svg, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
   }
   if (req.method === "GET" && route === "/api/events") {
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
@@ -226,9 +247,10 @@ async function localApi(req, res, route, url) {
   return actions(req, res, route, "desktop");
 }
 
-function serveStatic(res, route) {
+function serveStatic(req, res, route, url) {
   const doc = route.match(/^\/doc\/(\w+)$/);
   if (doc) {
+    if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
     const c = hub.getItem(doc[1]);
     if (!c) return sendJson(res, 404, { error: "not found" });
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
@@ -266,11 +288,17 @@ function start() {
       }
     }
     // Browsers send Origin: only Tia's own page may call the rest of the API (blocks other websites from driving Tia).
-    if (origin && origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) return sendJson(res, 403, { error: "forbidden origin" });
+    const pub = loadConfig().publicUrl;
+    const allowed = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, pub && new URL(pub).origin].filter(Boolean);
+    if (origin && !allowed.includes(origin)) return sendJson(res, 403, { error: "forbidden origin" });
     try {
-      if (!isLocal(req)) return sendJson(res, 403, { error: "Only the paired phone may connect from the network." });
-      if (route.startsWith("/api/")) return await localApi(req, res, route, url);
-      return serveStatic(res, route);
+      if (route.startsWith("/api/")) {
+        // This computer: no login. Anywhere else (the domain, the local network): the pairing code.
+        if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "login", login: true });
+        return await localApi(req, res, route, url);
+      }
+      if (!isLocal(req) && !viaInternet(req)) return sendJson(res, 403, { error: "Use the phone app or the Tia web address." });
+      return serveStatic(req, res, route, url);
     } catch (e) {
       return sendJson(res, 500, { error: String(e.message || e) });
     }

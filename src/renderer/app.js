@@ -183,7 +183,7 @@ function dropEmpty(list) {
 }
 function ensureEmpty() {
   if (!$("needs").querySelector(".item") && !$("needs").querySelector(".empty"))
-    $("needs").appendChild(el("div", "empty", state.total ? "Nothing needs you right now." : "Things that need your decision land here, with my draft ready."));
+    $("needs").appendChild(el("div", "empty", state.total || state.owner ? "Nothing needs you right now. Tell me what you need – I'll prepare it here for your OK." : "Things that need your decision land here, with my draft ready."));
   if (!$("handled").querySelector(".item") && !$("handled").querySelector(".empty")) $("handled").appendChild(el("div", "empty", "Things I finish – and things you approve – land here."));
 }
 
@@ -358,6 +358,14 @@ async function openPair(ip) {
     b.onclick = () => openPair(a.ip);
     list.appendChild(b);
   }
+  $("webLinkRow").hidden = !res.webLink;
+  $("copyLink").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(res.webLink);
+      $("copied").hidden = false;
+      setTimeout(() => ($("copied").hidden = true), 1800);
+    } catch {}
+  };
   if (!$("pairModal").open) $("pairModal").showModal();
 }
 
@@ -440,6 +448,7 @@ function onEvent(ev) {
   if (ev.type === "reply") {
     setThinking(false); // "heard" already showed the owner's own words
     if (ev.mode === "scripted") setMode("script", "Offline demo script");
+    else if (ev.mode === "offline") setMode("script", "Claude unavailable right now");
     else if (ev.mode === "live") setMode("live", state.live);
     if (ev.item) {
       dropEmpty($("needs"));
@@ -546,6 +555,31 @@ function markDecidedQuiet(node, st) {
   node.querySelector(".buttons").prepend(el("span", st === "rejected" ? "resolved rejected" : "resolved", st === "rejected" ? "Rejected" : "Approved"));
 }
 
+// A real owner: real name and clock, no demo controls, no phone mock-up (the real phone is the phone).
+function setupOwner(info) {
+  document.body.classList.add("owner");
+  $("business").textContent = info.business || info.owner;
+  document.title = `Tia · ${info.owner}`;
+  $("phone").hidden = true;
+  $("resetBtn").hidden = true;
+  if (info.inboxSource === "none") {
+    $("runBtn").hidden = true;
+    $("progressLabel").textContent = "Inbox not connected yet";
+  } else $("runBtn").textContent = "Check inbox";
+  const first = String(info.owner || "").split(" ")[0];
+  const h = new Date().getHours();
+  const greet = h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  $("speechText").textContent = `${greet}, ${first}. Hold the mic or type what you need – or say “brief me”.`;
+  $("askInput").placeholder = "Hold the mic and talk – or type what you need";
+  document.querySelector(".rules").innerHTML = "<strong>Tia's rules</strong> · money, sending and anything new wait for your OK · she reads only the notes that match";
+  // keep the clock in the header real
+  setInterval(async () => {
+    try {
+      $("today").textContent = (await window.tia.info()).today;
+    } catch {}
+  }, 60000);
+}
+
 async function init() {
   const info = await window.tia.info();
   state.isStatic = !!info.static;
@@ -553,6 +587,9 @@ async function init() {
   state.live = info.provider === "api" ? `Claude API · ${info.model}` : `Live · ${info.model}`;
   if (info.static) setMode("script", "Recorded demo · a real Claude run, replayed");
   else setMode("live", state.live);
+
+  state.owner = info.profile === "owner";
+  if (state.owner) setupOwner(info);
 
   const canTalk = !!window.tia.say;
   $("askbar").hidden = !canTalk;
