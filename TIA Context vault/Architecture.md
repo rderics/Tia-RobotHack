@@ -22,6 +22,9 @@
 | AI chain | `src/brain/providers.js` | tries in order: Claude Code (if logged in) → Codex (if set) → **free Groq** key → Gemini/OpenRouter → Hermes (`talkProviders`). Failing one skipped 10 min. See [[Research/Free AI providers]] |
 | Outlook | `src/connectors/outlook.py` | classic Outlook via COM; reads; **saves drafts, never sends** |
 | Real actions | `src/actions/*` | opens the Outlook draft window, builds contract/offer PDFs, prints, opens WhatsApp with the text typed |
+| App views | `src/renderer/channels/*` | `store.js` (threads per channel from desk + events), `apps.js` (Outlook / WhatsApp / Instagram / Slack look-alikes), `views.js` (rail, Follow Tia, PiP, both-way actions), `icons.js` (Fluent, MIT) |
+| Real apps | `src/connectors/composio.js` | Composio CLI: Gmail inbox + drafts, Outlook drafts, Slack read; send/post/delete refused |
+| Lead finder | `src/leads/finder.js` | OpenStreetMap (+ cache, `demo/osm-riga.json`) → websites → AI fit → CRM (`/crm`) or Google Sheet (`scripts/google-sheets-crm`) |
 | Voice | `src/voice.js` + `src/tts/edge_voice.py` → `/api/tts` | Microsoft neural voice (edge-tts) with word timings for lip-sync |
 | Speech-to-text | `src/stt.js` + `src/stt/stt_worker.py` | faster-whisper base.en on the PC; audio deleted after use |
 | Avatar | `src/scene/vrm-avatar.js` → `npm run build:avatar` → `src/renderer/avatar.js` | three-vrm; model `src/renderer/assets/avatars/tia.vrm` (licence in SOURCE.txt) |

@@ -24,6 +24,28 @@ Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds
 - **Updates:** in the `Tia` folder run `git pull`, then run `scripts\setup.ps1` again.
 - **Port taken?** Set another one before starting: `set TIA_PORT=4848` (cmd) and open that port.
 - **The voice** needs internet (Microsoft neural voices). Offline, Tia falls back to the browser's voice.
+- **Your AI agent** (Claude Code, Codex, Gemini, Cursor…): let it read `AGENTS.md` and `TIA Context vault/Home.md` first – goal, who owns which files, every decision. Open `TIA Context vault/` and `demo/Business vault TIA/` in Obsidian (*Open folder as vault*) to browse them.
+
+### See it in action (5 minutes)
+1. **Start the day** (top right). Tia reads the 12 demo messages out loud and sorts them: handled vs **Needs you**.
+2. Watch the **left app bar**: with **Follow Tia** on, she opens **Mail** (Outlook look), **WhatsApp**, **Instagram** or **Slack** for each message and types her draft into the reply box.
+3. Work yourself: click **Mail** → open *Laura Vītola* → edit Tia's reply → **Save draft**.
+   - With classic Outlook installed, Outlook opens and the reply is typed in (a draft – it never sends).
+   - Without Outlook, the step says so and the draft stays on the screen.
+   - In **WhatsApp**, the send arrow opens WhatsApp Web with the text typed in.
+4. **Talk or type to Tia** (Tia tab, bottom): *"Prepare the contract for Ieva Bērziņa"*. She asks which worktop (oak or quartz) instead of guessing. Answer *"Quartz"*, then **Approve**: a PDF contract opens, goes to your default printer and into an Outlook draft.
+   - No printer? Choose *Microsoft Print to PDF* as the default printer.
+5. **Lead finder:** *"Find architects and real-estate agencies in Riga who could send us clients"*. Real Riga businesses (OpenStreetMap + their websites) get a fit score and appear in the **Leads** tab. The best two get a first email as a draft.
+6. **Phone:** *Connect phone* → scan the QR → the app opens in Expo Go (same Wi-Fi) and shares the same desk.
+
+What runs where: views, voice, avatar, lead finder and PDFs work on every PC. Outlook drafts need **classic Outlook**. Printing needs a default printer. Gmail and Slack need Composio (below).
+
+### Real apps through Composio (optional, your own accounts)
+Tia reads and **drafts** in real apps through [Composio](https://composio.dev) (free: 10 000 actions a month). Sending, posting and deleting are blocked in `src/connectors/composio.js`.
+1. Install the CLI (Windows PowerShell): `irm https://raw.githubusercontent.com/ComposioHQ/composio/next/install.ps1 | iex`, then run `composio login`.
+2. Connect an app: `composio link gmail` (and/or `composio link slack`, `composio link outlook`), then click **Allow**.
+3. Let Tia read that Gmail: create `config.json` in the Tia folder with `{ "inboxSource": "gmail" }` and restart Tia. **Start the day** now reads the newest Gmail messages, and approving saves a Gmail draft in the same thread and opens it.
+   - Use a **demo account** for the stand, not your private mail – it shows on the big screen.
 
 ## The demo business vault (`demo/Business vault TIA`)
 

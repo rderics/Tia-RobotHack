@@ -14,3 +14,9 @@ design/
 
 # secrets (free AI keys)
 .env
+
+# Obsidian per-user window state (keep the shared graph colours)
+**/.obsidian/workspace*.json
+**/.obsidian/app.json
+**/.obsidian/appearance.json
+**/.obsidian/core-plugins*.json

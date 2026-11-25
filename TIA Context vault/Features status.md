@@ -13,9 +13,9 @@
 | WhatsApp draft | ✅ | wa.me with the text typed; owner picks the chat and presses send |
 | AI lead finder → Google Sheet | 🟡 | works with Tia's /crm page; Google Sheet needs the one-time Apps Script deploy (owner) |
 | Explain view for judges | ❌ | reason + notes read + guard rule per card |
-| Familiar app views (Mail, WhatsApp, Instagram, Slack, Leads) | ✅ | left app rail; "Follow Tia" opens the right app at her reading pace and types her draft; owner can edit/write and approve in any view; Tia PiP in the corner *(25.11)* |
+| App views identical to the real apps (Outlook web, WhatsApp Web, Instagram Direct, Slack, Leads) | ✅ | `src/renderer/channels/apps.js` + Fluent icons (MIT); "Follow Tia" opens the right app at her reading pace and types her draft; owner can edit/write and approve in any view; Tia PiP in the corner *(25.11)* |
 | Frontend cards on the Tia tab | 🟡 | still text-heavy → polish |
-| Composio (Gmail, Calendar, Slack) | ❌ | researched; needs the owner's Composio account + API key |
+| Composio – real Gmail / Outlook / Slack | 🟡 | connector ready (`src/connectors/composio.js`, read + draft only, send blocked); CLI logged in on Rinalds' PC; **no account linked yet** – plan: demo Gmail + Slack for Oakline Studio |
 | 3D avatar + voice + lip-sync | ✅ | VRM Yuzuki, Microsoft "Ava" |
 | Phone app (Expo Go) | ✅ | hold-to-talk, chat, approve; QR connect from "Connect phone" |
 | Hermes engine | 🟡 | AKU; Tia already speaks to its API (`providers: hermes`) |
