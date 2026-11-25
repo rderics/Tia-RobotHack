@@ -6,6 +6,24 @@ The owner can also **talk to Tia** – on the big screen or from the **Tia phone
 
 The demo business **Liepa Interjers** and all its people are fictional.
 
+## For teammates – get Tia on your PC
+
+Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds' files or accounts.
+
+1. **Install Git** (once): https://git-scm.com/download/win – or in PowerShell: `winget install Git.Git`
+2. **Get Tia:** open PowerShell in the folder where you want her and run
+   `git clone https://github.com/rderics/Tia-RobotHack Tia`
+3. **Set up (once, ~5 min):** in the new `Tia` folder right-click `scripts\setup.ps1` → **Run with PowerShell**
+   (or: `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1`). It installs what's missing – Node.js, Python, ffmpeg – and Tia's packages.
+4. **Start her:** double-click **`Start Tia.cmd`** → your browser opens http://localhost:4747. Close the black window to stop her.
+   `Start Tia (desktop app).cmd` opens the same screen as its own window.
+
+- **Without Claude Code:** everything still works for the stand – **Start the day** plays the saved real run, talking uses the offline script, the voice and avatar are the same.
+- **Live answers:** install Claude Code (https://claude.com/claude-code), type `claude` in a terminal once and log in. Tia then thinks live with your own Claude login.
+- **Updates:** in the `Tia` folder run `git pull`, then run `scripts\setup.ps1` again.
+- **Port taken?** Set another one before starting: `set TIA_PORT=4848` (cmd) and open that port.
+- **The voice** needs internet (Microsoft neural voices). Offline, Tia falls back to the browser's voice.
+
 ## Run it
 
 You need Node.js, Python with `faster-whisper` (speech-to-text, runs on this computer), ffmpeg, and Claude Code logged in (`claude` in a terminal works).

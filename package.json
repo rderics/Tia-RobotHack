@@ -23,5 +23,9 @@
     "esbuild": "0.24.0",
     "three": "0.170.0",
     "three186": "npm:three@^0.186.0"
+  },
+  "allowScripts": {
+    "electron@45.4.1": true,
+    "esbuild@0.24.0": true
   }
 }
