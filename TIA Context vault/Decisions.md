@@ -2,6 +2,10 @@
 
 Add a line at the top when the team decides something: `date · who · decision · replaces`.
 
+- **25.11 · Rinalds** · Views must be **identical to the real apps** and connect to them: high-fidelity Outlook web /
+  WhatsApp Web / Instagram Direct / Slack (`src/renderer/channels/apps.js`) with Microsoft Fluent UI System Icons (MIT);
+  still no brand logos. Real connections through **Composio** (CLI logged in on Rinalds' PC; `src/connectors/composio.js`:
+  Gmail inbox + Gmail drafts, Outlook drafts, Slack read; send/post/delete tools are blocked in code).
 - **25.11 · Rinalds** · **Familiar interfaces:** Tia works inside look-alike views of Mail (Outlook-style), WhatsApp,
   Instagram DMs and Slack – same layout and colours owners already know, no new UI to learn. Both ways: Tia opens the
   tab and types the draft, or the owner opens a tab and works himself. Built in plain CSS (no usable licensed clones for

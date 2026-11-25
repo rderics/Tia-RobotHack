@@ -115,7 +115,15 @@ async function decide({ id, verdict, editedText, via }) {
     learn = engine.recordFeedback({ message: r.message, proposal: r.proposal, verdict, editedReply: editedText });
     if (verdict === "reject") line = `Okay, I won't answer ${r.message.from}.`;
     else if (!reply) line = `Noted for ${r.message.from}.`;
-    else if (r.message.entryId || r.message.channel === "email") {
+    else if (r.message.source === "gmail") {
+      line = `I'm saving my reply to ${r.message.from} as a Gmail draft and opening it – you press Send.`;
+      act(item, async (step) => {
+        step({ step: "gmail", status: "start", detail: `Writing the Gmail draft to ${r.message.from}` });
+        await require("./connectors/composio").gmailDraft({ to: r.message.address, subject: r.message.subject ? `Re: ${r.message.subject.replace(/^re:\s*/i, "")}` : "", body: reply, threadId: r.message.threadId });
+        actions.open(r.message.threadId ? `https://mail.google.com/mail/u/0/#all/${r.message.threadId}` : "https://mail.google.com/mail/u/0/#drafts");
+        step({ step: "gmail", status: "done", detail: "Draft saved in Gmail and opened – you press Send" });
+      });
+    } else if (r.message.entryId || r.message.channel === "email") {
       line = `I'm writing my reply to ${r.message.from} in Outlook now – it stays a draft, you press Send.`;
       act(item, async (step) => {
         await actions.outlook(loadConfig(), { to: r.message.address || r.message.from, subject: r.message.subject ? `Re: ${r.message.subject}` : "", text: reply, replyTo: r.message.entryId ? r.message : null, save: !!r.message.entryId }, step);

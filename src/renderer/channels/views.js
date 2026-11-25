@@ -171,7 +171,20 @@
     const items = S.list(tab).sort((a, b) => String(b.time).localeCompare(String(a.time)));
     if (!sel[tab] || !items.find((x) => x.id === sel[tab])) sel[tab] = items[0] && items[0].id;
     const x = items.find((i) => i.id === sel[tab]);
-    view.append({ email: mailView, whatsapp: waView, instagram: igView, slack: slackView }[tab](items, x));
+    const A = window.TiaApps; // high-fidelity look-alikes (channels/apps.js); the simpler views below are the fallback
+    if (A) {
+      const ctx = {
+        h, avatar, chip, steps: stepsView, decide, reject, typeDraft, composerValue, userEdited, render,
+        select: (id) => ((sel[tab] = id), render()),
+        pendingFor: (id) => (follow && pendingType === id ? ((pendingType = null), true) : false),
+        textarea: (x2, placeholder) => {
+          const c2 = chatCompose(x2);
+          c2.ta.placeholder = placeholder;
+          return c2.ta;
+        },
+      };
+      view.append({ email: A.mail, whatsapp: A.wa, instagram: A.ig, slack: A.slack }[tab](ctx, items, x));
+    } else view.append({ email: mailView, whatsapp: waView, instagram: igView, slack: slackView }[tab](items, x));
   }
 
   let mailFolder = "inbox";

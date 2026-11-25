@@ -57,6 +57,11 @@ async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false }
     if (mode === "replay") throw new Error("A real inbox can't be replayed – Claude is needed to read it.");
     onEvent({ type: "fetching", source: "Outlook" });
     inbox = await outlook.fetchInbox(cfg); // newest mail, read-only
+  } else if (cfg.inboxSource === "gmail") {
+    // real Gmail through Composio (composio link gmail) – read-only, replies become Gmail drafts
+    if (mode === "replay") throw new Error("A real inbox can't be replayed – an AI is needed to read it.");
+    onEvent({ type: "fetching", source: "Gmail" });
+    inbox = await require("../connectors/composio").gmailInbox({ max: cfg.inboxLimit || 12, query: cfg.gmailQuery || "in:inbox newer_than:3d" });
   } else inbox = JSON.parse(fs.readFileSync(cfg.inboxFile, "utf8"));
   const learning = loadLearning(cfg);
   onEvent({ type: "start", total: inbox.length, mode, provider: cfg.provider, model: cfg.model });
