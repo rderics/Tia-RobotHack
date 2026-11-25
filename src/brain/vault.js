@@ -39,11 +39,15 @@ function contextFor(cfg, query) {
   }
   const rules = path.join(cfg.notesDir, "Learned rules.md");
   if (fs.existsSync(rules)) parts.push(note("Tia/Learned rules", fs.readFileSync(rules, "utf8").slice(-PER_NOTE)));
-  const hits = indexFor([{ dir: cfg.vaultDir, label: "" }]).search(query, cfg.topNotes || 6);
+  // Best-matching sections (several may come from the same note), within a total budget.
+  const hits = indexFor([{ dir: cfg.vaultDir, label: "" }]).search(query, (cfg.topNotes || 6) * 2);
+  let budget = PER_NOTE * (cfg.topNotes || 6);
   for (const h of hits) {
-    if (sources.includes(h.doc.name)) continue;
-    parts.push(note(h.doc.name, h.doc.text.slice(0, PER_NOTE)));
-    sources.push(h.doc.name);
+    if (budget <= 0) break;
+    const label = h.doc.section ? `${h.doc.name} › ${h.doc.section}` : h.doc.name;
+    parts.push(note(label, h.doc.text));
+    budget -= h.doc.text.length;
+    if (!sources.includes(h.doc.name)) sources.push(h.doc.name);
   }
   return { text: parts.join("\n\n") || "(no matching notes)", sources };
 }

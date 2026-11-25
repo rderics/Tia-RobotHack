@@ -32,6 +32,27 @@ function listNotes(dir, base = dir, out = []) {
   return out;
 }
 
+// Split a note at its headings; long sections are cut into ~2,500-character pieces.
+function sections(text, max = 2500) {
+  const out = [];
+  let heading = "";
+  let buf = [];
+  const flush = () => {
+    const body = buf.join("\n").trim();
+    buf = [];
+    if (!body) return;
+    for (let i = 0; i < body.length; i += max) out.push({ heading, text: (heading ? `${heading}\n` : "") + body.slice(i, i + max) });
+  };
+  for (const line of text.split(/\r?\n/)) {
+    if (/^#{1,4}\s/.test(line)) {
+      flush();
+      heading = line.replace(/^#+\s*/, "").trim();
+    } else buf.push(line);
+  }
+  flush();
+  return out.length ? out : [{ heading: "", text: text.slice(0, max) }];
+}
+
 class VaultIndex {
   constructor(dirs) {
     this.dirs = dirs; // [{ dir, label }]
@@ -68,12 +89,15 @@ class VaultIndex {
       for (const rel of listNotes(dir)) {
         const text = fs.readFileSync(path.join(dir, rel), "utf8").slice(0, MAX_NOTE_CHARS);
         const name = rel.replace(/\.md$/, "");
-        // The note's name counts three times: "Anna Kalniņa" should win for "Anna".
-        const tokens = tokenize(`${name} ${name} ${name} ${text}`);
-        const tf = new Map();
-        for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
-        for (const t of tf.keys()) this.df.set(t, (this.df.get(t) || 0) + 1);
-        this.docs.push({ name: label ? `${label}/${name}` : name, file: path.join(dir, rel), text, len: tokens.length, tf });
+        // Index each section of a note separately, so a table deep inside a long note can still be found.
+        for (const part of sections(text)) {
+          // The note's name counts three times: "Anna Kalniņa" should win for "Anna".
+          const tokens = tokenize(`${name} ${name} ${name} ${part.heading} ${part.text}`);
+          const tf = new Map();
+          for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+          for (const t of tf.keys()) this.df.set(t, (this.df.get(t) || 0) + 1);
+          this.docs.push({ name: label ? `${label}/${name}` : name, section: part.heading, file: path.join(dir, rel), text: part.text, len: tokens.length, tf });
+        }
       }
     }
     this.avgLen = this.docs.reduce((s, d) => s + d.len, 0) / Math.max(1, this.docs.length);

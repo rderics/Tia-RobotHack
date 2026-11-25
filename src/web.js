@@ -229,6 +229,14 @@ async function actions(req, res, route, via) {
       return sendJson(res, 200, { error: String(e.message || e), say: "Sorry, I couldn't hear that properly. Try again or type it." });
     }
   }
+  if (route === "/api/chat") {
+    const body = await readJson(req);
+    try {
+      return sendJson(res, 200, await hub.chat(body.messages));
+    } catch (e) {
+      return sendJson(res, 200, { error: String(e.message || e), content: "Sorry – I couldn't answer just now." });
+    }
+  }
   if (route === "/api/reset") {
     hub.reset();
     return sendJson(res, 200, { ok: true });

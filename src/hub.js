@@ -5,6 +5,7 @@ const { loadConfig } = require("./brain/config");
 const { contextFor, logActivity } = require("./brain/vault");
 const outlook = require("./connectors/outlook");
 const { runCommand, liveBlocked } = require("./brain/command");
+const { chat: chatModel } = require("./brain/providers");
 
 const URGENT_CATEGORIES = new Set(["payment_change", "complaint"]);
 
@@ -193,6 +194,25 @@ async function command(text, via) {
   }
 }
 
+// Free chat (used by the OpenJarvis-based screens): answers from the owner's notes, says which ones.
+async function chat(messages) {
+  const cfg = loadConfig();
+  const turns = (messages || []).filter((m) => m && (m.role === "user" || m.role === "assistant") && m.content).slice(-12);
+  const last = [...turns].reverse().find((m) => m.role === "user");
+  if (!last) throw new Error("Nothing to answer.");
+  const ctx = contextFor(cfg, turns.filter((m) => m.role === "user").slice(-3).map((m) => m.content).join(" "));
+  const owner = cfg.profile === "owner" ? `${cfg.owner}` : `the owner of ${cfg.business}`;
+  const system = `You are Tia, the AI personal secretary of ${owner}. Today is ${engine.info().today}.
+Use the owner's notes below as your knowledge of their world. Facts about people, projects, dates and money must come from these notes or the conversation; if they are not there, say you don't have it in the notes. Never invent. Never claim to have sent, paid or booked anything – you prepare, the owner approves.
+Answer warmly and briefly, in the same language as the owner's last message (even when the notes are in another language). End with "Notes: <names of the notes you used>" when you used any.
+
+THE OWNER'S NOTES:
+${ctx.text}`;
+  const convo = turns.map((m) => `${m.role === "user" ? "OWNER" : "TIA"}: ${m.content}`).join("\n\n");
+  const r = await chatModel(cfg, { system, prompt: `${convo}\n\nReply as TIA to the owner's last message.` });
+  return { content: r.text, sources: ctx.sources, via: r.via };
+}
+
 function reset() {
   engine.resetDemo();
   desk.items = [];
@@ -283,4 +303,4 @@ function getItem(id) {
   return i ? card(i) : null;
 }
 
-module.exports = { runDay, decide, command, reset, snapshot, getItem, onEvent, waitForChange };
+module.exports = { runDay, decide, command, chat, reset, snapshot, getItem, onEvent, waitForChange };
