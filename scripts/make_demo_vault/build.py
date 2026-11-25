@@ -1,4 +1,4 @@
-"""Builds demo/vault: the fictional Liepa Interjers second brain (~650 linked notes).
+"""Builds demo/vault: the fictional Oakline Studio second brain (~650 linked notes).
 
     python scripts/make_demo_vault/build.py            # writes demo/vault (keeps nothing else)
 
@@ -795,15 +795,15 @@ for title, body in TEMPLATES.items():
 put("Business.md", f"""---
 type: business
 ---
-# Liepa Interjers (fictional demo business)
+# Oakline Studio (fictional demo business)
 
 - **What we do:** custom kitchens, built-in furniture and interior renovation in Riga and Pierīga.
 - **Owner:** [[Mārtiņš Ozols]] (the person Tia works for).
 - **Team:** [[Elīna Zariņa]] (project manager, office), [[Kaspars Liepiņš]] (lead installer), [[Jānis Krūmiņš]] (installer), [[Agnese Kalēja]] (junior designer), [[Ivo Sproģis]] (workshop), [[Līga Upīte]] (sales & social, part-time).
 - **Typical job:** kitchen 3–5 m, 6–8 weeks from measurement to install.
-- **Channels:** email info@liepa-interjers.example, WhatsApp business number, Instagram @liepa.interjers, team Slack.
-- **Google review link:** https://g.page/r/liepa-interjers-demo/review
-- **Our real supplier domains:** kokmateriali-baltic.example (countertops, boards), liepa-interjers.example (our own).
+- **Channels:** email info@oakline-studio.example, WhatsApp business number, Instagram @oakline.studio, team Slack.
+- **Google review link:** https://g.page/r/oakline-studio-demo/review
+- **Our real supplier domains:** kokmateriali-baltic.example (countertops, boards), oakline-studio.example (our own).
 - **Office:** Ūdens iela, Pārdaugava · **Workshop:** Ķekava.
 - **Since:** 2017 · **2026:** {len([p for p in projects if p.get('contract') and p['contract'].year == 2026])} contracts so far, 47 Google reviews (4.9).
 
@@ -816,7 +816,7 @@ owner: Mārtiņš Ozols
 # How Mārtiņš wants things done
 
 ## Tone
-- Warm, short, professional. First name with clients. Sign as "Tia, assistant to Mārtiņš – Liepa Interjers".
+- Warm, short, professional. First name with clients. Sign as "Tia, assistant to Mārtiņš – Oakline Studio".
 - Reply in the language the person wrote in (Latvian or English, sometimes Russian).
 
 ## Tia may do on her own
@@ -857,7 +857,7 @@ moc("MOC — Clients", "All clients (A–Z). Leads that never became clients liv
 moc("MOC — Leads", "Inbound requests that are not (yet) projects.", [("Leads", sorted(f"{iso(l['date'])} {l['name']}" for l in leads))])
 moc("MOC — Suppliers and partners", "Who we buy from and work with.", [("Suppliers", [s["name"] for s in SUPPLIERS if s["name"] != "Bolt Food"] + ["Bolt Food — usual team lunch"]),
                                                                         ("Partners", [p["name"] for p in PARTNERS]), ("People at suppliers", [s["contact"] for s in SUPPLIERS if s.get("contact")])])
-moc("MOC — Team", "The people of Liepa Interjers.", [("Team", [t["name"] for t in TEAM]), ("External", [e["name"] for e in EXTERNAL_PEOPLE])])
+moc("MOC — Team", "The people of Oakline Studio.", [("Team", [t["name"] for t in TEAM]), ("External", [e["name"] for e in EXTERNAL_PEOPLE])])
 moc("MOC — How we work", "Processes (SOPs), rules and templates.", [("SOPs", [k[1] for k in KNOWLEDGE if k[2] == "sop"] + ["Decisions log — complaints"]),
                                                                      ("Rules", [k[1] for k in KNOWLEDGE if k[2] == "rules"] + ["Owner preferences"]), ("Templates", list(TEMPLATES))])
 moc("MOC — Kitchens and materials", "What we build and with what.", [("Materials", [k[1] for k in KNOWLEDGE if k[2] == "materials"]), ("Care guides", [k[1] for k in KNOWLEDGE if k[2] == "care"]),
@@ -871,7 +871,7 @@ moc("MOC — Meetings", "Meeting notes since October 2025.", [(k.capitalize(), [
 put("Home.md", f"""---
 type: home
 ---
-# Liepa Interjers — second brain
+# Oakline Studio — second brain
 The shared memory of a (fictional) Riga kitchen and furniture studio. Tia (the AI secretary) and Hermes read from here.
 
 - **Business:** [[Business]] · [[Owner preferences]] · [[Price list]] · [[Calendar — this week]]

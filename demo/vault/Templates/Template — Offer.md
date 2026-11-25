@@ -19,4 +19,4 @@ thank you for meeting us at {address}. Below is our offer for {short_description
 **Valid:** 30 days.
 
 Kind regards,
-Mārtiņš Ozols – Liepa Interjers
+Mārtiņš Ozols – Oakline Studio

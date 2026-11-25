@@ -33,7 +33,7 @@ except Exception as e:  # missing package or model download failed
 out({"ready": True, "model": MODEL})
 
 # Words the demo business uses a lot – helps the model spell names right.
-HINT = "Tia, Liepa Interjers, Mārtiņš, Ieva Bērziņa, Anna Kalniņa, Laura Vītola, Kaspars, Elīna, quartz worktop, oak worktop, kitchen offer."
+HINT = "Tia, Oakline Studio, Mārtiņš, Ieva Bērziņa, Anna Kalniņa, Laura Vītola, Kaspars, Elīna, quartz worktop, oak worktop, kitchen offer."
 
 def load_audio(path):
     """Decode any audio file (m4a, webm, wav) to 16 kHz mono with ffmpeg (avoids PyAV version problems)."""

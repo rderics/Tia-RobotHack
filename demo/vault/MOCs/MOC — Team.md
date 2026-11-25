@@ -2,7 +2,7 @@
 type: moc
 ---
 # MOC — Team
-The people of Liepa Interjers.
+The people of Oakline Studio.
 
 ## Team (7)
 - [[Mārtiņš Ozols]]

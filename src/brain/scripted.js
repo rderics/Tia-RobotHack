@@ -27,7 +27,7 @@ function offer(worktop) {
       title: "Kitchen offer – Ieva Bērziņa",
       to: "Ieva Bērziņa",
       summary: `L-shaped kitchen 4.2 m with ${worktop} worktop – ${total.toLocaleString("en-US")} €`,
-      message_text: `Hi Ieva,\n\nThank you for having us over on Monday. As promised, here is the offer for your kitchen at Ganību dambis 12 – with the ${worktop} worktop, the integrated fridge and dishwasher housing and the four extra drawers under the corner.\n\nThe offer is valid for 14 days. Happy to walk through it on a call.\n\nTia, assistant to Mārtiņš – Liepa Interjers`,
+      message_text: `Hi Ieva,\n\nThank you for having us over on Monday. As promised, here is the offer for your kitchen at Ganību dambis 12 – with the ${worktop} worktop, the integrated fridge and dishwasher housing and the four extra drawers under the corner.\n\nThe offer is valid for 14 days. Happy to walk through it on a call.\n\nTia, assistant to Mārtiņš – Oakline Studio`,
       lines,
       total_eur: total,
       valid_until: "3 December 2026",

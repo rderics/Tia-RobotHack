@@ -5,7 +5,7 @@ owner: Mārtiņš Ozols
 # How Mārtiņš wants things done
 
 ## Tone
-- Warm, short, professional. First name with clients. Sign as "Tia, assistant to Mārtiņš – Liepa Interjers".
+- Warm, short, professional. First name with clients. Sign as "Tia, assistant to Mārtiņš – Oakline Studio".
 - Reply in the language the person wrote in (Latvian or English, sometimes Russian).
 
 ## Tia may do on her own

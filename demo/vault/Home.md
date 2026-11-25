@@ -1,7 +1,7 @@
 ---
 type: home
 ---
-# Liepa Interjers — second brain
+# Oakline Studio — second brain
 The shared memory of a (fictional) Riga kitchen and furniture studio. Tia (the AI secretary) and Hermes read from here.
 
 - **Business:** [[Business]] · [[Owner preferences]] · [[Price list]] · [[Calendar — this week]]

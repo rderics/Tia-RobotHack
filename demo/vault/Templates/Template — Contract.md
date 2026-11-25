@@ -2,7 +2,7 @@
 
 Riga, {date}
 
-**Contractor:** SIA "Liepa Interjers" (fictional), reg. No. 40000000000, represented by board member Mārtiņš Ozols.
+**Contractor:** SIA "Oakline Studio" (fictional), reg. No. 40000000000, represented by board member Mārtiņš Ozols.
 **Client:** {client}, object address: {address}.
 
 ## 1. Subject

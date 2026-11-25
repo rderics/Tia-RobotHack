@@ -17,7 +17,7 @@ const DEFAULTS = {
   // Who Tia works for. "stand" = the fictional demo business (AI Studio stand, public repo).
   // "owner" = a real owner's own vault – set in config.json, which is never committed.
   profile: "stand",
-  business: "Liepa Interjers",
+  business: "Oakline Studio",
   owner: "Mārtiņš Ozols",
   timezone: "Europe/Riga",
   notesDir: null, // where Tia writes her activity log + learned rules (default: inside the vault, folder Tia/)

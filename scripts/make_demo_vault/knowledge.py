@@ -1,4 +1,4 @@
-"""Hand-written knowledge for the demo business: how Liepa Interjers works (SOPs, materials, sales,
+"""Hand-written knowledge for the demo business: how Oakline Studio works (SOPs, materials, sales,
 marketing, rules), decisions with their reasons, and document templates. Fictional business."""
 
 # Each entry: (folder, title, tags-line, body). Bodies use [[links]] to people, suppliers, other notes.
@@ -229,7 +229,7 @@ Typical duration: 3–4 weeks in a block of flats, the client cannot use the bat
 Questions that sort leads fast: *Is the room ready (walls, floor)? When do you want to cook in it? What budget did you have in mind?*
 """),
 ("Knowledge/Sales", "Competitors in Riga — how we compare", "sales", """
-| | Big furniture chains | Small workshops | Liepa Interjers |
+| | Big furniture chains | Small workshops | Oakline Studio |
 |---|---|---|---|
 | Price | lowest | similar | middle |
 | Design | catalogue modules | none | designer included |
@@ -353,13 +353,13 @@ thank you for meeting us at {address}. Below is our offer for {short_description
 **Valid:** 30 days.
 
 Kind regards,
-Mārtiņš Ozols – Liepa Interjers
+Mārtiņš Ozols – Oakline Studio
 """,
 "Template — Contract": """# FURNITURE MANUFACTURING AND INSTALLATION CONTRACT No. {contract_no}
 
 Riga, {date}
 
-**Contractor:** SIA "Liepa Interjers" (fictional), reg. No. 40000000000, represented by board member Mārtiņš Ozols.
+**Contractor:** SIA "Oakline Studio" (fictional), reg. No. 40000000000, represented by board member Mārtiņš Ozols.
 **Client:** {client}, object address: {address}.
 
 ## 1. Subject
@@ -399,7 +399,7 @@ Contractor: ____________ Mārtiņš Ozols   Client: ____________ {client}
 "Template — Invoice": """# INVOICE {invoice_no}
 Date: {date} · Due: {due}
 
-**From:** SIA "Liepa Interjers" (fictional), Ūdens iela, Rīga · info@liepa-interjers.example
+**From:** SIA "Oakline Studio" (fictional), Ūdens iela, Rīga · info@oakline-studio.example
 **To:** {client}, {address}
 
 | Description | Amount |
@@ -445,7 +445,7 @@ If anything is unclear or you would like to change something (colour, worktop, d
 The offer is valid until {valid_until}. Our next free install slots are in {next_slot}.
 
 Kind regards,
-Tia, assistant to Mārtiņš – Liepa Interjers
+Tia, assistant to Mārtiņš – Oakline Studio
 
 _Rule: send 5 working days after the offer if there is no answer; second and last follow-up after 10 more days ([[SOP — Answering new leads]])._
 """,

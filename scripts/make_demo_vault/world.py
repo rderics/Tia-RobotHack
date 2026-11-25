@@ -1,4 +1,4 @@
-"""The fictional world of Liepa Interjers: people, suppliers, clients, projects, leads.
+"""The fictional world of Oakline Studio: people, suppliers, clients, projects, leads.
 
 Everything is invented. Email addresses use the reserved .example domain. No phone numbers.
 Facts that the demo inbox (demo/inbox.json) and the saved replay depend on are fixed by hand in
@@ -11,7 +11,7 @@ TODAY = dt.date(2026, 11, 19)  # the demo day: Thursday 19 November 2026
 rng = random.Random(1911)
 
 OWNER = "Mārtiņš Ozols"
-BUSINESS = "Liepa Interjers"
+BUSINESS = "Oakline Studio"
 
 TEAM = [
     {"name": "Mārtiņš Ozols", "role": "Owner, lead designer", "since": "2017", "does": "designs every kitchen himself, signs every offer and contract, decides prices and discounts",

@@ -1,7 +1,7 @@
 # INVOICE {invoice_no}
 Date: {date} · Due: {due}
 
-**From:** SIA "Liepa Interjers" (fictional), Ūdens iela, Rīga · info@liepa-interjers.example
+**From:** SIA "Oakline Studio" (fictional), Ūdens iela, Rīga · info@oakline-studio.example
 **To:** {client}, {address}
 
 | Description | Amount |

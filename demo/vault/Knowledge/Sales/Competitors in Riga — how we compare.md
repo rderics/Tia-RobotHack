@@ -3,7 +3,7 @@ type: knowledge
 topic: sales
 ---
 # Competitors in Riga — how we compare
-| | Big furniture chains | Small workshops | Liepa Interjers |
+| | Big furniture chains | Small workshops | Oakline Studio |
 |---|---|---|---|
 | Price | lowest | similar | middle |
 | Design | catalogue modules | none | designer included |

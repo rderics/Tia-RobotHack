@@ -4,7 +4,7 @@ Tia reads a business owner's notes (an Obsidian vault) and their messages, does 
 
 The owner can also **talk to Tia** – on the big screen or from the **Tia phone app** – and she prepares the work (an offer, an order, a reply) for approval. The phone and the big screen share one desk: approve on the phone and the card closes on the big screen.
 
-The demo business **Liepa Interjers** and all its people are fictional.
+The demo business **Oakline Studio** and all its people are fictional.
 
 ## For teammates – get Tia on your PC
 
@@ -27,7 +27,7 @@ Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds
 
 ## The demo business vault (`demo/vault`)
 
-A fictional Riga kitchen studio, **Liepa Interjers**, built as a real second brain: ~800 linked notes (clients, projects, meetings since Oct 2025, daily notes since March 2026, leads, suppliers, team, SOPs, materials, decisions, finance, templates, MOCs). Open the folder in Obsidian to see the graph (colours by folder are preset).
+A fictional Riga kitchen studio, **Oakline Studio**, built as a real second brain: ~800 linked notes (clients, projects, meetings since Oct 2025, daily notes since March 2026, leads, suppliers, team, SOPs, materials, decisions, finance, templates, MOCs). Open the folder in Obsidian to see the graph (colours by folder are preset).
 
 - Tia searches it (BM25 over note sections) and always reads `Business`, `Owner preferences`, `Price list` and `Calendar — this week`. Hermes can read the same folder.
 - It is generated: `python scripts/make_demo_vault/build.py` (same seed → same vault), then `python scripts/make_demo_vault/check_links.py` (0 broken links). Change facts in `scripts/make_demo_vault/*.py`, not in the notes.

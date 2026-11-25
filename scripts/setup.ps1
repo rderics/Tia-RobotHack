@@ -2,7 +2,7 @@
 # Right-click -> "Run with PowerShell", or in a terminal in the Tia folder:
 #   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 # It installs what is missing (Node.js, Python, ffmpeg via winget), then Tia's own packages.
-# Nothing personal is needed: without a config.json Tia runs the fictional demo business (Liepa Interjers).
+# Nothing personal is needed: without a config.json Tia runs the fictional demo business (Oakline Studio).
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
