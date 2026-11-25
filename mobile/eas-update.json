@@ -1,0 +1,26 @@
+[
+  {
+    "id": "01a21458-f61b-78b3-867f-b21ef7fba53b",
+    "createdAt": "2026-11-25T20:15:04.219Z",
+    "group": "9d126c22-294e-462c-a4b5-b4fbf2ad6e63",
+    "branch": "main",
+    "message": "Phone: honest approve labels, contract + lead search cards, live action progress",
+    "runtimeVersion": "exposdk:58.0.0",
+    "platform": "android",
+    "manifestPermalink": "https://u.expo.dev/update/01a21458-f61b-78b3-867f-b21ef7fba53b",
+    "isRollBackToEmbedded": false,
+    "gitCommitHash": "8e7004ecbdf69d4ab565e4de1b38859bd8c5ee34"
+  },
+  {
+    "id": "01a21458-f61b-74ca-89bb-68f5a1c9c55f",
+    "createdAt": "2026-11-25T20:15:04.219Z",
+    "group": "9d126c22-294e-462c-a4b5-b4fbf2ad6e63",
+    "branch": "main",
+    "message": "Phone: honest approve labels, contract + lead search cards, live action progress",
+    "runtimeVersion": "exposdk:58.0.0",
+    "platform": "ios",
+    "manifestPermalink": "https://u.expo.dev/update/01a21458-f61b-74ca-89bb-68f5a1c9c55f",
+    "isRollBackToEmbedded": false,
+    "gitCommitHash": "8e7004ecbdf69d4ab565e4de1b38859bd8c5ee34"
+  }
+]

@@ -62,7 +62,9 @@ function appLink(url, token) {
   try {
     const app = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "mobile", "app.json"), "utf8")).expo;
     const projectId = app.extra.eas.projectId;
-    const updates = JSON.parse(fs.readFileSync(path.join(loadConfig().dataDir, "eas-update.json"), "utf8").replace(/^\uFEFF/, ""));
+    // mobile/eas-update.json is committed (teammates get the app link too); data/ is the local fallback
+    const local = [path.join(__dirname, "..", "mobile", "eas-update.json"), path.join(loadConfig().dataDir, "eas-update.json")].find((f) => fs.existsSync(f));
+    const updates = JSON.parse(fs.readFileSync(local, "utf8").replace(/^\uFEFF/, ""));
     const group = updates[0].group;
     return `exp://u.expo.dev/${projectId}/group/${group}/--/connect?u=${encodeURIComponent(url)}&t=${token}`;
   } catch {

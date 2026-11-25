@@ -24,7 +24,7 @@ export const CHANNEL = {
   voice: { label: "You asked", color: C.accent },
 };
 
-export const KIND_LABEL = { offer: "Offer", order: "Order", reply: "Reply", calendar: "Calendar", task: "Task" };
+export const KIND_LABEL = { offer: "Offer", contract: "Contract", order: "Order", reply: "Email draft", calendar: "Calendar", task: "Task", find_leads: "Lead search" };
 
 export const eur = (n) => {
   const v = Math.round(Number(n || 0) * 100) / 100;

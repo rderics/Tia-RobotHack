@@ -30,6 +30,11 @@ export default function Card({ card, onDecide, onEdit, busy, defaultOpen = false
           {card.summary}
         </Text>
         {card.money > 0 && !open && <Text style={styles.money}>{eur(card.money)}</Text>}
+        {card.actions && card.actions.length > 0 && (
+          <Text style={styles.action}>
+            {(card.actions[card.actions.length - 1].status === "error" ? "⚠ " : card.actions[card.actions.length - 1].status === "done" ? "✓ " : "… ") + card.actions[card.actions.length - 1].detail}
+          </Text>
+        )}
       </Pressable>
 
       {open && (
@@ -62,7 +67,7 @@ export default function Card({ card, onDecide, onEdit, busy, defaultOpen = false
 
       {isOpenItem ? (
         <View style={styles.buttons}>
-          <Btn label={card.approveLabel || (card.kind === "order" ? "Approve order" : card.text ? "Approve & send" : "Approve")} tone="ok" onPress={() => onDecide(card, "approve")} disabled={busy} />
+          <Btn label={card.approveLabel || (card.kind === "order" ? "Approve order" : card.kind === "offer" || card.kind === "contract" ? "Approve – make PDF" : card.text ? "Approve – make the draft" : "Approve")} tone="ok" onPress={() => onDecide(card, "approve")} disabled={busy} />
           {!!card.text && <Btn label="Edit" onPress={() => onEdit(card)} disabled={busy} />}
           <Btn label="Reject" tone="ghost" onPress={() => onDecide(card, "reject")} disabled={busy} />
         </View>
@@ -100,6 +105,7 @@ const styles = StyleSheet.create({
   summary: { color: "#CFCAD8", fontSize: 14.5, lineHeight: 20 },
   money: { color: C.warn, fontSize: 13, fontWeight: "600", marginTop: 6 },
   body: { paddingHorizontal: 16, paddingBottom: 4 },
+  action: { color: C.accent || "#B9A3F2", fontSize: 12, marginTop: 6 },
   lines: { backgroundColor: C.surface2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 10 },
   lineRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 7, gap: 12 },
   lineItem: { color: "#CFCAD8", fontSize: 13, flex: 1, lineHeight: 18 },
