@@ -11,3 +11,6 @@ src/renderer/assets/tia-avatar.glb
 
 # design notes and reference sheets (third-party thumbnails) - local only
 design/
+
+# secrets (free AI keys)
+.env

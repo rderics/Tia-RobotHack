@@ -1,4 +1,6 @@
-// How Tia reaches Claude. Two interchangeable ways, chosen by `provider` in config.json.
+// How Tia reaches an AI model. Several interchangeable ways, tried in order (see providerChain below):
+// Claude Code (subscription), Claude API (key), Codex CLI (ChatGPT login), and any OpenAI-compatible API –
+// free Groq / Gemini / OpenRouter keys, or a local Hermes Agent (its API server speaks the same format).
 const { spawn } = require("child_process");
 const os = require("os");
 const fs = require("fs");
@@ -136,39 +138,128 @@ function viaClaudeText(cfg, prompt, system) {
   });
 }
 
-// Claude first; when Claude says its usage limit is reached, the configured fallback answers for a while.
-let claudeBlockedUntil = 0;
-async function withFallback(cfg, primary, fallback) {
-  const canFallback = cfg.fallbackProvider === "codex";
-  if (canFallback && Date.now() < claudeBlockedUntil) return { ...(await fallback()), via: "codex" };
-  try {
-    return { ...(await primary()), via: cfg.provider };
-  } catch (e) {
-    if (!canFallback || !/limit|rate|overloaded|credit/i.test(String(e.message))) throw e;
-    claudeBlockedUntil = Date.now() + 10 * 60 * 1000;
-    return { ...(await fallback()), via: "codex" };
+// 4) Any OpenAI-compatible chat API. Presets need only a key in .env or the environment; all have free tiers.
+const PRESETS = {
+  groq: { baseUrl: "https://api.groq.com/openai/v1", keyEnv: "GROQ_API_KEY", models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"], json: "schema" },
+  gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", keyEnv: "GEMINI_API_KEY", models: ["gemini-flash-latest", "gemini-flash-lite-latest"], json: "schema" },
+  openrouter: { baseUrl: "https://openrouter.ai/api/v1", keyEnv: "OPENROUTER_API_KEY", models: ["openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"], json: "prompt" },
+  // Hermes Agent (NousResearch/hermes-agent) on this computer: `hermes gateway` with API_SERVER_ENABLED=true.
+  hermes: { baseUrl: "http://127.0.0.1:8642/v1", keyEnv: "HERMES_API_KEY", models: ["hermes-agent"], json: "prompt", timeoutMs: 240000, headers: { "X-Hermes-Session-Key": "tia-desk" } },
+  // Anything else: TIA_AI_BASE_URL + TIA_AI_KEY + TIA_AI_MODEL
+  custom: { baseUrl: "", keyEnv: "TIA_AI_KEY", models: [], json: "prompt" },
+};
+const OPENAI_STYLE = Object.keys(PRESETS);
+
+function presetFor(cfg, name) {
+  const p = { ...PRESETS[name], ...((cfg.aiProviders || {})[name] || {}) };
+  if (name === "custom") {
+    p.baseUrl = process.env.TIA_AI_BASE_URL || p.baseUrl;
+    p.models = [process.env.TIA_AI_MODEL || (p.models || [])[0]].filter(Boolean);
   }
+  p.key = process.env[p.keyEnv] || p.apiKey || "";
+  return p;
+}
+function isConfigured(cfg, name, list = cfg.providers || []) {
+  const p = presetFor(cfg, name);
+  if (!p.baseUrl || !(p.models || []).length) return false;
+  return name === "hermes" ? list.includes("hermes") : !!p.key; // Hermes only when chosen on purpose
+}
+
+function firstJson(text) {
+  const t = String(text || "").replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    const m = t.match(/\{[\s\S]*\}/);
+    if (m) return JSON.parse(m[0]);
+    throw new Error(`no JSON in the answer: ${t.slice(0, 160)}`);
+  }
+}
+
+async function viaOpenAI(cfg, name, prompt, system = systemPrompt(), schema = DECISION_SCHEMA) {
+  const p = presetFor(cfg, name);
+  let lastErr = null;
+  for (const model of p.models) {
+    const sys = schema && p.json === "prompt" ? `${system}\n\nReply with ONLY one JSON object (no prose, no code fence) that matches this JSON schema:\n${JSON.stringify(schema)}` : system;
+    const body = { model, messages: [{ role: "system", content: sys }, { role: "user", content: prompt }], temperature: 0.3 };
+    if (schema && p.json === "schema") body.response_format = { type: "json_schema", json_schema: { name: "answer", schema } };
+    try {
+      const r = await fetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(p.key ? { Authorization: `Bearer ${p.key}` } : {}), ...(p.headers || {}) },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(p.timeoutMs || 90000),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(`${name} ${model}: ${r.status} ${(j.error && (j.error.message || j.error)) || ""}`.slice(0, 300));
+      const text = (((j.choices || [])[0] || {}).message || {}).content || "";
+      if (!text) throw new Error(`${name} ${model}: empty answer`);
+      return { proposal: schema ? firstJson(text) : text.trim(), costUsd: 0, model };
+    } catch (e) {
+      lastErr = e; // rate limit / model gone → try the next model of the same provider
+    }
+  }
+  throw lastErr || new Error(`${name}: no model`);
+}
+
+// The order Tia tries. config.json "providers": [...] wins; otherwise: Claude (Code or API), Codex if set as
+// fallback, then every free API whose key is present. A provider that fails is skipped for 10 minutes.
+// kind "talk" (chat + voice commands) may use its own list, e.g. Hermes Agent first; inbox sorting stays fast.
+function providerChain(cfg, kind = "inbox") {
+  const list = kind === "talk" && Array.isArray(cfg.talkProviders) && cfg.talkProviders.length ? cfg.talkProviders : cfg.providers;
+  if (Array.isArray(list) && list.length) return list.filter((n) => !OPENAI_STYLE.includes(n) || isConfigured(cfg, n, list));
+  const chain = [cfg.provider === "api" ? "api" : "claude-code"];
+  if (cfg.fallbackProvider === "codex") chain.push("codex");
+  for (const n of ["groq", "gemini", "openrouter", "custom"]) if (isConfigured(cfg, n)) chain.push(n);
+  return chain;
+}
+const blockedUntil = {};
+async function tryChain(cfg, run, kind = "inbox") {
+  const chain = providerChain(cfg, kind);
+  const usable = chain.filter((n) => !(blockedUntil[n] > Date.now()));
+  const order = usable.length ? usable : chain; // all blocked → try everything again rather than give up
+  let lastErr = null;
+  for (const name of order) {
+    try {
+      const r = await run(name);
+      delete blockedUntil[name];
+      return { ...r, via: name };
+    } catch (e) {
+      lastErr = e;
+      blockedUntil[name] = Date.now() + 10 * 60 * 1000;
+      console.warn(`[ai] ${name} failed, trying the next one: ${String(e.message || e).slice(0, 160)}`);
+    }
+  }
+  throw lastErr || new Error("No AI provider is set up – see README (free Groq key).");
+}
+
+function structured(cfg, name, prompt, system, schema) {
+  if (name === "claude-code") return viaClaudeCode(cfg, prompt, system, schema);
+  if (name === "api") return viaApi(cfg, prompt, system, schema);
+  if (name === "codex") return viaCodex(cfg, prompt, system, schema);
+  return viaOpenAI(cfg, name, prompt, system, schema);
 }
 
 async function decide(cfg, vaultContext, message, today) {
   const prompt = userPrompt(vaultContext, message, today);
-  if (cfg.provider === "api") return viaApi(cfg, prompt);
-  return withFallback(cfg, () => viaClaudeCode(cfg, prompt), () => viaCodex(cfg, prompt));
+  return tryChain(cfg, (name) => structured(cfg, name, prompt, systemPrompt(), DECISION_SCHEMA));
 }
 
 // Any other structured question (used by voice commands): own system prompt + own answer shape.
 async function ask(cfg, { system, schema, prompt }) {
-  const r =
-    cfg.provider === "api"
-      ? await viaApi(cfg, prompt, system, schema)
-      : await withFallback(cfg, () => viaClaudeCode(cfg, prompt, system, schema), () => viaCodex(cfg, prompt, system, schema));
+  const r = await tryChain(cfg, (name) => structured(cfg, name, prompt, system, schema), "talk");
   return { answer: r.proposal, costUsd: r.costUsd, via: r.via };
 }
 
 // Free-text answer (chat).
 async function chat(cfg, { system, prompt }) {
-  const r = await withFallback(cfg, () => viaClaudeText(cfg, prompt, system), () => viaCodex(cfg, prompt, system, null));
+  const r = await tryChain(cfg, (name) => {
+    if (name === "claude-code") return viaClaudeText(cfg, prompt, system);
+    if (name === "api") return viaApi(cfg, prompt, system, { type: "object", properties: { text: { type: "string" } }, required: ["text"] }).then((x) => ({ ...x, proposal: x.proposal.text }));
+    if (name === "codex") return viaCodex(cfg, prompt, system, null);
+    return viaOpenAI(cfg, name, prompt, system, null);
+  }, "talk");
   return { text: r.proposal, via: r.via };
 }
 
-module.exports = { decide, ask, chat };
+module.exports = { decide, ask, chat, providerChain };

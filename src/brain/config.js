@@ -31,7 +31,18 @@ const DEFAULTS = {
   minutesSavedPerItem: 4, // shown on screen as an estimate
 };
 
+// Secrets (free AI keys etc.) live in .env next to package.json – never committed. KEY=value per line.
+function loadDotEnv() {
+  try {
+    for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split(/\r?\n/)) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  } catch {}
+}
+
 function loadConfig() {
+  loadDotEnv();
   // TIA_CONFIG=none runs the fictional stand business even when an owner config.json exists.
   const choice = process.env.TIA_CONFIG;
   const file = choice === "none" ? "" : path.resolve(ROOT, choice || "config.json");

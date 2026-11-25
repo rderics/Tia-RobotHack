@@ -18,8 +18,9 @@ Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds
 4. **Start her:** double-click **`Start Tia.cmd`** → your browser opens http://localhost:4747. Close the black window to stop her.
    `Start Tia (desktop app).cmd` opens the same screen as its own window.
 
-- **Without Claude Code:** everything still works for the stand – **Start the day** plays the saved real run, talking uses the offline script, the voice and avatar are the same.
-- **Live answers:** install Claude Code (https://claude.com/claude-code), type `claude` in a terminal once and log in. Tia then thinks live with your own Claude login.
+- **No Claude needed – free brain:** setup asks for a free **Groq** key (https://console.groq.com/keys, sign in, *Create API Key*, no card). It's saved in `.env` on your PC only. Tia then thinks live: reads the inbox, answers, prepares offers.
+- **Order Tia tries:** Claude Code (if you're logged in) → Groq → Gemini / OpenRouter (if you put `GEMINI_API_KEY` / `OPENROUTER_API_KEY` in `.env`). A provider that fails is skipped for 10 minutes, so a used-up limit never stops her.
+- **No key at all:** the stand still works – **Start the day** plays the saved real run, talking uses the offline script.
 - **Updates:** in the `Tia` folder run `git pull`, then run `scripts\setup.ps1` again.
 - **Port taken?** Set another one before starting: `set TIA_PORT=4848` (cmd) and open that port.
 - **The voice** needs internet (Microsoft neural voices). Offline, Tia falls back to the browser's voice.

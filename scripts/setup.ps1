@@ -55,13 +55,30 @@ if (-not (Test-Path "node_modules\electron\path.txt")) {
 if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
 Write-Host "Packages ready"
 
-Say "5/5 Claude (Tia's live brain)"
-if (Has "claude") {
-  Write-Host "Claude Code found. If it isn't logged in yet, open a terminal, type: claude   and log in once."
+Say "5/5 Tia's brain (free)"
+# Tia thinks with the first AI that works: Claude Code (if logged in) -> free Groq key -> Gemini/OpenRouter key.
+# A free Groq key (no card) is enough for everything: https://console.groq.com/keys
+$envFile = Join-Path $root ".env"
+$hasKey = (Test-Path $envFile) -and ((Get-Content $envFile -Raw) -match "(?m)^(GROQ|GEMINI|OPENROUTER)_API_KEY=\S+")
+if ($hasKey) {
+  Write-Host "Free AI key found in .env - Tia can think live."
 } else {
-  Write-Host "Claude Code not found - optional." -ForegroundColor Yellow
-  Write-Host "Without it Tia still works: 'Start the day' plays the saved real run, and talking uses the offline script."
-  Write-Host "For live answers install Claude Code: https://claude.com/claude-code  (then run: claude  and log in)."
+  Write-Host "Tia needs one AI to think live. Free and no card: Groq."
+  Write-Host "  1) open https://console.groq.com/keys  2) sign in (Google works)  3) Create API Key  4) copy it"
+  $key = Read-Host "Paste your Groq key here (or just press Enter to skip)"
+  $key = "$key".Trim()
+  if ($key) {
+    try {
+      Invoke-RestMethod -Uri "https://api.groq.com/openai/v1/models" -Headers @{ Authorization = "Bearer $key" } -TimeoutSec 20 | Out-Null
+      Add-Content -Path $envFile -Value "GROQ_API_KEY=$key" -Encoding ascii
+      Write-Host "Key works and is saved in .env (only on this PC, never uploaded)." -ForegroundColor Green
+    } catch {
+      Write-Host "That key didn't work ($($_.Exception.Message)). Run setup again to retry." -ForegroundColor Yellow
+    }
+  } else {
+    Write-Host "Skipped. Tia still runs the stand: 'Start the day' plays the saved real run, talking uses the offline script." -ForegroundColor Yellow
+  }
 }
+if (Has "claude") { Write-Host "Claude Code found - if you're logged in, Tia uses it first and the free key as backup." }
 
 Write-Host "`nDone. Double-click 'Start Tia.cmd' in the Tia folder (or run: npm run web) and open http://localhost:4747" -ForegroundColor Green
