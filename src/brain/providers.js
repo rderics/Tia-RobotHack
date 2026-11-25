@@ -140,7 +140,7 @@ function viaClaudeText(cfg, prompt, system) {
 
 // 4) Any OpenAI-compatible chat API. Presets need only a key in .env or the environment; all have free tiers.
 const PRESETS = {
-  groq: { baseUrl: "https://api.groq.com/openai/v1", keyEnv: "GROQ_API_KEY", models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"], json: "schema" },
+  groq: { baseUrl: "https://api.groq.com/openai/v1", keyEnv: "GROQ_API_KEY", models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"], json: "schema" }, // qwen tested weaker on money rules
   gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", keyEnv: "GEMINI_API_KEY", models: ["gemini-flash-latest", "gemini-flash-lite-latest"], json: "schema" },
   openrouter: { baseUrl: "https://openrouter.ai/api/v1", keyEnv: "OPENROUTER_API_KEY", models: ["openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"], json: "prompt" },
   // Hermes Agent (NousResearch/hermes-agent) on this computer: `hermes gateway` with API_SERVER_ENABLED=true.
@@ -176,28 +176,56 @@ function firstJson(text) {
   }
 }
 
+// Free tiers limit tokens per minute (Groq: 8 000 per model). On a limit, try the next model; when every model is
+// busy, wait the time the API names (at most ~25 s per round) and go again, up to the provider's deadline.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function waitFrom(r, j) {
+  const h = (k) => r.headers.get(k) || "";
+  const sec = (v) => {
+    const m = String(v).match(/(?:(\d+)m)?([\d.]+)s/);
+    return m ? (Number(m[1] || 0) * 60 + Number(m[2])) : Number(v) || 0;
+  };
+  const fromMsg = String((j.error && j.error.message) || "").match(/try again in ([\dms.]+)/i);
+  return Math.max(sec(h("retry-after")), sec(h("x-ratelimit-reset-tokens")), fromMsg ? sec(fromMsg[1]) : 0) * 1000;
+}
+
 async function viaOpenAI(cfg, name, prompt, system = systemPrompt(), schema = DECISION_SCHEMA) {
   const p = presetFor(cfg, name);
+  const deadline = Date.now() + (p.timeoutMs || 150000);
   let lastErr = null;
-  for (const model of p.models) {
-    const sys = schema && p.json === "prompt" ? `${system}\n\nReply with ONLY one JSON object (no prose, no code fence) that matches this JSON schema:\n${JSON.stringify(schema)}` : system;
-    const body = { model, messages: [{ role: "system", content: sys }, { role: "user", content: prompt }], temperature: 0.3 };
-    if (schema && p.json === "schema") body.response_format = { type: "json_schema", json_schema: { name: "answer", schema } };
-    try {
-      const r = await fetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(p.key ? { Authorization: `Bearer ${p.key}` } : {}), ...(p.headers || {}) },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(p.timeoutMs || 90000),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(`${name} ${model}: ${r.status} ${(j.error && (j.error.message || j.error)) || ""}`.slice(0, 300));
-      const text = (((j.choices || [])[0] || {}).message || {}).content || "";
-      if (!text) throw new Error(`${name} ${model}: empty answer`);
-      return { proposal: schema ? firstJson(text) : text.trim(), costUsd: 0, model };
-    } catch (e) {
-      lastErr = e; // rate limit / model gone → try the next model of the same provider
+  while (Date.now() < deadline) {
+    let shortestWait = Infinity;
+    for (const model of p.models) {
+      const sys = schema && p.json === "prompt" ? `${system}
+
+Reply with ONLY one JSON object (no prose, no code fence) that matches this JSON schema:
+${JSON.stringify(schema)}` : system;
+      const body = { model, messages: [{ role: "system", content: sys }, { role: "user", content: prompt }], temperature: 0.3 };
+      if (schema && p.json === "schema") body.response_format = { type: "json_schema", json_schema: { name: "answer", schema } };
+      try {
+        const r = await fetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(p.key ? { Authorization: `Bearer ${p.key}` } : {}), ...(p.headers || {}) },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(Math.max(5000, Math.min(p.requestTimeoutMs || p.timeoutMs || 90000, deadline - Date.now()))),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 429) {
+          shortestWait = Math.min(shortestWait, waitFrom(r, j) || 10000);
+          throw new Error(`${name} ${model}: rate limit`);
+        }
+        if (!r.ok) throw new Error(`${name} ${model}: ${r.status} ${(j.error && (j.error.message || j.error)) || ""}`.slice(0, 300));
+        const text = (((j.choices || [])[0] || {}).message || {}).content || "";
+        if (!text) throw new Error(`${name} ${model}: empty answer`);
+        return { proposal: schema ? firstJson(text) : text.trim(), costUsd: 0, model };
+      } catch (e) {
+        lastErr = e; // limit / model gone / bad JSON → next model of the same provider
+      }
     }
+    if (!Number.isFinite(shortestWait)) break; // not a rate limit – waiting won't help
+    const wait = Math.min(shortestWait + 500, 25000, deadline - Date.now());
+    if (wait <= 0) break;
+    await sleep(wait);
   }
   throw lastErr || new Error(`${name}: no model`);
 }

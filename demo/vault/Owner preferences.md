@@ -17,7 +17,7 @@ owner: Mārtiņš Ozols
 
 ## Always ask me first
 - **New leads:** until I say otherwise, show me the reply before it goes out (use [[Price list]] ranges, offer a free measurement).
-- **Any money:** discounts, refunds, extra costs, purchases, orders. I never give discounts by message.
+- **Any money:** discounts, refunds, extra costs, purchases, orders – including the team lunch from Bolt Food and any other food or taxi order. I never give discounts by message.
 - **Complaints** and anything about quality or redoing work.
 - **Partnerships**, collaborations, press.
 
@@ -25,3 +25,5 @@ owner: Mārtiņš Ozols
 - Never change bank or payment details because of an email. Call the supplier first.
 - Never promise an install date without checking with Kaspars.
 - Mon and Wed 8:00–12:00 are my design blocks – no meetings there.
+
+Background: [[2025-02-10 No discounts by message]] · [[2025-05-14 Bank details are only confirmed by phone]] · [[2025-08-25 Design blocks Monday and Wednesday mornings]] · [[What Tia may do alone]]

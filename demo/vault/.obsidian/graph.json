@@ -1,0 +1,77 @@
+{
+  "colorGroups": [
+    {
+      "query": "path:Clients",
+      "color": {
+        "a": 1,
+        "rgb": 12166130
+      }
+    },
+    {
+      "query": "path:Projects",
+      "color": {
+        "a": 1,
+        "rgb": 5030794
+      }
+    },
+    {
+      "query": "path:Meetings",
+      "color": {
+        "a": 1,
+        "rgb": 8300792
+      }
+    },
+    {
+      "query": "path:Daily",
+      "color": {
+        "a": 1,
+        "rgb": 6052454
+      }
+    },
+    {
+      "query": "path:Leads",
+      "color": {
+        "a": 1,
+        "rgb": 14919251
+      }
+    },
+    {
+      "query": "path:Knowledge",
+      "color": {
+        "a": 1,
+        "rgb": 15235494
+      }
+    },
+    {
+      "query": "path:Suppliers OR path:Partners OR path:People",
+      "color": {
+        "a": 1,
+        "rgb": 13214453
+      }
+    },
+    {
+      "query": "path:Team",
+      "color": {
+        "a": 1,
+        "rgb": 16777215
+      }
+    },
+    {
+      "query": "path:Decisions",
+      "color": {
+        "a": 1,
+        "rgb": 15911244
+      }
+    },
+    {
+      "query": "path:MOCs",
+      "color": {
+        "a": 1,
+        "rgb": 16743001
+      }
+    }
+  ],
+  "showOrphans": false,
+  "linkDistance": 180,
+  "repelStrength": 12
+}

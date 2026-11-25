@@ -103,8 +103,12 @@ async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false }
       err.code = "LIMIT";
       throw err;
     }
-    // Keep the newest successful run for replay mode.
-    if (Object.keys(saved).length === inbox.length) fs.writeFileSync(cfg.replayFile, JSON.stringify(saved, null, 2));
+    // Keep the newest successful run for replay mode. The stand's official recording (demo/replay.json, committed)
+    // only changes on purpose: TIA_RECORD_REPLAY=1. Other demo runs go to data/replay-latest.json (not committed).
+    if (Object.keys(saved).length === inbox.length) {
+      const official = cfg.profile === "owner" || process.env.TIA_RECORD_REPLAY === "1";
+      fs.writeFileSync(official ? cfg.replayFile : path.join(cfg.dataDir, "replay-latest.json"), JSON.stringify(saved, null, 2));
+    }
   }
 
   const handled = results.filter((r) => r.decision === "handle").length;

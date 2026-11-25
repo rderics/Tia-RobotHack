@@ -1,6 +1,6 @@
 // Reads the owner's Obsidian vault (a folder of Markdown files) and writes Tia's log and lessons.
-// Small vault (the demo business): Tia reads all of it. Real vault: she reads only the notes that match
-// the message (BM25 search, retrieval.js) plus a few notes the owner always wants her to know.
+// Small vault: Tia reads all of it. Big vault (the real owner's, or the ~800-note demo business): she reads
+// only the sections that match the message (BM25 search, retrieval.js) plus a few notes she must always know.
 const fs = require("fs");
 const path = require("path");
 const { indexFor } = require("./retrieval");
@@ -27,11 +27,18 @@ function readVaultContext(vaultDir) {
 }
 
 // What Tia reads for one message or request.
+// Notes the demo business always gives Tia (the rest is found by search).
+const STAND_ALWAYS = ["Business.md", "Owner preferences.md", "Price list.md", "Calendar — this week.md"];
+let smallVault = null; // the old 15-note demo vault is read whole; a big vault (demo/vault has ~800 notes) is searched
+
 function contextFor(cfg, query) {
-  if (cfg.profile !== "owner") return { text: readVaultContext(cfg.vaultDir), sources: [] };
+  if (cfg.profile !== "owner") {
+    if (smallVault === null) smallVault = listNotes(cfg.vaultDir).length <= 40;
+    if (smallVault) return { text: readVaultContext(cfg.vaultDir), sources: [] };
+  }
   const parts = [];
   const sources = [];
-  for (const rel of cfg.alwaysNotes || []) {
+  for (const rel of cfg.alwaysNotes && cfg.alwaysNotes.length ? cfg.alwaysNotes : cfg.profile === "owner" ? [] : STAND_ALWAYS) {
     const file = path.join(cfg.vaultDir, rel);
     if (!fs.existsSync(file)) continue;
     parts.push(note(rel.replace(/\.md$/, ""), fs.readFileSync(file, "utf8").slice(0, PER_NOTE * 2)));

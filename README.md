@@ -25,6 +25,16 @@ Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds
 - **Port taken?** Set another one before starting: `set TIA_PORT=4848` (cmd) and open that port.
 - **The voice** needs internet (Microsoft neural voices). Offline, Tia falls back to the browser's voice.
 
+## The demo business vault (`demo/vault`)
+
+A fictional Riga kitchen studio, **Liepa Interjers**, built as a real second brain: ~800 linked notes (clients, projects, meetings since Oct 2025, daily notes since March 2026, leads, suppliers, team, SOPs, materials, decisions, finance, templates, MOCs). Open the folder in Obsidian to see the graph (colours by folder are preset).
+
+- Tia searches it (BM25 over note sections) and always reads `Business`, `Owner preferences`, `Price list` and `Calendar — this week`. Hermes can read the same folder.
+- It is generated: `python scripts/make_demo_vault/build.py` (same seed → same vault), then `python scripts/make_demo_vault/check_links.py` (0 broken links). Change facts in `scripts/make_demo_vault/*.py`, not in the notes.
+- **`Templates/` is hand-edited** (contract, offer, follow-up…): the generator keeps whatever is there.
+- Everything is invented; emails use `.example` domains, no phone numbers.
+- With the big vault and the free Groq brain, a live **Start the day** gives the same 12 decisions as the saved Claude run (tested 25.11). Live runs on the demo save to `data/replay-latest.json`; the stage recording `demo/replay.json` only changes with `TIA_RECORD_REPLAY=1`.
+
 ## Run it
 
 You need Node.js, Python with `faster-whisper` (speech-to-text, runs on this computer), ffmpeg, and Claude Code logged in (`claude` in a terminal works).
