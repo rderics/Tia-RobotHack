@@ -2,6 +2,14 @@
 
 Add a line at the top when the team decides something: `date · who · decision · replaces`.
 
+- **25.11 · Rinalds** · **AI lead finder → Google Sheets CRM**: Tia finds real businesses that fit the target audience
+  (OpenStreetMap + their websites), the AI scores the fit and writes a personal first line, rows appear live in the
+  owner's Google Sheet (Apps Script bridge, `scripts/google-sheets-crm`). Emails to leads are **drafts only – never sent**.
+  Google Sheets chosen over our own CRM because owners already use it; Tia's `/crm` page stays as the offline fallback.
+- **25.11 · Rinalds** · Approve now does the real thing on the PC: Outlook opens and the reply is typed in (draft, never
+  sent; From = business address on the stand); offers/contracts → PDF → opened → printed on the default printer
+  (Edge silent printing) → Outlook draft with the PDF attached; WhatsApp opens with the text typed.
+
 - **25.11 · Rinalds** · Demo business renamed **Liepa Interjers → Oakline Studio** (fictional; a real company's name was
   rejected – the demo contains a complaint and a scam email, which must not be tied to a real firm). · replaces the old name
 - **25.11 · Rinalds** · **Real actions must be visible**: Outlook opens with the draft typed in, the contract becomes a PDF

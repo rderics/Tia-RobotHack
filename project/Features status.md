@@ -8,9 +8,10 @@
 | Saved run (replay) for the stage | ✅ | `demo/replay.json`, pre-recorded voice in the public demo |
 | Demo vault (Oakline Studio, ~800 notes) | ✅ | search per note section; 0 broken links |
 | Free AI (no Claude) | ✅ | Groq key via `setup.ps1`; same 12 decisions as Claude |
-| Outlook drafts | 🟡 | owner mode saves drafts hidden; **visible Outlook window – in progress** |
-| Contract / offer PDF + print | 🟡 | `/doc/:id` printable page exists; **real PDF file + printer – in progress** |
-| WhatsApp draft | ❌ | plan: open WhatsApp with the text typed (`whatsapp://send?text=`) |
+| Outlook drafts | ✅ | approve → Outlook window opens, text typed in, never sent *(25.11 · tested on Rinalds' PC)* |
+| Contract / offer PDF + print | ✅ | "Prepare the contract for Ieva" → asks open choices → PDF (vault template) → printer → Outlook draft with PDF *(25.11)* |
+| WhatsApp draft | ✅ | wa.me with the text typed; owner picks the chat and presses send |
+| AI lead finder → Google Sheet | 🟡 | works with Tia's /crm page; Google Sheet needs the one-time Apps Script deploy (owner) |
 | Explain view for judges | ❌ | reason + notes read + guard rule per card |
 | Frontend cards | 🟡 | too text-heavy (Rinalds 25.11) → redesign after the backend |
 | 3D avatar + voice + lip-sync | ✅ | VRM Yuzuki, Microsoft "Ava" |

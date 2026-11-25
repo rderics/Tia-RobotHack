@@ -35,6 +35,13 @@ A fictional Riga kitchen studio, **Oakline Studio**, built as a real second brai
 - Everything is invented; emails use `.example` domains, no phone numbers.
 - With the big vault and the free Groq brain, a live **Start the day** gives the same 12 decisions as the saved Claude run (tested 25.11). Live runs on the demo save to `data/replay-latest.json`; the stage recording `demo/replay.json` only changes with `TIA_RECORD_REPLAY=1`.
 
+## Real actions and the lead finder
+
+- **Approve a reply** → classic Outlook opens and Tia types the reply in (draft – you press Send). WhatsApp replies open WhatsApp with the text typed.
+- **"Prepare the contract for Ieva"** → Tia asks about open choices, builds the PDF from `demo/vault/Templates/Template — Contract.md`, opens it, prints it on the Windows default printer and puts it in an Outlook draft.
+- **"Find architects in Riga who could send us clients"** → real businesses from OpenStreetMap, Tia reads their websites, scores the fit, writes a first line, and adds them to your **Google Sheet** (setup: `scripts/google-sheets-crm/Code.gs`, 2 minutes) or to Tia's own page http://localhost:4747/crm. The best two get a first email as a draft for your OK. Nothing is ever sent by Tia.
+- Settings in `config.json` → `"actions": { "show": true, "print": true, "outlook": true, "whatsapp": true }`.
+
 ## Run it
 
 You need Node.js, Python with `faster-whisper` (speech-to-text, runs on this computer), ffmpeg, and Claude Code logged in (`claude` in a terminal works).

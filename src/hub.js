@@ -7,6 +7,7 @@ const outlook = require("./connectors/outlook");
 const { runCommand, liveBlocked } = require("./brain/command");
 const { chat: chatModel } = require("./brain/providers");
 const actions = require("./actions");
+const leads = require("./leads/finder");
 const { offerHtml, contractHtml } = require("./actions/documents");
 
 const URGENT_CATEGORIES = new Set(["payment_change", "complaint"]);
@@ -136,8 +137,23 @@ async function decide({ id, verdict, editedText, via }) {
         line = `Making the ${p.kind} as a PDF now – then it goes to the printer and into an Outlook draft for ${p.to}. You press Send.`;
         act(item, (step) => documentFlow(cfg, item, step));
       } else {
-        const what = { reply: "Reply drafted", calendar: "Booked in the calendar (demo)", order: "Order basket ready – Elīna places and pays it", task: "Task created" }[p.kind] || "Done";
-        line = `${what}.`;
+        if (p.kind === "reply" && p.message_text) {
+          line = `I'm writing the email to ${p.to} in Outlook now – you press Send.`;
+          act(item, async (step) => {
+            await actions.outlook(cfg, { to: p.to_email || p.to, subject: `${engine.info().business} – kitchens for your clients`, text: p.message_text }, step);
+            if ((item.sources || []).includes("CRM")) {
+              const { loadCrm, saveCrm } = leads;
+              const rows = loadCrm(cfg);
+              const row = rows.find((r) => r.name === p.to);
+              if (row) (row.status = "draft ready"), saveCrm(cfg, rows);
+              await leads.setStatus(p.to, "draft ready").catch(() => {});
+              step({ step: "crm", status: "done", detail: `${p.to}: status → draft ready` });
+            }
+          });
+        } else {
+          const what = { calendar: "Booked in the calendar (demo)", order: "Order basket ready – Elīna places and pays it", task: "Task created" }[p.kind] || "Done";
+          line = `${what}.`;
+        }
       }
     }
   }
@@ -204,6 +220,34 @@ async function documentFlow(cfg, item, step) {
   logActivity(cfg.notesDir, `${p.kind} PDF made, printed and put in an Outlook draft: ${name}`);
 }
 
+
+// ---------- lead finder: web → AI fit score → CRM, visible step by step; outreach only as drafts ----------
+function leadSearch(cfg, item, text) {
+  // the owner's Google Sheet (or Tia's own /crm page) opens and fills in row by row
+  if (actionsOn(cfg)) actions.open(process.env.GOOGLE_SHEET_URL && leads.sheetOn() ? process.env.GOOGLE_SHEET_URL : `http://localhost:${process.env.TIA_PORT || 4747}/crm`);
+  act(item, async (step) => {
+    const r = await leads.findLeads(cfg, { text, limit: cfg.leadLimit || 6 }, step);
+    item.state = "handled";
+    item.result = r;
+    const best = r.added.filter((l) => l.fit >= 60 && l.opener).sort((a, b) => b.fit - a.fit).slice(0, 2);
+    for (const l of best) {
+      const info = engine.info();
+      desk.items.push({
+        id: `c${++seq}`, kind: "reply", state: "open", at: Date.now(), sources: ["CRM", "OpenStreetMap"],
+        proposal: {
+          kind: "reply", title: `First email to ${l.name}`, to: l.name, to_email: l.email || "",
+          summary: `New ${l.segment.replace(/s$/, "")} lead (fit ${l.fit}%): ${l.why}`,
+          message_text: `Hello,\n\n${l.opener}\n\nWe are ${info.business}, a kitchen and built-in furniture studio in Riga. If your clients ever need a kitchen or wardrobes made to measure, we would be glad to help – measurement is free and we keep our dates.\n\nWould a short call next week work for you?\n\nBest regards,\nTia, assistant to ${info.owner} – ${info.business}`,
+          lines: [], total_eur: 0, valid_until: "", when: "",
+        },
+      });
+    }
+    logActivity(cfg.notesDir, `Lead search "${r.label}": ${r.found} found, ${r.added.length} added to the CRM, ${best.length} outreach drafts waiting for approval`);
+    say(`Done: I added ${r.added.length} ${r.label} to the CRM${best.length ? ` – the best ${best.length} have a first email ready for your OK` : ""}.`, "system");
+  });
+}
+const actionsOn = (cfg) => (cfg.actions || {}).show !== false;
+
 // ---------- voice / typed commands ----------
 function deskForPrompt() {
   return desk.items.map((i) => {
@@ -233,7 +277,11 @@ async function command(text, via) {
     });
     let item = null;
     const p = res.proposal;
-    if (p && p.kind !== "none") {
+    if (p && p.kind === "find_leads") {
+      item = { id: `c${++seq}`, kind: "find_leads", state: "working", at: Date.now(), proposal: p, sources: ctx.sources };
+      desk.items.push(item);
+      leadSearch(cfg, item, `${p.title} ${text}`);
+    } else if (p && p.kind !== "none") {
       item = { id: `c${++seq}`, kind: p.kind, state: "open", at: Date.now(), proposal: p, sources: res.vault_sources && res.vault_sources.length ? res.vault_sources : ctx.sources };
       desk.items.push(item);
     }
@@ -314,6 +362,13 @@ function card(i) {
     };
   }
   const p = i.proposal;
+  if (i.kind === "find_leads") {
+    const r = i.result || {};
+    return { id: i.id, kind: "find_leads", state: i.state, from: "Lead finder", channel: "web", time: new Date(i.at).toTimeString().slice(0, 5), title: p.title,
+      summary: r.added ? `${r.added.length} new ${r.label} added to the CRM` : `Searching: ${p.title}`, reason: "", text: "", lines: [], total: 0,
+      leads: (r.added || []).map((l) => ({ name: l.name, fit: l.fit, segment: l.segment, why: l.why, website: l.website })), guard: ["Read-only: nobody is contacted without your OK."],
+      sources: i.sources || [], money: 0, urgent: false, actions: i.actions || [] };
+  }
   return {
     id: i.id,
     kind: p.kind,

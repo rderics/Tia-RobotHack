@@ -1,0 +1,912 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-25T20:00:30Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 678874725,
+  "lat": 56.9664456,
+  "lon": 24.1448123,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "157",
+    "addr:postcode": "LV-1012",
+    "addr:street": "Brīvības iela",
+    "fee": "no",
+    "name": "Elements",
+    "ref:LV:addr": "101126484",
+    "shop": "interior_decoration",
+    "tourism": "gallery",
+    "website": "https://salonselements.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 868165203,
+  "lat": 56.9500577,
+  "lon": 24.1229156,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "13 k-4",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Marijas iela",
+    "name": "Zaigas Gailes birojs",
+    "office": "architect",
+    "phone": "+371 67812088",
+    "ref:LV:addr": "101938998",
+    "website": "https://www.zgb.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 1215236001,
+  "lat": 56.9600412,
+  "lon": 24.1003337,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "4",
+    "addr:postcode": "LV-1010",
+    "addr:street": "Ausekļa iela",
+    "name": "Ranta Lat",
+    "office": "estate_agent",
+    "ref:LV:addr": "102638561"
+  }
+},
+{
+  "type": "node",
+  "id": 1913385988,
+  "lat": 56.9672931,
+  "lon": 24.1475192,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "169",
+    "addr:postcode": "LV-1012",
+    "addr:street": "Brīvības iela",
+    "check_date": "2025-10-30",
+    "name": "Lemad Boutique",
+    "ref:LV:addr": "101126548",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 2381929962,
+  "lat": 56.9419439,
+  "lon": 24.1264551,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "18",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Emīlijas Benjamiņas iela",
+    "name": "Gaisa prieks",
+    "opening_hours": "Mo-Fr 10:00-18:00; Sa 09:00-14:00",
+    "ref:LV:addr": "106783924",
+    "shop": "interior_decoration",
+    "website": "http://www.gaisaprieks.lv"
+  }
+},
+{
+  "type": "node",
+  "id": 4213836123,
+  "lat": 56.9598066,
+  "lon": 24.1737604,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "27",
+    "addr:postcode": "LV-1084",
+    "addr:street": "Madonas iela",
+    "check_date": "2025-05-08",
+    "name": "Latio",
+    "office": "estate_agent",
+    "opening_hours": "Mo-Fr 09:00-18:00; Sa,Su off",
+    "ref:LV:addr": "101936182"
+  }
+},
+{
+  "type": "node",
+  "id": 4230430996,
+  "lat": 56.9561926,
+  "lon": 24.1532429,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "33",
+    "addr:postcode": "LV-1009",
+    "addr:street": "Pērnavas iela",
+    "check_date": "2026-08-31",
+    "name": "Glass point",
+    "opening_hours:signed": "no",
+    "ref:LV:addr": "101122766",
+    "shop": "interior_decoration",
+    "website": "https://glass-point.eu"
+  }
+},
+{
+  "type": "node",
+  "id": 4366125803,
+  "lat": 56.9512368,
+  "lon": 24.1334549,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "62A",
+    "addr:postcode": "LV-1011",
+    "addr:street": "Ģertrūdes iela",
+    "name": "Modernists",
+    "opening_hours": "Mo, We-Fr 11:00-19:30",
+    "ref:LV:addr": "106776461",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 4678880490,
+  "lat": 56.9500187,
+  "lon": 24.1221213,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "85A",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Elizabetes iela",
+    "check_date": "2026-07-22",
+    "name": "xcelsior",
+    "ref:LV:addr": "102610767",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 4678884091,
+  "lat": 56.9585041,
+  "lon": 24.1069377,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "21A",
+    "addr:postcode": "LV-1010",
+    "addr:street": "Elizabetes iela",
+    "check_date": "2026-08-26",
+    "name": "Latio",
+    "office": "estate_agent",
+    "ref:LV:addr": "101131084"
+  }
+},
+{
+  "type": "node",
+  "id": 4832550252,
+  "lat": 56.9515043,
+  "lon": 24.1078629,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "4",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Torņa iela",
+    "office": "architect",
+    "ref:LV:addr": "102008341"
+  }
+},
+{
+  "type": "node",
+  "id": 4864680821,
+  "lat": 56.9757887,
+  "lon": 24.1741493,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "223A",
+    "addr:postcode": "LV-1039",
+    "addr:street": "Brīvības gatve",
+    "name": "Damsijas",
+    "office": "architect",
+    "ref:LV:addr": "101822550"
+  }
+},
+{
+  "type": "node",
+  "id": 4959793666,
+  "lat": 56.9533493,
+  "lon": 24.1207320,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "66",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Dzirnavu iela",
+    "check_date": "2026-08-19",
+    "level": "0",
+    "name": "Riija",
+    "opening_hours": "Mo-Fr 10:00-19:00; Sa 11:00-19:00; Su closed",
+    "ref:LV:addr": "101110454",
+    "shop": "interior_decoration",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 6032494046,
+  "lat": 56.9556205,
+  "lon": 24.1294942,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "45/47",
+    "addr:postcode": "LV-1011",
+    "addr:street": "Krišjāņa Barona iela",
+    "name": "CORE projekts",
+    "office": "architect",
+    "opening_hours": "Mo-Fr 09:00-18:00",
+    "phone": "+371 67334405",
+    "ref:LV:addr": "101844367",
+    "website": "www.coreprojekts.lv",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 6609607008,
+  "lat": 56.9569589,
+  "lon": 24.1163388,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "47",
+    "addr:postcode": "LV-1010",
+    "addr:street": "Dzirnavu iela",
+    "check_date": "2024-10-23",
+    "check_date:opening_hours": "2024-10-23",
+    "name": "Home Art",
+    "opening_hours": "Mo-Th 10:00-18:00; Fr 10:00-17:00",
+    "ref:LV:addr": "101827832",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 6868956275,
+  "lat": 56.9552789,
+  "lon": 24.1290573,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "45/47",
+    "addr:postcode": "LV-1011",
+    "addr:street": "Krišjāņa Barona iela",
+    "check_date": "2026-01-13",
+    "check_date:opening_hours": "2026-01-13",
+    "level": "0",
+    "name": "Chop & Chop",
+    "opening_hours": "Mo-Fr 10:00-19:00; Sa 10:00-17:00",
+    "ref:LV:addr": "101844367",
+    "shop": "interior_decoration",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 6868956283,
+  "lat": 56.9536110,
+  "lon": 24.1256473,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "31",
+    "addr:postcode": "LV-1011",
+    "addr:street": "Krišjāņa Barona iela",
+    "check_date": "2026-08-05",
+    "level": "0",
+    "name": "Duni",
+    "opening_hours": "Mo-Fr 10:00-19:00; Sa 10:00-17:00; Su closed",
+    "ref:LV:addr": "101916601",
+    "shop": "interior_decoration",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 7175533113,
+  "lat": 56.9934424,
+  "lon": 24.1629020,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "1",
+    "addr:postcode": "LV-1014",
+    "addr:street": "Ķelnes iela",
+    "check_date:opening_hours": "2026-01-13",
+    "name": "Domuss",
+    "office": "estate_agent",
+    "opening_hours:signed": "no",
+    "ref:LV:addr": "106528373",
+    "website": "https://www.domuss.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 7508464874,
+  "lat": 56.9810255,
+  "lon": 24.1914903,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "293A",
+    "addr:postcode": "LV-1006",
+    "addr:street": "Brīvības gatve",
+    "check_date": "2026-08-03",
+    "name": "häcker virtuves studija",
+    "opening_hours": "Mo-Fr 10:00-18:00",
+    "ref:LV:addr": "105875664",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 7569559450,
+  "lat": 56.9239380,
+  "lon": 24.0908150,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "90",
+    "addr:postcode": "LV-1004",
+    "addr:street": "Jelgavas iela",
+    "name": "Firma L4",
+    "office": "architect",
+    "ref:LV:addr": "101838476"
+  }
+},
+{
+  "type": "node",
+  "id": 8213666835,
+  "lat": 56.9215016,
+  "lon": 24.2000773,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "10A",
+    "addr:postcode": "LV-1073",
+    "addr:street": "Rencēnu iela",
+    "name": "Beanbags.lv",
+    "operator": "SIA QUBO",
+    "ref:LV:addr": "105635702",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 9083462469,
+  "lat": 56.9811211,
+  "lon": 24.1290489,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "3",
+    "addr:postcode": "LV-1005",
+    "addr:street": "Bukultu iela",
+    "name": "Ceļu Pārvalde",
+    "office": "construction_company",
+    "ref:LV:addr": "101868716",
+    "website": "https://www.celuparvalde.lv/en/contacts/factory",
+    "works": "construction"
+  }
+},
+{
+  "type": "node",
+  "id": 9430151490,
+  "lat": 56.9534731,
+  "lon": 24.1300065,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "47",
+    "addr:postcode": "LV-1011",
+    "addr:street": "Ģertrūdes iela",
+    "check_date": "2026-05-20",
+    "description": "meža ekspertu nodaļa",
+    "name": "Latio",
+    "office": "estate_agent",
+    "official_name": "SIA LATIO",
+    "opening_hours": "Mo-Fr 09:00-18:00",
+    "phone": "+37167032300",
+    "ref:LV:addr": "101111423",
+    "website": "https://mezi.latio.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 9499116198,
+  "lat": 56.9541350,
+  "lon": 24.0072989,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "88",
+    "addr:postcode": "LV-1069",
+    "addr:street": "Anniņmuižas bulvāris",
+    "email": "imanta@latio.lv",
+    "name": "Latio",
+    "office": "estate_agent",
+    "phone": "+371 67 440 000",
+    "ref:LV:addr": "101854185",
+    "website": "https://latio.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 9845862281,
+  "lat": 56.9585105,
+  "lon": 24.1299555,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "8",
+    "addr:postcode": "LV-1001",
+    "addr:street": "Matīsa iela",
+    "check_date": "2025-10-16",
+    "description": "Interior design & architecture",
+    "name": "Adizains",
+    "opening_hours": "Mo-Fr 10:00-18:00",
+    "ref:LV:addr": "101112144",
+    "shop": "interior_decoration",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 9892901606,
+  "lat": 56.9606696,
+  "lon": 24.1296897,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "4",
+    "addr:postcode": "LV-1001",
+    "addr:street": "Miera iela",
+    "check_date": "2025-07-17",
+    "name": "MADE arhitekti",
+    "office": "architect",
+    "ref:LV:addr": "101952855",
+    "website": "http://made.lv"
+  }
+},
+{
+  "type": "node",
+  "id": 10168867871,
+  "lat": 56.9642826,
+  "lon": 24.1321341,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "33",
+    "addr:postcode": "LV-1001",
+    "addr:street": "Miera iela",
+    "name": "GAISS arhitekti",
+    "office": "architect",
+    "ref:LV:addr": "101952806",
+    "website": "https://gaissarhitekti.lv"
+  }
+},
+{
+  "type": "node",
+  "id": 11081368985,
+  "lat": 56.9558229,
+  "lon": 24.0370674,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "3",
+    "addr:postcode": "LV-1067",
+    "addr:street": "Kurzemes prospekts",
+    "name": "Marburg",
+    "opening_hours": "Mo-Fr 10:00-20:00; Sa 10:00-19:00; Su 10:00-18:00",
+    "ref:LV:addr": "101846893",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 11581926132,
+  "lat": 56.9551880,
+  "lon": 24.0989845,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "3",
+    "addr:postcode": "LV-1010",
+    "addr:street": "Republikas laukums",
+    "name": "D.E.B.C",
+    "opening_hours": "Mo-Sa 11:00-19:00",
+    "ref:LV:addr": "104602871",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 12170327667,
+  "lat": 56.9315195,
+  "lon": 24.0398146,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "13",
+    "addr:postcode": "LV-1046",
+    "addr:street": "Jaunmoku iela",
+    "check_date": "2024-09-10",
+    "level": "0",
+    "name": "Duni",
+    "ref:LV:addr": "101903144",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 12438355102,
+  "lat": 56.9686074,
+  "lon": 24.1651569,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "8 k-6",
+    "addr:postcode": "LV-1084",
+    "addr:street": "Ūnijas iela",
+    "email": "info@daina-el.lv",
+    "name": "Daina EL",
+    "office": "construction_company",
+    "phone": "+371 67332064",
+    "ref:LV:addr": "105046247",
+    "website": "http://www.daina-el.lv"
+  }
+},
+{
+  "type": "node",
+  "id": 12565342017,
+  "lat": 56.9236248,
+  "lon": 24.1751233,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:floor": "2",
+    "addr:housenumber": "257",
+    "addr:postcode": "LV-1019",
+    "addr:street": "Latgales iela",
+    "check_date": "2025-02-07",
+    "level": "1",
+    "name": "Alandeko",
+    "ref:LV:addr": "101942401",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 12660228615,
+  "lat": 56.9535516,
+  "lon": 24.1205368,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "5",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Tērbatas iela",
+    "check_date": "2026-08-26",
+    "level": "0",
+    "name": "OtilieHome",
+    "opening_hours": "Mo-Fr 10:00-19:00; Sa 10:00-18:00; Su closed",
+    "ref:LV:addr": "102005537",
+    "shop": "interior_decoration",
+    "website": "https://otiliehome.com/",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 12844128320,
+  "lat": 56.9865296,
+  "lon": 24.1328796,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:floor": "1",
+    "addr:housenumber": "19A",
+    "addr:postcode": "LV-1005",
+    "addr:street": "Duntes iela",
+    "check_date": "2026-06-07",
+    "level": "0",
+    "name": "Alandeko",
+    "ref:LV:addr": "105282136",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 12886281761,
+  "lat": 56.9521252,
+  "lon": 24.1223636,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "11",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Krišjāņa Barona iela",
+    "check_date": "2026-11-07",
+    "name": "Vestabalt",
+    "office": "estate_agent",
+    "ref:LV:addr": "101916353",
+    "website": "https://www.vestabalt.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 12886281762,
+  "lat": 56.9522157,
+  "lon": 24.1222480,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "11",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Krišjāņa Barona iela",
+    "name": "Insign",
+    "office": "estate_agent",
+    "ref:LV:addr": "101916353",
+    "website": "https://insign.lv/"
+  }
+},
+{
+  "type": "node",
+  "id": 12886376853,
+  "lat": 56.9508734,
+  "lon": 24.1208726,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "14",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Krišjāņa Barona iela",
+    "level": "0",
+    "name": "Spring",
+    "office": "estate_agent",
+    "opening_hours": "Mo-Fr 09:00-18:00; Sa-Su closed",
+    "ref:LV:addr": "101844182",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 12886376854,
+  "lat": 56.9508415,
+  "lon": 24.1207897,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "14",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Krišjāņa Barona iela",
+    "name": "Latio",
+    "office": "estate_agent",
+    "opening_hours": "Mo-Fr 09:00-18:00; Sa-Su closed",
+    "ref:LV:addr": "101844182",
+    "website": "https://latio.lv/",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 12906344802,
+  "lat": 56.9585188,
+  "lon": 24.1362286,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "90",
+    "addr:postcode": "LV-1001",
+    "addr:street": "Krišjāņa Barona iela",
+    "check_date": "2025-06-11",
+    "name": "Viva nami",
+    "office": "estate_agent",
+    "ref:LV:addr": "101916835"
+  }
+},
+{
+  "type": "node",
+  "id": 13204149137,
+  "lat": 56.9502011,
+  "lon": 24.1219403,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "83A",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Elizabetes iela",
+    "check_date": "2026-09-30",
+    "check_date:opening_hours": "2026-03-02",
+    "name": "Progetto",
+    "opening_hours": "Mo-Fr 10:00-19:00",
+    "ref:LV:addr": "106186453",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 13532804072,
+  "lat": 56.9488392,
+  "lon": 24.1405194,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "4 k-1",
+    "addr:postcode": "LV-1009",
+    "addr:street": "Ādmiņu iela",
+    "name": "Griva Group",
+    "office": "construction_company",
+    "ref:LV:addr": "106775195",
+    "website": "https://www.grivagroup.lv"
+  }
+},
+{
+  "type": "node",
+  "id": 13542944420,
+  "lat": 56.9052771,
+  "lon": 24.0570032,
+  "tags": {
+    "addr:city": "Mārupe",
+    "addr:country": "LV",
+    "addr:district": "Mārupes novads",
+    "addr:housenumber": "27",
+    "addr:postcode": "LV-2167",
+    "addr:street": "Daugavas iela",
+    "check_date": "2026-02-11",
+    "office": "estate_agent",
+    "ref:LV:addr": "102657227",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 13684801842,
+  "lat": 56.9796094,
+  "lon": 24.1868387,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "275",
+    "addr:postcode": "LV-1006",
+    "addr:street": "Brīvības gatve",
+    "check_date": "2026-08-12",
+    "name": "Bonava",
+    "office": "estate_agent",
+    "ref:LV:addr": "101127107"
+  }
+},
+{
+  "type": "node",
+  "id": 13987855015,
+  "lat": 56.9604814,
+  "lon": 24.1236541,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "38",
+    "addr:postcode": "LV-1010",
+    "addr:street": "Skolas iela",
+    "name": "Schmidt",
+    "opening_hours": "Mo-Fr 10:00-18:00; Sa 11:00-15:00",
+    "ref:LV:addr": "101992206",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "node",
+  "id": 14166507261,
+  "lat": 56.9536075,
+  "lon": 24.1190602,
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "61",
+    "addr:postcode": "LV-1050",
+    "addr:street": "Elizabetes iela",
+    "name": "MARK arhitekti",
+    "office": "architect",
+    "ref:LV:addr": "101110864"
+  }
+},
+{
+  "type": "way",
+  "id": 1209765412,
+  "center": {
+    "lat": 56.9099605,
+    "lon": 24.0846020
+  },
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "103",
+    "addr:postcode": "LV-1058",
+    "addr:street": "Vienības gatve",
+    "building": "yes",
+    "layer": "1",
+    "name": "JYSK",
+    "ref:LV:addr": "104420055",
+    "shop": "interior_decoration"
+  }
+},
+{
+  "type": "way",
+  "id": 1231576983,
+  "center": {
+    "lat": 56.9822913,
+    "lon": 24.2043766
+  },
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "372",
+    "addr:postcode": "LV-1006",
+    "addr:street": "Brīvības gatve",
+    "check_date": "2026-10-18",
+    "email": "deko@alan.lv",
+    "indoor": "room",
+    "level": "0",
+    "name": "Alandeko",
+    "opening_hours": "Mo-Su 10:00-21:00",
+    "phone": "+371 26437582",
+    "ref:LV:addr": "101129030",
+    "shop": "interior_decoration",
+    "website": "https://www.alandeko.com"
+  }
+},
+{
+  "type": "way",
+  "id": 1293379007,
+  "center": {
+    "lat": 56.9471961,
+    "lon": 24.0864278
+  },
+  "tags": {
+    "building": "yes",
+    "name": "Preses nama kvartāla Pārdošanas birojs",
+    "office": "estate_agent"
+  }
+},
+{
+  "type": "way",
+  "id": 1495899124,
+  "center": {
+    "lat": 56.9587464,
+    "lon": 24.1835874
+  },
+  "tags": {
+    "addr:city": "Rīga",
+    "addr:country": "LV",
+    "addr:housenumber": "27",
+    "addr:postcode": "LV-1084",
+    "addr:street": "Stirnu iela",
+    "building": "retail",
+    "building:levels": "1",
+    "check_date": "2026-10-07",
+    "name": "JYSK",
+    "opening_hours": "Mo-Su 09:00-21:00",
+    "payment:cash": "yes",
+    "payment:credit_cards": "yes",
+    "ref:LV:addr": "107001162",
+    "roof:levels": "0",
+    "roof:shape": "flat",
+    "shop": "interior_decoration",
+    "website": "https://www.jysk.lv"
+  }
+}
+
+  ]
+}

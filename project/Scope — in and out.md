@@ -9,7 +9,8 @@
 6. **Talk to Tia** – voice on the big screen and from the phone (Expo Go); she answers from the vault.
 7. **Hermes** – Telegram + morning brief + skills on the same vault (AKU).
 8. **Learning** – 2 approvals of a kind → she does it herself next time.
-9. **Saved run** – the whole stand works on bad Wi-Fi (replay + pre-recorded voice).
+9. **AI lead finder** – "find architects in Riga who could send us clients" → real businesses (OpenStreetMap + websites), fit score + first line → owner's Google Sheet live; outreach = drafts only.
+10. **Saved run** – the whole stand works on bad Wi-Fi (replay + pre-recorded voice).
 
 ## Out (decided 25.11)
 - Real Bolt/Wolt food ordering and Bolt taxi – no public APIs, 2FA/payments; one approval card stays as an example.

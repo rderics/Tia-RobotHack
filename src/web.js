@@ -265,7 +265,49 @@ async function localApi(req, res, route, url) {
   return actions(req, res, route, "desktop");
 }
 
+// ---------- CRM (Tia's own; the CSV in data/crm.csv imports into Google Sheets) ----------
+function crmPage() {
+  const info = engine.info();
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>CRM – ${info.business}</title><style>
+  body{margin:0;background:#0E0D13;color:#ECEAF2;font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+  header{display:flex;justify-content:space-between;align-items:baseline;padding:22px 32px;border-bottom:1px solid #26232F}
+  h1{margin:0;font-size:20px;font-weight:600}h1 span{color:#B9A3F2}.sub{color:#8C8796;font-size:12px}
+  table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8C8796;padding:12px 16px;border-bottom:1px solid #26232F}
+  td{padding:12px 16px;border-bottom:1px solid #1C1A24;vertical-align:top}tr.new{animation:in 1.2s ease}
+  @keyframes in{from{background:rgba(185,163,242,.25)}to{background:transparent}}
+  .fit{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}.bar{width:70px;height:6px;border-radius:3px;background:#26232F;overflow:hidden}.bar i{display:block;height:100%;background:#B9A3F2}
+  .st{font-size:11px;padding:3px 8px;border-radius:99px;background:#26232F;color:#8C8796;white-space:nowrap}.st.go{background:rgba(76,195,138,.16);color:#4CC38A}
+  a{color:#B9A3F2;text-decoration:none}.why{color:#B5B0BF;max-width:46ch}.name{font-weight:600}.seg{color:#8C8796;font-size:12px}
+  footer{padding:14px 32px;color:#6B6773;font-size:11px}</style></head><body>
+  <header><div><h1><span>CRM</span> · ${info.business}</h1><div class="sub">Leads found by Tia – nobody is contacted without the owner's OK</div></div>
+  <div class="sub"><a href="crm/data.csv">Download CSV (Excel / Google Sheets)</a> · <span id="n"></span></div></header>
+  <table><thead><tr><th>Business</th><th>Fit</th><th>Why</th><th>Contact</th><th>Status</th><th>Found</th></tr></thead><tbody id="rows"></tbody></table>
+  <footer>Business data © OpenStreetMap contributors (ODbL) and each business's own website.</footer>
+  <script>
+  const seen=new Set();const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  async function load(){try{const rows=await (await fetch("crm/data",{cache:"no-store"})).json();
+  document.getElementById("n").textContent=rows.length+" leads";
+  document.getElementById("rows").innerHTML=rows.map(r=>'<tr class="'+(seen.has(r.id)?'':'new')+'"><td><div class="name">'+esc(r.name)+'</div><div class="seg">'+esc(r.segment)+(r.address?' · '+esc(r.address):'')+'</div></td>'+
+  '<td><div class="fit"><div class="bar"><i style="width:'+(r.fit||0)+'%"></i></div>'+(r.fit||0)+'%</div></td><td class="why">'+esc(r.why)+'</td>'+
+  '<td>'+(r.website?'<a href="'+esc(r.website)+'" target="_blank">'+esc(r.website.replace(/^https?:\\/\\//,'').replace(/\\/$/,''))+'</a><br>':'')+esc(r.email)+'</td>'+
+  '<td><span class="st '+(r.status==="to contact"?'go':'')+'">'+esc(r.status)+'</span></td><td class="seg">'+esc(r.found_at)+'</td></tr>').join("");
+  rows.forEach(r=>seen.add(r.id));}catch(e){}}
+  load();setInterval(load,1500);</script></body></html>`;
+}
+
 function serveStatic(req, res, route, url) {
+  if (route === "/crm" || route === "/crm/data" || route === "/crm/data.csv") {
+    if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
+    const { loadCrm } = require("./leads/finder");
+    if (route === "/crm/data") return sendJson(res, 200, loadCrm(loadConfig()));
+    if (route === "/crm/data.csv") {
+      const f = require("path").join(loadConfig().dataDir, "crm.csv");
+      res.writeHead(200, { "content-type": "text/csv; charset=utf-8", "content-disposition": "attachment; filename=tia-crm.csv" });
+      return res.end(require("fs").existsSync(f) ? require("fs").readFileSync(f) : "");
+    }
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+    return res.end(crmPage());
+  }
   const doc = route.match(/^\/doc\/(\w+)$/);
   if (doc) {
     if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
