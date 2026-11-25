@@ -14,28 +14,63 @@ const eur = (n) => {
   return `${i.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}${d === "00" ? "" : "," + d} €`;
 };
 
-// ---------- 3D stage ----------
-let stage3d = null;
-try {
-  stage3d = window.TiaScene.createScene($("stage"), { reducedMotion });
-  if (SHOT) stage3d.setSpeed(0.05);
-  window.__tiaStage = stage3d; // handy for testing (e.g. __tiaStage.setSpeed(0.3))
-  // A real character model, if one is installed (assets/tia-avatar.glb); otherwise the simple-shape Tia stays.
-  fetch("assets/tia-avatar.glb", { method: "HEAD" })
-    .then((r) => r.ok && stage3d.loadAvatar("assets/tia-avatar.glb"))
-    .catch((e) => console.warn("Avatar not loaded", e));
-} catch (e) {
-  console.warn("3D stage unavailable", e); // the rest of the screen still works without WebGL
-}
-function phoneTarget() {
-  if (!stage3d) return null;
-  const s = $("stage").getBoundingClientRect();
-  const p = $("phone").getBoundingClientRect();
-  return stage3d.screenToWorld(p.left + p.width / 2 - s.left, p.top + p.height * 0.45 - s.top);
-}
-const animate = (r) => (stage3d ? stage3d.play(r, { phoneTarget }).catch(() => {}) : Promise.resolve());
+// ---------- the avatar (VRM character via three-vrm: lip-sync, blinking, eye contact, moods) ----------
+// Tia: a VRoid character (VRM). Sample by pixiv Inc. – commercial use, edits and redistribution allowed.
+const AVATAR_URL = "assets/avatars/sample.vrm";
+let avatar = null;
+const avatarReady = (async () => {
+  if (!window.TiaAvatar) return null;
+  try {
+    const url = AVATAR_URL;
+    avatar = await window.TiaAvatar.createAvatar($("avatarBox"), {
+      url,
+      view: "upper",
+      mood: "happy",
+      onProgress: (ev) => {
+        if (ev.lengthComputable) $("avatarLoading").textContent = `Tia is getting ready · ${Math.round((ev.loaded / ev.total) * 100)}%`;
+      },
+    });
+    document.body.classList.add("avatar-on");
+    window.__tiaAvatar = avatar; // for testing
+  } catch (e) {
+    console.warn("Avatar unavailable", e); // everything else keeps working without 3D
+  } finally {
+    $("avatarLoading").hidden = true;
+  }
+  return avatar;
+})();
 
-// ---------- voice (built-in voices, offline) ----------
+// Inbox activity: each message slides over the stage as a card, Tia reads it, it turns green or amber.
+const CHANNEL_COLOR = { email: "#7ea8f8", whatsapp: "#4cc38a", instagram: "#e879a6", slack: "#c9a2f5" };
+function animate(r) {
+  return new Promise((resolve) => {
+    const m = r.message;
+    const p = r.proposal || {};
+    const card = el("div", "flycard");
+    card.style.setProperty("--ch", CHANNEL_COLOR[m.channel] || "#b9a3f2");
+    const top = el("div", "fc-top");
+    top.append(el("span", "fc-ch", CHANNEL_LABEL[m.channel] || m.channel), el("span", "fc-time", m.time || ""));
+    const badge = el("span", "fc-badge", "Reading…");
+    card.append(top, el("div", "fc-from", m.from), el("div", "fc-text", (m.subject ? `${m.subject} – ` : "") + (m.text || "").slice(0, 150)), badge);
+    $("stage").appendChild(card);
+    void card.offsetWidth; // start the slide-in (works in background tabs too)
+    card.classList.add("in");
+    const fast = SHOT; // reduced motion keeps the reading time – only the slide is dropped (CSS)
+    setTimeout(() => {
+      const handled = r.decision === "handle" && !r.error;
+      card.classList.add(handled ? "ok" : "needs");
+      badge.textContent = handled ? "✓ Handled" : "Needs you";
+      if (!handled && p.summary) card.querySelector(".fc-text").textContent = p.summary;
+    }, fast ? 80 : 1100);
+    setTimeout(() => card.classList.add("out"), fast ? 160 : 2300);
+    setTimeout(() => {
+      card.remove();
+      resolve();
+    }, fast ? 240 : 2800);
+  });
+}
+
+// ---------- voice: Microsoft neural voice from Tia's server, lips in sync; browser voice as fallback ----------
 const voice = { on: true, chosen: null };
 try {
   voice.on = localStorage.getItem("tia.voice") !== "off";
@@ -44,36 +79,68 @@ function pickVoice() {
   if (!window.speechSynthesis) return;
   const all = speechSynthesis.getVoices();
   const en = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
-  const preferred = ["Aria", "Jenny", "Zira", "Hazel", "Susan", "Libby", "Sonia", "Female"];
+  const preferred = ["Ava", "Aria", "Jenny", "Emma", "Sonia", "Libby", "Google UK English Female", "Zira", "Female"];
   voice.chosen = preferred.map((p) => en.find((v) => v.name.includes(p))).find(Boolean) || en[0] || all[0] || null;
 }
 if (window.speechSynthesis) {
   speechSynthesis.onvoiceschanged = pickVoice;
   pickVoice();
 }
-function speakAloud(text) {
-  if (!voice.on || !text || !window.speechSynthesis) return Promise.resolve();
+function browserSpeak(text) {
+  if (!window.speechSynthesis) return Promise.resolve();
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
     if (voice.chosen) u.voice = voice.chosen;
-    u.rate = 1.05;
+    u.rate = 1.03;
     let finished = false;
     const done = () => {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
-      stage3d && stage3d.setTalking(false);
+      $("stage").classList.remove("talking");
       resolve();
     };
     const timer = setTimeout(done, 2000 + text.length * 90); // never get stuck if the voice fails
-    u.onstart = () => stage3d && stage3d.setTalking(true);
+    u.onstart = () => $("stage").classList.add("talking");
     u.onend = done;
     u.onerror = done;
     speechSynthesis.speak(u);
   });
 }
+let speechSeq = 0;
+async function speakAloud(text) {
+  if (!voice.on || !text) return;
+  (window.__spoken = window.__spoken || []).push(text); // lets the demo build list the lines to pre-record
+  const mine = ++speechSeq;
+  if (window.tia.tts) {
+    try {
+      const [v, av] = await Promise.all([window.tia.tts(text), avatarReady]);
+      if (mine !== speechSeq) return; // something newer was said meanwhile
+      if (v && !v.error && av) {
+        $("stage").classList.add("talking");
+        await av.speak(v);
+        $("stage").classList.remove("talking");
+        return;
+      }
+      if (v && !v.error) {
+        // no avatar (no WebGL): just play the natural voice
+        const a = new Audio(`data:${v.mime || "audio/mpeg"};base64,${v.audio}`);
+        await new Promise((r) => {
+          a.onended = r;
+          a.onerror = r;
+          a.play().catch(r);
+        });
+        return;
+      }
+    } catch {}
+  }
+  return browserSpeak(text);
+}
 function stopSpeaking() {
+  speechSeq++;
   if (window.speechSynthesis) speechSynthesis.cancel();
+  if (avatar) avatar.stop();
+  $("stage").classList.remove("talking");
 }
 function say(text, { speak = true } = {}) {
   $("speechText").textContent = text;
@@ -81,10 +148,6 @@ function say(text, { speak = true } = {}) {
   void $("speech").offsetWidth;
   $("speech").classList.add("pop");
   if (speak && voice.on) return speakAloud(text);
-  if (stage3d && speak) {
-    stage3d.setTalking(true);
-    setTimeout(() => stage3d.setTalking(false), 1400);
-  }
   return Promise.resolve();
 }
 function showSaid(text) {
@@ -321,7 +384,6 @@ function updateStats() {
   $("countNeeds").textContent = needs;
   $("statMinutes").textContent = state.handled * 4;
   $("progressBar").style.width = (state.total ? Math.round((state.done / state.total) * 100) : 0) + "%";
-  if (stage3d && stage3d.setCounts) stage3d.setCounts({ inbox: Math.max(0, state.total - state.done), sent: $("handled").querySelectorAll(".resolved:not(.rejected)").length });
 }
 function clearInbox() {
   // A new day: inbox cards go, cards Tia prepared from your requests stay.

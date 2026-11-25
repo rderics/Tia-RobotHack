@@ -89,6 +89,7 @@
     feedback: (payload) => post("api/feedback", payload),
     decide: (id, verdict, editedText) => post("api/decide", { id, verdict, editedText }),
     say: (text) => post("api/say", { text }),
+    tts: (text) => post("api/tts", { text }),
     voice: (blob) => fetch("api/voice", { method: "POST", headers: headers({ "content-type": blob.type || "audio/webm" }), body: blob }).then(check),
     pair: (ip) => get(`api/pair${ip ? `?ip=${encodeURIComponent(ip)}` : ""}`),
     webLink: () => (token ? `${location.origin}${location.pathname}#t=${token}` : ""),

@@ -1,0 +1,5 @@
+sample.vrm – "VRM1_Constraint_Twist_Sample" by pixiv Inc. (c) 2022
+Source: https://github.com/vrm-c/vrm-specification/tree/master/samples/VRM1_Constraint_Twist_Sample
+Licence: VRM Public License 1.0 (https://vrm.dev/licenses/1.0/) – from the model's own metadata:
+avatar use: everyone · commercial use: corporations allowed · modification + redistribution allowed · credit not required.
+Placeholder until Tia's own VRoid character (business outfit, lavender accent) is made.

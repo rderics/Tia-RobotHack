@@ -130,6 +130,37 @@ button, input, textarea { font: inherit; color: inherit; }
 @keyframes drop { from { transform: translateY(-14px) scale(0.96); } to { transform: none; } }
 @keyframes buzz { 0%, 100% { transform: none; } 20% { transform: translateX(-3px) rotate(-1deg); } 40% { transform: translateX(3px) rotate(1deg); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
 
+/* ---------- avatar stage ---------- */
+.stage {
+  background:
+    radial-gradient(60% 70% at 50% 38%, rgba(185, 163, 242, 0.16) 0%, rgba(185, 163, 242, 0) 60%),
+    radial-gradient(120% 90% at 50% 120%, #22193a 0%, #0e0d13 60%);
+}
+.stage::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(130% 100% at 50% 40%, transparent 55%, rgba(5, 4, 8, 0.55) 100%); }
+.avatar-box { position: absolute; inset: 0; z-index: 0; }
+.avatar-box canvas { width: 100% !important; height: 100% !important; display: block; }
+.avatar-loading { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); color: var(--muted); font-size: 13px; z-index: 2; letter-spacing: .02em; }
+.stage.talking .caption { border-color: rgba(185, 163, 242, 0.55); box-shadow: 0 0 0 4px rgba(185, 163, 242, 0.08); }
+.flycard {
+  position: absolute; left: 24px; top: 70px; width: min(320px, 40%); z-index: 3;
+  background: rgba(19, 17, 24, 0.86); backdrop-filter: blur(14px); border: 1px solid var(--line-2);
+  border-left: 3px solid var(--ch); border-radius: 16px; padding: 12px 14px 12px;
+  opacity: 0; transform: translateX(-30px) scale(.97); transition: opacity .35s var(--ease), transform .45s var(--ease), border-color .3s;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
+}
+.flycard.in { opacity: 1; transform: none; }
+.flycard.out { opacity: 0; transform: translateY(-14px) scale(.97); }
+.flycard.ok { border-left-color: var(--ok); }
+.flycard.needs { border-left-color: var(--warn); }
+.fc-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 4px; }
+.fc-ch { color: var(--ch); font-weight: 700; }
+.fc-from { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.fc-text { color: var(--soft); font-size: 12.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.fc-badge { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 700; letter-spacing: .03em; padding: 3px 8px; border-radius: 99px; background: rgba(255,255,255,.07); color: var(--muted); }
+.flycard.ok .fc-badge { background: rgba(76, 195, 138, .15); color: var(--ok); }
+.flycard.needs .fc-badge { background: rgba(227, 166, 83, .15); color: var(--warn); }
+
 /* ---------- desk panel ---------- */
 .panel { min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
 .tabs { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); }
@@ -253,3 +284,6 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 
 .no-anim *, .no-anim *::before, .no-anim *::after { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .flycard, .flycard.in, .flycard.out { transition: opacity .2s linear; transform: none; }
+}

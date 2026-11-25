@@ -16,6 +16,7 @@ const QRCode = require("qrcode");
 const hub = require("./hub");
 const engine = require("./brain/engine");
 const stt = require("./stt");
+const voice = require("./voice");
 const { loadConfig } = require("./brain/config");
 
 const PORT = Number(process.env.TIA_PORT || 4747);
@@ -227,6 +228,14 @@ async function actions(req, res, route, via) {
     } catch (e) {
       console.warn(`[voice] ${via}: failed after ${Date.now() - t0} ms (${Math.round(size / 1024)} KB): ${e.message}`);
       return sendJson(res, 200, { error: String(e.message || e), say: "Sorry, I couldn't hear that properly. Try again or type it." });
+    }
+  }
+  if (route === "/api/tts") {
+    const body = await readJson(req);
+    try {
+      return sendJson(res, 200, await voice.synthesize(loadConfig(), body.text));
+    } catch (e) {
+      return sendJson(res, 200, { error: String(e.message || e) });
     }
   }
   if (route === "/api/chat") {

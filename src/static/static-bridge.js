@@ -27,6 +27,7 @@
     } catch {}
   }
 
+  let voiceIndex = null;
   let dataPromise = null;
   function data() {
     if (!dataPromise) {
@@ -71,6 +72,13 @@
       return { approvals: l.approvals[cat] || 0, needed: CFG.approvalsToLearn };
     },
     reset: async () => save(fresh()),
+    // Tia's natural voice, pre-recorded at build time (scripts/demo-voice-lines.json). Unknown text → browser voice.
+    tts: async (text) => {
+      voiceIndex = voiceIndex || fetch("data/voice/index.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+      const file = (await voiceIndex)[text];
+      if (!file) return { error: "not recorded" };
+      return fetch(`data/voice/${file}`).then((r) => r.json());
+    },
     onEvent: (fn) => listeners.push(fn),
   };
 })();
