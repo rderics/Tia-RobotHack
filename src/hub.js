@@ -6,6 +6,8 @@ const { contextFor, logActivity } = require("./brain/vault");
 const outlook = require("./connectors/outlook");
 const { runCommand, liveBlocked } = require("./brain/command");
 const { chat: chatModel } = require("./brain/providers");
+const actions = require("./actions");
+const { offerHtml, contractHtml } = require("./actions/documents");
 
 const URGENT_CATEGORIES = new Set(["payment_change", "complaint"]);
 
@@ -109,19 +111,18 @@ async function decide({ id, verdict, editedText, via }) {
   if (item.kind === "message") {
     const r = item.result;
     const reply = verdict === "edit" ? editedText : r.proposal && r.proposal.draft_reply;
-    if (verdict !== "reject" && reply && r.message.entryId) {
-      // A real mailbox: the reply goes to Outlook Drafts. Tia never presses Send.
-      await outlook.saveDraft(loadConfig(), r.message, reply);
-    }
     learn = engine.recordFeedback({ message: r.message, proposal: r.proposal, verdict, editedReply: editedText });
-    line =
-      verdict === "reject"
-        ? `Okay, I won't answer ${r.message.from}.`
-        : r.message.entryId
-          ? reply
-            ? `Saved my reply to ${r.message.from} in your Outlook drafts – you press Send.`
-            : `Noted for ${r.message.from}.`
-          : `Done, my reply to ${r.message.from} is sent.`;
+    if (verdict === "reject") line = `Okay, I won't answer ${r.message.from}.`;
+    else if (!reply) line = `Noted for ${r.message.from}.`;
+    else if (r.message.entryId || r.message.channel === "email") {
+      line = `I'm writing my reply to ${r.message.from} in Outlook now – it stays a draft, you press Send.`;
+      act(item, async (step) => {
+        await actions.outlook(loadConfig(), { to: r.message.address || r.message.from, subject: r.message.subject ? `Re: ${r.message.subject}` : "", text: reply, replyTo: r.message.entryId ? r.message : null, save: !!r.message.entryId }, step);
+      });
+    } else if (r.message.channel === "whatsapp") {
+      line = `I've opened WhatsApp with my reply to ${r.message.from} typed in – you press send.`;
+      act(item, async (step) => actions.whatsapp(loadConfig(), { phone: r.message.address, text: reply }, step));
+    } else line = `My reply to ${r.message.from} is ready – copy it into ${r.message.channel === "instagram" ? "Instagram" : r.message.channel === "slack" ? "Slack" : "the chat"}; I never post by myself.`;
   } else {
     const p = item.proposal;
     const cfg = loadConfig();
@@ -130,9 +131,14 @@ async function decide({ id, verdict, editedText, via }) {
       line = `Okay, I've dropped the ${p.kind}.`;
     } else {
       if (verdict === "edit" && editedText) p.message_text = editedText;
-      const what = { offer: "Offer sent", reply: "Reply sent", calendar: "Booked", order: "Order placed", task: "Task created" }[p.kind] || "Done";
-      logActivity(cfg.notesDir, `Owner approved ${p.kind}: ${p.title}${p.total_eur ? ` (${p.total_eur} €)` : ""} → ${what.toLowerCase()} (simulated)`);
-      line = p.kind === "offer" ? `${what} to ${p.to}. The printable copy is ready on the big screen.` : `${what}.`;
+      logActivity(cfg.notesDir, `Owner approved ${p.kind}: ${p.title}${p.total_eur ? ` (${p.total_eur} €)` : ""}`);
+      if (p.kind === "offer" || p.kind === "contract") {
+        line = `Making the ${p.kind} as a PDF now – then it goes to the printer and into an Outlook draft for ${p.to}. You press Send.`;
+        act(item, (step) => documentFlow(cfg, item, step));
+      } else {
+        const what = { reply: "Reply drafted", calendar: "Booked in the calendar (demo)", order: "Order basket ready – Elīna places and pays it", task: "Task created" }[p.kind] || "Done";
+        line = `${what}.`;
+      }
     }
   }
   item.state = verdict === "reject" ? "rejected" : verdict === "edit" ? "edited" : "approved";
@@ -141,6 +147,61 @@ async function decide({ id, verdict, editedText, via }) {
   bump();
   emit({ type: "decided", id, verdict, via, learn, line, kind: item.kind });
   return { ok: true, state: item.state, say: line, learn };
+}
+
+
+// ---------- real actions (Outlook window, PDF, printer, WhatsApp), visible on the owner's computer ----------
+// They run after the answer is sent, step by step; every step is an event the screen (and phone) can animate.
+function act(item, fn) {
+  const steps = (item.actions = []);
+  const step = (s) => {
+    const prev = steps.find((x) => x.step === s.step);
+    if (prev) Object.assign(prev, s);
+    else steps.push({ ...s });
+    bump();
+    emit({ type: "action", id: item.id, ...s });
+  };
+  Promise.resolve()
+    .then(() => fn(step))
+    .catch((e) => {
+      const msg = String((e && e.message) || e);
+      const running = steps.find((x) => x.status === "start");
+      step({ step: running ? running.step : "action", status: "error", detail: msg });
+      say(/outlook/i.test(msg) ? "Outlook isn't available on this computer, so the draft stays on the screen." : `That step didn't work: ${msg}`, "system");
+    });
+}
+
+let docCounter = 0;
+async function documentFlow(cfg, item, step) {
+  const p = item.proposal;
+  const info = engine.info();
+  const c = card(item);
+  const day = new Date(Date.parse(String(info.today || "").replace(/^[A-Za-z]+,?\s*/, "").split(",")[0]) || Date.now()); // the demo's "today"
+  const date = day.toLocaleDateString("en-GB").replace(/\//g, ".");
+  let html;
+  let name;
+  if (p.kind === "contract") {
+    const no = `OS-${new Date().getFullYear()}-${String(++docCounter + 40).padStart(3, "0")}`;
+    html = contractHtml(info, cfg, p, { contractNo: no, date });
+    name = `Contract ${no} – ${p.to}`;
+  } else {
+    html = offerHtml(info, { ...c, state: "approved" });
+    name = `Offer – ${p.to} – ${date}`;
+  }
+  const file = await actions.pdf(cfg, { html, name }, step);
+  item.document = file;
+  await actions.print(cfg, file, step).catch((e) => step({ step: "print", status: "error", detail: e.message }));
+  // the client's email address from their vault note (the model gives the name)
+  let to = (p.to_email || "").trim();
+  if (!to) {
+    try {
+      const note = require("fs").readFileSync(require("path").join(cfg.vaultDir, "Clients", `${p.to}.md`), "utf8");
+      to = (note.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/) || [])[0] || "";
+    } catch {}
+  }
+  to = to || p.to;
+  await actions.outlook(cfg, { to, subject: `${p.kind === "contract" ? "Contract" : "Offer"} – ${info.business}`, text: p.message_text || `Hello,\n\nplease find the ${p.kind} attached.\n\nTia, assistant to ${info.owner}`, attach: [file] }, step);
+  logActivity(cfg.notesDir, `${p.kind} PDF made, printed and put in an Outlook draft: ${name}`);
 }
 
 // ---------- voice / typed commands ----------
@@ -249,6 +310,7 @@ function card(i) {
       money: p.money_eur || 0,
       urgent: isUrgent(r),
       narration: p.narration || "",
+      actions: i.actions || [],
     };
   }
   const p = i.proposal;
@@ -267,10 +329,12 @@ function card(i) {
     total: p.total_eur || 0,
     validUntil: p.valid_until || "",
     when: p.when || "",
-    guard: [p.kind === "offer" || p.kind === "order" ? "Money involved – nothing goes out without you." : "Waiting for your OK."],
+    guard: [p.kind === "offer" || p.kind === "order" || p.kind === "contract" ? "Money involved – nothing goes out without you." : "Waiting for your OK."],
     sources: i.sources || [],
     money: p.total_eur || 0,
     urgent: false,
+    actions: i.actions || [],
+    document: i.document ? require("path").basename(i.document) : "",
   };
 }
 function snapshot() {
@@ -303,4 +367,6 @@ function getItem(id) {
   return i ? card(i) : null;
 }
 
-module.exports = { runDay, decide, command, chat, reset, snapshot, getItem, onEvent, waitForChange };
+const rawItem = (id) => desk.items.find((x) => x.id === id) || null;
+
+module.exports = { runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange };

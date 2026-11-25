@@ -5,7 +5,7 @@ language: Latvian
 ---
 # Laura Vītola
 - **Object:** Brīvības iela 120, Centrs
-- **Contact:** email · laura.vitola@mail.example · writes in Latvian
+- **Contact:** email · laura.vitola@example.com · writes in Latvian
 - **Came from:** Referral – Roberts Eglītis · first contact 24.08.2026
 - **Projects:** [[Kitchen + wardrobe — Vītola, Brīvības iela 120]] (install)
 

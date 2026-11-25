@@ -8,7 +8,10 @@ Both read the same server mailbox, so a draft saved here appears in new Outlook 
 
 Commands (output is one JSON object on stdout):
   list  [--hours 48] [--limit 12] [--stores "a,b"]   newest inbox mail
-  draft --entry ID --store STORE_ID --text "..."       saves a reply DRAFT (never sends)
+  draft --entry ID --store STORE_ID --text "..." [--show] [--type-ms 18]   reply DRAFT (never sends)
+  compose --to A --subject S --text T [--attach F]... [--show] [--type-ms 18] [--no-save] [--on-behalf X]
+        a new message: shown as a real Outlook window with the text typed in word by word (the audience sees
+        Tia write), saved to Drafts unless --no-save. --on-behalf shows the business address in From (stand).
 Nothing here sends, deletes or moves mail, and nothing in a message is ever executed or followed.
 """
 import argparse
@@ -126,12 +129,80 @@ def cmd_list(a):
     print(json.dumps({"messages": out[: a.limit], "mailboxes": [s.DisplayName for s in ns.Stores]}, ensure_ascii=False))
 
 
+def bring_to_front(caption, topmost_seconds=0):
+    """Windows won't let a background program take focus, so: find the window by its title, make it 'always on
+    top' for a moment (works without focus) and nudge focus with an Alt key tap (the usual workaround)."""
+    try:
+        import win32api
+        import win32con
+        import win32gui
+        found = []
+        win32gui.EnumWindows(lambda h, _: found.append(h) if win32gui.IsWindowVisible(h) and caption and caption.split(" - ")[0] in win32gui.GetWindowText(h) else None, None)
+        for hwnd in found[:1]:
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            flags = win32con.SWP_NOMOVE | win32con.SWP_NOSIZE
+            win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0, flags)
+            win32api.keybd_event(win32con.VK_MENU, 0, 0, 0)
+            win32api.keybd_event(win32con.VK_MENU, 0, win32con.KEYEVENTF_KEYUP, 0)
+            try:
+                win32gui.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+            if not topmost_seconds:
+                win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, flags)
+            return hwnd
+    except Exception:
+        return None
+
+
+def type_into(item, text, ms):
+    """Shows the message window and types the text into it, word by word (real Outlook, visible)."""
+    item.Display(False)
+    insp = item.GetInspector
+    try:
+        insp.Activate()
+    except Exception:
+        pass
+    bring_to_front(insp.Caption)
+    sel = insp.WordEditor.Application.Selection
+    sel.HomeKey(6)  # start of the message, above any signature or quoted mail
+    for i, para in enumerate(text.split("\n")):
+        if i:
+            sel.TypeParagraph()
+        for word in re.findall(r"\S+\s*", para):
+            sel.TypeText(word)
+            if ms:
+                time.sleep(ms / 1000 * max(1, len(word) / 4))
+    sel.TypeParagraph()
+
+
+def cmd_compose(a):
+    app = outlook()
+    mail = app.CreateItem(0)
+    mail.To = a.to
+    mail.Subject = a.subject
+    if a.on_behalf:
+        mail.SentOnBehalfOfName = a.on_behalf
+    for f in a.attach or []:
+        mail.Attachments.Add(f)
+    text = a.text.replace("\r\n", "\n").strip()
+    if a.show:
+        type_into(mail, text, a.type_ms)
+    else:
+        mail.Body = text
+    if not a.no_save:
+        mail.Save()  # Drafts – a human presses Send
+    print(json.dumps({"ok": True, "subject": mail.Subject, "shown": bool(a.show), "saved": not a.no_save}, ensure_ascii=False))
+
+
 def cmd_draft(a):
     ns = outlook().GetNamespace("MAPI")
     m = ns.GetItemFromID(a.entry, a.store)
     reply = m.Reply()
     text = a.text.replace("\r\n", "\n").strip()
-    if reply.BodyFormat == 2:  # HTML: put the text above the quoted mail, keep Outlook's formatting
+    if a.show:  # visible: the reply window opens and the text is typed in above the quoted mail
+        type_into(reply, text, a.type_ms)
+    elif reply.BodyFormat == 2:  # HTML: put the text above the quoted mail, keep Outlook's formatting
         html = "<div style='font-family:Calibri,Arial,sans-serif;font-size:11pt'>" + "".join(
             f"<p>{line or '&nbsp;'}</p>" for line in (l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") for l in text.split("\n"))
         ) + "</div>"
@@ -154,9 +225,20 @@ def main():
     d.add_argument("--entry", required=True)
     d.add_argument("--store", required=True)
     d.add_argument("--text", required=True)
+    d.add_argument("--show", action="store_true")
+    d.add_argument("--type-ms", type=int, default=18)
+    c = sub.add_parser("compose")
+    c.add_argument("--to", required=True)
+    c.add_argument("--subject", default="")
+    c.add_argument("--text", required=True)
+    c.add_argument("--attach", action="append")
+    c.add_argument("--show", action="store_true")
+    c.add_argument("--type-ms", type=int, default=18)
+    c.add_argument("--no-save", action="store_true")
+    c.add_argument("--on-behalf", default="")
     a = p.parse_args()
     try:
-        cmd_list(a) if a.cmd == "list" else cmd_draft(a)
+        {"list": cmd_list, "draft": cmd_draft, "compose": cmd_compose}[a.cmd](a)
     except Exception as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False))
         sys.exit(1)

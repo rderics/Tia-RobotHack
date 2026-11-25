@@ -5,7 +5,7 @@
 const { ask } = require("./providers");
 const scripted = require("./scripted");
 
-const PROPOSAL_KINDS = ["none", "offer", "reply", "calendar", "order", "task"];
+const PROPOSAL_KINDS = ["none", "offer", "contract", "reply", "calendar", "order", "task"];
 
 const COMMAND_SCHEMA = {
   type: "object",
@@ -54,6 +54,7 @@ Rules:
 - If the task needs a fact that is not in the vault or in the conversation so far, do NOT guess: set proposal.kind = "none", put one clear question in missing_info, and ask it in "say". This honesty matters more than finishing.
 - When you can do the task, prepare it completely as ONE proposal (offer with priced lines and total, reply text, calendar slot, order). The owner approves it on the phone. You never send, order or book anything without that approval.
 - Offers: one line per priced item from the Price list, total = sum of lines, valid 14 days from today, a short warm cover note to the client signed the way the owner prefers.
+- Contracts (kind "contract"): for a client whose offer/project is in the vault (Projects/ note with a Scope table). "to" = the client's full name exactly as in the vault, lines = the Scope table lines with prices, total = their sum, message_text = a short cover email to the client saying the contract is attached for signing. If the scope still has an open choice (e.g. worktop not chosen), ask first.
 - Questions about today ("what's urgent?", "what's waiting?") are answered from the desk list; proposal.kind = "none".
 - The conversation history may contain your earlier question and the owner's answer – use it to finish the earlier task.
 

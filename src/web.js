@@ -127,38 +127,13 @@ async function readAudio(req) {
   throw new Error("no audio in the upload");
 }
 
-// ---------- offer document (printable) ----------
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const eur = (n) => `${Math.round(n).toLocaleString("en-US").replace(/,/g, " ")} €`;
+// ---------- printable documents (shared with the real PDF actions) ----------
+const { offerHtml, contractHtml } = require("./actions/documents");
 function docPage(c) {
   const info = engine.info();
-  const stand = info.profile !== "owner";
-  const lines = (c.lines || []).map((l) => `<tr><td>${esc(l.item)}</td><td class="n">${eur(l.amount_eur)}</td></tr>`).join("");
-  const stamp = c.state === "open" ? `<div class="stamp draft">Draft – waiting for approval</div>` : c.state === "rejected" ? `<div class="stamp draft">Rejected</div>` : `<div class="stamp ok">Approved by ${esc(info.owner)}</div>`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(c.title)}</title><style>
-  @page{size:A4;margin:22mm 20mm}
-  *{box-sizing:border-box}body{margin:0;background:#EDEBE6;font:14px/1.55 "Segoe UI",system-ui,sans-serif;color:#1C1B1F}
-  .page{max-width:780px;margin:24px auto;background:#fff;padding:56px 60px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #1C1B1F;padding-bottom:18px;margin-bottom:34px}
-  .co{font-size:20px;font-weight:600;letter-spacing:-.01em}.co small{display:block;font-size:12px;font-weight:400;color:#6B6870;letter-spacing:0}
-  .meta{text-align:right;font-size:12px;color:#6B6870}
-  h1{font-size:30px;font-weight:500;letter-spacing:-.02em;margin:0 0 6px}
-  .to{color:#6B6870;margin-bottom:28px}
-  .note{white-space:pre-wrap;margin:0 0 30px;max-width:60ch}
-  table{width:100%;border-collapse:collapse}td{padding:11px 0;border-bottom:1px solid #E4E1DA}td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  tr.total td{border-bottom:0;border-top:1px solid #1C1B1F;font-weight:600;font-size:17px;padding-top:14px}
-  .fine{margin-top:34px;font-size:12px;color:#6B6870}
-  .stamp{display:inline-block;margin-top:30px;padding:6px 12px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid}
-  .stamp.ok{color:#1E6B4A;border-color:#1E6B4A}.stamp.draft{color:#9A5B12;border-color:#9A5B12}
-  @media print{body{background:#fff}.page{box-shadow:none;margin:0;padding:0;max-width:none}}
-  </style></head><body><div class="page">
-  <header><div class="co">${esc(info.business)}${stand ? "<small>Custom kitchens · built-in furniture · Riga</small>" : ""}</div>
-  <div class="meta">${esc(info.today.split(",")[0])}<br>Prepared by Tia for ${esc(info.owner)}</div></header>
-  <h1>${esc(c.title)}</h1><div class="to">For ${esc(c.from)}${c.validUntil ? ` · valid until ${esc(c.validUntil)}` : ""}</div>
-  ${c.text ? `<p class="note">${esc(c.text)}</p>` : ""}
-  ${lines ? `<table>${lines}<tr class="total"><td>Total</td><td class="n">${eur(c.total)}</td></tr></table>` : ""}
-  <div class="fine">${stand ? "Prices include installation. Appliances, plumbing and electrical works not included. Demo document – fictional business." : ""}</div>
-  ${stamp}</div></body></html>`;
+  const item = hub.rawItem ? hub.rawItem(c.id) : null;
+  if (c.kind === "contract" && item) return contractHtml(info, loadConfig(), item.proposal, { contractNo: "(draft)", date: new Date().toLocaleDateString("en-GB").replace(/\//g, ".") });
+  return offerHtml(info, c);
 }
 
 // ---------- routes ----------

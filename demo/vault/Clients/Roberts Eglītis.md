@@ -5,7 +5,7 @@ language: Latvian
 ---
 # Roberts Eglītis
 - **Object:** Kalnciema iela 64, Āgenskalns
-- **Contact:** email · roberts.eglitis@mail.example · writes in Latvian
+- **Contact:** email · roberts.eglitis@example.com · writes in Latvian
 - **Came from:** Arhitektu birojs Smilga · first contact 02.07.2026
 - **Projects:** [[Kitchen — Eglītis, Kalnciema iela]] (warranty)
 

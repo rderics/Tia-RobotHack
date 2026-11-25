@@ -31,7 +31,7 @@ TEAM = [
 ]
 
 EXTERNAL_PEOPLE = [
-    {"name": "Ilze Kronberga", "role": "Accountant (external, bookkeeping firm)", "company": None, "email": "ilze@gramatvediba-kronberga.example",
+    {"name": "Ilze Kronberga", "role": "Accountant (external, bookkeeping firm)", "company": None, "email": "ilze@gramatvede.example",
      "notes": ["Signs her emails 'Ilze – grāmatvede'.", "VAT return due on the 20th; needs all purchase receipts by the Friday before.", "Prefers PDF scans, one file per receipt."]},
 ]
 
@@ -117,9 +117,9 @@ FIXED_CLIENTS = [
      "source": "Instagram", "since": dt.date(2026, 11, 10)},
     {"name": "Ieva Bērziņa", "area": "Ganību dambis", "street": "Ganību dambis 12", "lang": "English", "channel": "email", "email": "ieva.berzina@example.com",
      "source": "Website form", "since": dt.date(2026, 11, 3)},
-    {"name": "Laura Vītola", "area": "Centrs", "street": "Brīvības iela 120", "lang": "Latvian", "channel": "email", "email": "laura.vitola@mail.example",
+    {"name": "Laura Vītola", "area": "Centrs", "street": "Brīvības iela 120", "lang": "Latvian", "channel": "email", "email": "laura.vitola@example.com",
      "source": "Referral – Roberts Eglītis", "since": dt.date(2026, 8, 24)},
-    {"name": "Roberts Eglītis", "area": "Āgenskalns", "street": "Kalnciema iela 64", "lang": "Latvian", "channel": "email", "email": "roberts.eglitis@mail.example",
+    {"name": "Roberts Eglītis", "area": "Āgenskalns", "street": "Kalnciema iela 64", "lang": "Latvian", "channel": "email", "email": "roberts.eglitis@example.com",
      "source": "Arhitektu birojs Smilga", "since": dt.date(2026, 7, 2)},
 ]
 FIXED_LEADS = [
