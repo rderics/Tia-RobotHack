@@ -2,6 +2,12 @@
 
 Add a line at the top when the team decides something: `date · who · decision · replaces`.
 
+- **25.11 · Rinalds** · **Familiar interfaces:** Tia works inside look-alike views of Mail (Outlook-style), WhatsApp,
+  Instagram DMs and Slack – same layout and colours owners already know, no new UI to learn. Both ways: Tia opens the
+  tab and types the draft, or the owner opens a tab and works himself. Built in plain CSS (no usable licensed clones for
+  Outlook/Instagram; the MIT WhatsApp/Slack clones are full React apps) – **no brand logos or icons copied**.
+  Real connections via **Composio** (MIT SDK, free 10k calls/month): Gmail + Google Calendar + Slack first; classic
+  Outlook stays on COM; WhatsApp/Instagram stay simulated (Meta business setup, no draft API).
 - **25.11 · Rinalds** · Vault names: the demo business vault is **`demo/Business vault TIA`** (was `demo/vault`), the shared
   project memory is **`TIA Context vault/`** (was `project/`). Open each folder as its own vault in Obsidian.
 - **25.11 · Rinalds** · **AI lead finder → Google Sheets CRM**: Tia finds real businesses that fit the target audience

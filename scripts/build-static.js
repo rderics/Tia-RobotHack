@@ -44,6 +44,7 @@ fs.cpSync(path.join(ROOT, "src/renderer/assets"), path.join(out, "assets"), {
 fs.copyFileSync(path.join(ROOT, "src/renderer/app.js"), path.join(out, "app.js"));
 fs.copyFileSync(path.join(ROOT, "src/renderer/avatar.js"), path.join(out, "avatar.js")); // talking avatar (npm run build:avatar)
 fs.copyFileSync(path.join(ROOT, "src/brain/guard.js"), path.join(out, "guard.js"));
+fs.cpSync(path.join(ROOT, "src/renderer/channels"), path.join(out, "channels"), { recursive: true }); // Mail / WhatsApp / Instagram / Slack views
 fs.copyFileSync(path.join(ROOT, "src/static/static-bridge.js"), path.join(out, "web-bridge.js"));
 fs.writeFileSync(path.join(out, "data/inbox.json"), JSON.stringify(inbox));
 fs.writeFileSync(path.join(out, "data/replay.json"), JSON.stringify(replay));
@@ -53,7 +54,7 @@ fs.writeFileSync(path.join(out, "data/replay.json"), JSON.stringify(replay));
 const crypto = require("crypto");
 const hashOf = (rel) => crypto.createHash("sha1").update(fs.readFileSync(path.join(out, rel))).digest("hex").slice(0, 10);
 let page = fs.readFileSync(path.join(out, "index.html"), "utf8");
-page = page.replace(/(src|href)="((?:assets\/)?[\w.-]+\.(?:js|css|png))"/g, (all, attr, rel) =>
+page = page.replace(/(src|href)="((?:assets\/|channels\/)?[\w.-]+\.(?:js|css|png))"/g, (all, attr, rel) =>
   fs.existsSync(path.join(out, rel)) ? `${attr}="${rel}?v=${hashOf(rel)}"` : all
 );
 fs.writeFileSync(path.join(out, "index.html"), page);

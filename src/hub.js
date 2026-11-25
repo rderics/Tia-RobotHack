@@ -359,6 +359,9 @@ function card(i) {
       urgent: isUrgent(r),
       narration: p.narration || "",
       actions: i.actions || [],
+      // the original message, for the channel views (Mail / WhatsApp / Instagram / Slack look-alikes)
+      original: { subject: r.message.subject || "", text: r.message.text || "", address: r.message.address || "", time: r.message.time || "", mailbox: r.message.mailbox || "" },
+      decision: r.decision || "",
     };
   }
   const p = i.proposal;

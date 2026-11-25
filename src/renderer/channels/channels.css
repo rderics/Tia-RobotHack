@@ -1,0 +1,192 @@
+/* Familiar channel views: Mail (Outlook-style), WhatsApp, Instagram DMs, Slack – look-alikes in plain CSS.
+   Layout and colours follow the apps owners already use; no brand logos or icons are copied. */
+
+/* ---------- app rail (left) ---------- */
+.apprail { position: fixed; left: 0; top: 0; bottom: 0; width: 64px; z-index: 50; background: #0B0A10; border-right: 1px solid #1E1C26;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
+.apprail button { width: 48px; height: 48px; border: 0; border-radius: 12px; background: transparent; color: #8C8796; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font: 600 9.5px/1 "Segoe UI", system-ui, sans-serif; position: relative; }
+.apprail button svg { width: 22px; height: 22px; }
+.apprail button:hover { background: #1A1822; color: #ECEAF2; }
+.apprail button.on { background: #221E30; color: #fff; }
+.apprail button.on::before { content: ""; position: absolute; left: -8px; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: #B9A3F2; }
+.apprail .badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #E5484D; color: #fff;
+  font: 700 10px/16px "Segoe UI", sans-serif; }
+.apprail .follow { margin-top: auto; font-size: 9px; color: #6B6773; text-align: center; padding: 0 4px; cursor: pointer; border: 0; background: none; }
+.apprail .follow.on { color: #B9A3F2; }
+body.has-rail { padding-left: 64px; }
+
+.chview { position: fixed; left: 64px; top: 0; right: 0; bottom: 0; z-index: 40; overflow: hidden; }
+.chview[hidden] { display: none; }
+
+/* ---------- Tia picture-in-picture while working in a channel ---------- */
+.tia-pip { position: fixed; right: 16px; top: 64px; width: 190px; z-index: 60; border-radius: 16px; overflow: hidden; background: #14121B;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .45); border: 1px solid #2B2836; }
+.tia-pip[hidden] { display: none; }
+.tia-pip .pipbox { height: 170px; position: relative; background: radial-gradient(70% 80% at 50% 35%, rgba(185, 163, 242, .22), transparent 70%), #14121B; }
+.tia-pip .pipbox .avatar-box { position: absolute; inset: 0; }
+.tia-pip .pipcap { padding: 8px 12px 10px; font: 12.5px/1.4 "Segoe UI", system-ui, sans-serif; color: #ECEAF2; max-height: 76px; overflow: hidden; }
+.tia-pip .pipcap b { color: #B9A3F2; font-weight: 700; margin-right: 6px; }
+.tia-pip.talking { border-color: #B9A3F2; }
+
+/* ---------- shared bits ---------- */
+.chview * { box-sizing: border-box; }
+.tia-chip { display: inline-flex; align-items: center; gap: 5px; font: 700 10.5px/1 "Segoe UI", sans-serif; padding: 4px 8px; border-radius: 99px; letter-spacing: .02em; }
+.tia-chip.needs { background: #FFF1DC; color: #9A5B12; }
+.tia-chip.done { background: #DDF5E6; color: #1E6B4A; }
+.tia-chip.draft { background: #EEE8FD; color: #5B3FB5; }
+.tia-steps { font: 12px/1.5 "Segoe UI", sans-serif; color: #5B3FB5; margin-top: 6px; }
+.tia-steps div::before { content: "● "; }
+.tia-steps .err { color: #B42318; }
+.typing-caret::after { content: "▍"; animation: blink 1s steps(1) infinite; color: currentColor; margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+.ch-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #8C8796; font: 14px "Segoe UI", sans-serif; text-align: center; padding: 40px; }
+
+/* =============================== MAIL (Outlook-style) =============================== */
+.mail { display: grid; grid-template-rows: 48px 1fr; height: 100%; background: #F5F5F5; color: #242424; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; }
+.mail-top { background: #0F6CBD; color: #fff; display: flex; align-items: center; gap: 16px; padding: 0 16px; }
+.mail-top .app { font-weight: 600; font-size: 16px; width: 200px; }
+.mail-top .search { flex: 1; max-width: 520px; height: 32px; border-radius: 4px; background: #fff; color: #616161; display: flex; align-items: center; padding: 0 12px; font-size: 13px; }
+.mail-top .me { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: #B9A3F2; color: #1C1B1F; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.mail-body { display: grid; grid-template-columns: 220px 360px 1fr; min-height: 0; }
+.mail-folders { background: #F5F5F5; padding: 12px 8px; overflow: auto; }
+.mail-new { width: 100%; height: 36px; border: 0; border-radius: 4px; background: #0F6CBD; color: #fff; font-weight: 600; margin-bottom: 14px; cursor: pointer; }
+.mail-folders .f { display: flex; justify-content: space-between; padding: 7px 12px; border-radius: 4px; cursor: pointer; color: #242424; }
+.mail-folders .f:hover { background: #EBEBEB; }
+.mail-folders .f.on { background: #E0E0E0; font-weight: 600; }
+.mail-folders .f .n { color: #0F6CBD; font-weight: 600; }
+.mail-folders .sec { font-size: 12px; font-weight: 600; color: #616161; padding: 12px 12px 4px; }
+.mail-list { background: #fff; border-left: 1px solid #E0E0E0; border-right: 1px solid #E0E0E0; overflow: auto; }
+.mail-list .hd { padding: 12px 16px 8px; font-weight: 600; font-size: 16px; border-bottom: 1px solid #F0F0F0; display: flex; gap: 14px; }
+.mail-list .hd span { color: #616161; font-weight: 400; font-size: 14px; }
+.mail-list .hd span.on { color: #0F6CBD; font-weight: 600; border-bottom: 2px solid #0F6CBD; }
+.mrow { display: grid; grid-template-columns: 4px 1fr auto; gap: 0 10px; padding: 10px 16px 10px 0; border-bottom: 1px solid #F0F0F0; cursor: pointer; }
+.mrow:hover { background: #F5F5F5; }
+.mrow.sel { background: #CFE4FA; }
+.mrow .mbar { grid-row: span 3; width: 4px; }
+.mrow.unread .mbar { background: #0F6CBD; }
+.mrow .who { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow.unread .who, .mrow.unread .subj { font-weight: 600; }
+.mrow .time { font-size: 12px; color: #616161; }
+.mrow.unread .time { color: #0F6CBD; font-weight: 600; }
+.mrow .subj { grid-column: 2 / 4; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .prev { grid-column: 2 / 4; font-size: 12.5px; color: #616161; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+.mail-read { background: #fff; overflow: auto; padding: 22px 28px 40px; }
+.mail-read h2 { font-size: 20px; font-weight: 600; margin: 0 0 16px; }
+.mail-from { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+.av { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 14px; flex: none; }
+.mail-from .n { font-weight: 600; }
+.mail-from .a { font-size: 12.5px; color: #616161; }
+.mail-text { white-space: pre-wrap; line-height: 1.6; max-width: 72ch; }
+.mail-tia { margin-top: 26px; border: 1px solid #D8CFF7; border-radius: 8px; overflow: hidden; max-width: 760px; }
+.mail-tia .top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #F6F3FE; font-size: 13px; color: #5B3FB5; }
+.mail-tia .why { color: #616161; font-size: 12.5px; padding: 0 14px 8px; background: #F6F3FE; }
+.mail-tia textarea { width: 100%; min-height: 170px; border: 0; padding: 14px; font: 14px/1.6 "Segoe UI", sans-serif; resize: vertical; outline: none; color: #242424; }
+.mail-tia .mt-actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #EEE; background: #FAFAFA; align-items: center; flex-wrap: wrap; }
+.mbtn { height: 32px; padding: 0 14px; border-radius: 4px; border: 1px solid #D1D1D1; background: #fff; color: #242424; font: 600 13px "Segoe UI", sans-serif; cursor: pointer; }
+.mbtn.primary { background: #0F6CBD; border-color: #0F6CBD; color: #fff; }
+.mbtn:disabled { opacity: .5; cursor: default; }
+.mail-tia .mt-actions .note { font-size: 12px; color: #616161; margin-left: auto; }
+
+/* =============================== WHATSAPP =============================== */
+.wa { display: grid; grid-template-columns: 400px 1fr; height: 100%; background: #EFEAE2; font: 14.2px/1.35 "Segoe UI", Helvetica, sans-serif; color: #111B21; }
+.wa-side { background: #fff; border-right: 1px solid #D1D7DB; display: flex; flex-direction: column; min-height: 0; }
+.wa-head { height: 59px; background: #F0F2F5; display: flex; align-items: center; padding: 0 16px; gap: 12px; font-weight: 600; font-size: 16px; color: #111B21; }
+.wa-search { padding: 7px 12px; border-bottom: 1px solid #E9EDEF; }
+.wa-search div { background: #F0F2F5; border-radius: 8px; height: 35px; display: flex; align-items: center; padding: 0 14px; color: #667781; font-size: 13.5px; }
+.wa-filters { display: flex; gap: 8px; padding: 8px 12px; }
+.wa-filters span { background: #F0F2F5; color: #54656F; border-radius: 16px; padding: 6px 12px; font-size: 13.5px; }
+.wa-filters span.on { background: #D9FDD3; color: #008069; }
+.wa-list { overflow: auto; }
+.wa-row { display: flex; gap: 13px; padding: 0 15px; height: 72px; align-items: center; cursor: pointer; }
+.wa-row:hover { background: #F5F6F6; }
+.wa-row.sel { background: #F0F2F5; }
+.wa-row .av { width: 49px; height: 49px; }
+.wa-row .mid { flex: 1; min-width: 0; border-bottom: 1px solid #E9EDEF; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.wa-row .l1 { display: flex; justify-content: space-between; } .wa-row .nm { font-size: 17px; }
+.wa-row .tm { font-size: 12px; color: #667781; } .wa-row.unread .tm { color: #25D366; }
+.wa-row .l2 { display: flex; justify-content: space-between; gap: 8px; color: #667781; font-size: 14px; }
+.wa-row .l2 span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-row .cnt { background: #25D366; color: #fff; border-radius: 10px; min-width: 20px; height: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+.wa-main { display: flex; flex-direction: column; min-height: 0; background-color: #EFEAE2;
+  background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size: 22px 22px; }
+.wa-chathead { height: 59px; background: #F0F2F5; display: flex; align-items: center; gap: 15px; padding: 0 16px; border-left: 1px solid #D1D7DB; }
+.wa-chathead .av { width: 40px; height: 40px; }
+.wa-chathead .s { font-size: 13px; color: #667781; }
+.wa-msgs { flex: 1; overflow: auto; padding: 20px 7%; display: flex; flex-direction: column; gap: 4px; }
+.wa-day { align-self: center; background: #fff; color: #54656F; font-size: 12.5px; padding: 5px 12px; border-radius: 7.5px; margin: 8px 0; box-shadow: 0 1px .5px rgba(11,20,26,.13); }
+.bub { max-width: 65%; padding: 6px 7px 8px 9px; border-radius: 7.5px; box-shadow: 0 1px .5px rgba(11,20,26,.13); position: relative; white-space: pre-wrap; }
+.bub .t { font-size: 11px; color: #667781; float: right; margin: 6px 0 -4px 10px; }
+.bub.in { align-self: flex-start; background: #fff; border-top-left-radius: 0; }
+.bub.out { align-self: flex-end; background: #D9FDD3; border-top-right-radius: 0; }
+.bub.draft { background: #F2EEFD; border: 1px dashed #9C83E6; }
+.bub .lbl { display: block; font-size: 11.5px; font-weight: 700; color: #5B3FB5; margin-bottom: 2px; }
+.wa-compose { background: #F0F2F5; padding: 5px 16px; display: flex; gap: 8px; align-items: flex-end; }
+.wa-compose textarea { flex: 1; border: 0; border-radius: 8px; padding: 9px 12px; font: 15px/1.35 "Segoe UI", sans-serif; resize: none; min-height: 42px; max-height: 140px; outline: none; }
+.wa-send { width: 42px; height: 42px; border-radius: 50%; border: 0; background: #00A884; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.wa-send svg { width: 20px; height: 20px; }
+.wa-hint { font-size: 12px; color: #667781; padding: 0 16px 8px; background: #F0F2F5; }
+
+/* =============================== INSTAGRAM DMs =============================== */
+.ig { display: grid; grid-template-columns: 72px 397px 1fr; height: 100%; background: #fff; color: #000; font: 14px/18px -apple-system, "Segoe UI", Roboto, sans-serif; }
+.ig-nav { border-right: 1px solid #DBDBDB; display: flex; flex-direction: column; align-items: center; padding: 26px 0; gap: 22px; color: #000; }
+.ig-nav i { width: 24px; height: 24px; border: 2px solid #000; border-radius: 7px; display: block; }
+.ig-nav i.round { border-radius: 50%; } .ig-nav i.on { background: #000; }
+.ig-side { border-right: 1px solid #DBDBDB; display: flex; flex-direction: column; min-height: 0; }
+.ig-me { padding: 36px 24px 12px; font-size: 20px; font-weight: 700; }
+.ig-tabs { display: flex; justify-content: space-between; padding: 14px 24px 10px; font-weight: 700; font-size: 16px; }
+.ig-tabs span:last-child { color: #737373; font-weight: 600; font-size: 14px; }
+.ig-list { overflow: auto; }
+.ig-row { display: flex; gap: 12px; padding: 8px 24px; align-items: center; cursor: pointer; }
+.ig-row:hover { background: #FAFAFA; } .ig-row.sel { background: #EFEFEF; }
+.ig-row .ring { padding: 2px; border-radius: 50%; background: conic-gradient(#FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); }
+.ig-row .av { width: 52px; height: 52px; border: 2px solid #fff; }
+.ig-row .nm { font-size: 14px; } .ig-row.unread .nm, .ig-row.unread .pv { font-weight: 600; color: #000; }
+.ig-row .pv { color: #737373; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ig-row .dot { width: 8px; height: 8px; border-radius: 50%; background: #0095F6; margin-left: auto; flex: none; }
+.ig-main { display: flex; flex-direction: column; min-height: 0; }
+.ig-head { height: 75px; border-bottom: 1px solid #DBDBDB; display: flex; align-items: center; gap: 12px; padding: 0 16px; font-weight: 600; font-size: 16px; }
+.ig-head .av { width: 44px; height: 44px; }
+.ig-msgs { flex: 1; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 6px; }
+.igb { max-width: 60%; padding: 8px 12px; border-radius: 22px; white-space: pre-wrap; font-size: 15px; line-height: 20px; }
+.igb.in { align-self: flex-start; background: #EFEFEF; }
+.igb.out { align-self: flex-end; background: #3797F0; color: #fff; }
+.igb.draft { align-self: flex-end; background: #F2EEFD; color: #241A40; border: 1px dashed #9C83E6; }
+.igb .lbl { display: block; font-size: 11.5px; font-weight: 700; color: #5B3FB5; margin-bottom: 2px; }
+.ig-compose { margin: 16px; border: 1px solid #DBDBDB; border-radius: 22px; display: flex; align-items: center; padding: 0 8px 0 16px; min-height: 44px; }
+.ig-compose textarea { flex: 1; border: 0; outline: none; resize: none; font: 15px/20px -apple-system, "Segoe UI", sans-serif; padding: 11px 0; max-height: 120px; }
+.ig-compose button { border: 0; background: none; color: #0095F6; font-weight: 600; font-size: 15px; cursor: pointer; padding: 8px; }
+
+/* =============================== SLACK =============================== */
+.sl { display: grid; grid-template-rows: 40px 1fr; height: 100%; background: #3F0E40; font: 15px/1.47 "Segoe UI", Lato, sans-serif; color: #1D1C1D; }
+.sl-top { display: flex; align-items: center; justify-content: center; background: #350D36; }
+.sl-top div { width: 46%; height: 26px; border-radius: 6px; background: rgba(255,255,255,.2); color: rgba(255,255,255,.8); font-size: 13px; display: flex; align-items: center; padding: 0 10px; }
+.sl-body { display: grid; grid-template-columns: 260px 1fr; min-height: 0; }
+.sl-side { color: rgba(255,255,255,.7); padding: 8px 0; overflow: auto; }
+.sl-ws { color: #fff; font-weight: 900; font-size: 18px; padding: 6px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.12); margin-bottom: 8px; }
+.sl-sec { padding: 10px 16px 4px; font-size: 15px; }
+.sl-ch { padding: 3px 16px 3px 26px; cursor: pointer; display: flex; justify-content: space-between; }
+.sl-ch:hover { background: rgba(255,255,255,.08); }
+.sl-ch.on { background: #1164A3; color: #fff; }
+.sl-ch.unread { color: #fff; font-weight: 700; }
+.sl-ch .cnt { background: #CD2553; color: #fff; border-radius: 9px; font-size: 12px; font-weight: 700; padding: 0 7px; }
+.sl-main { background: #fff; border-top-left-radius: 8px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.sl-head { height: 49px; border-bottom: 1px solid #E8E8E8; display: flex; align-items: center; padding: 0 20px; font-weight: 900; font-size: 18px; }
+.sl-msgs { flex: 1; overflow: auto; padding: 16px 0; }
+.sl-msg { display: flex; gap: 8px; padding: 8px 20px; }
+.sl-msg:hover { background: #F8F8F8; }
+.sl-msg .av { width: 36px; height: 36px; border-radius: 6px; }
+.sl-msg .nm { font-weight: 900; font-size: 15px; } .sl-msg .tm { font-size: 12px; color: #616061; margin-left: 6px; }
+.sl-msg .tx { white-space: pre-wrap; }
+.sl-msg.draft { background: #F6F3FE; border-left: 3px solid #9C83E6; }
+.sl-compose { margin: 0 20px 20px; border: 1px solid #BBBABB; border-radius: 8px; }
+.sl-compose .fmt { height: 32px; background: #F8F8F8; border-bottom: 1px solid #E8E8E8; border-radius: 8px 8px 0 0; display: flex; gap: 14px; align-items: center; padding: 0 12px; color: #616061; font-weight: 700; font-size: 13px; }
+.sl-compose textarea { width: 100%; border: 0; outline: none; resize: none; padding: 10px 12px; font: 15px/1.47 "Segoe UI", sans-serif; min-height: 46px; max-height: 160px; }
+.sl-compose .act { display: flex; justify-content: flex-end; gap: 8px; padding: 6px 8px; }
+.sl-compose .act button { height: 28px; border: 0; border-radius: 4px; background: #007A5A; color: #fff; font-weight: 700; padding: 0 12px; cursor: pointer; }
+.sl-compose .act button.ghost { background: #fff; color: #1D1C1D; border: 1px solid #BBBABB; }
+
+.leads-frame { border: 0; width: 100%; height: 100%; background: #0E0D13; display: block; }
+.ig-txt { min-width: 0; } .ig-status { padding: 0 20px 16px; }
+.av { flex: none; }
+@media (max-width: 1100px) { .mail-body { grid-template-columns: 170px 300px 1fr; } .wa { grid-template-columns: 320px 1fr; } .ig { grid-template-columns: 72px 300px 1fr; } }

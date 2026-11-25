@@ -571,6 +571,7 @@ async function handleEvent(ev) {
         ? r.proposal.narration || `Handled: ${r.proposal.summary}`
         : `This one needs you: ${r.proposal.summary}`;
     $("speechText").textContent = `Reading ${CHANNEL_LABEL[r.message.channel] || r.message.channel} from ${r.message.from}…`;
+    window.dispatchEvent(new CustomEvent("tia:reading", { detail: r.message.id })); // channel views follow Tia at this pace
     $("progressLabel").textContent = `Message ${state.done + 1} of ${state.total}`;
     await animate(r);
     state.done++;

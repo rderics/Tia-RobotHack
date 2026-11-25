@@ -10,6 +10,7 @@ Tasks are tracked on the team kanban board (link in Discord).
 | **Demo vault** – fictional business data | **Rinalds' Claude agent** | `scripts/make_demo_vault/*`, `demo/Business vault TIA/*` (generated) |
 | **Frontend polish** – layout, cards, animations, projector look | **Frontend teammate(s)** | `src/renderer/index.html`, `src/renderer/styles.css`, `src/renderer/app.js` (UI parts) |
 | **Document templates** – contract, offer, follow-up | **Frontend / data teammate** | `demo/Business vault TIA/Templates/*` (hand-edited; the generator never overwrites them) |
+| **Channel views** (Mail/WhatsApp/Instagram/Slack look-alikes) | Rinalds' Claude agent | `src/renderer/channels/*` |
 | **Avatar + voice** | Rinalds' Claude agent | `src/scene/*`, `src/voice.js`, `src/tts/*` |
 | **Pitch deck + stand script** | whole team | `TIA Context vault/Stand script.md` |
 
