@@ -265,6 +265,7 @@ export function createScene(container, { reducedMotion = false } = {}) {
   let talking = false;
   let avatar = null; // the loaded character model (replaces the simple-shape body)
   let avatarHeight = 0;
+  let rig = null; // bones of a rigged character: arms posed down, head follows the pointer, nods while talking
   const talkLight = new THREE.PointLight(LAVENDER, 0, 6, 2); // glows on her while she speaks
   talkLight.position.set(0, 2.4, 1.6);
   scene.add(talkLight);
@@ -463,6 +464,7 @@ export function createScene(container, { reducedMotion = false } = {}) {
       tia.rotation.y = Math.sin(t * 0.35) * 0.06 * motion + mouseX * 0.12;
       avatar.scale.y = avatar.userData.baseScale * (1 + Math.sin(t * 1.6) * 0.004 * motion);
       halo.position.y = avatarHeight + 0.45 + Math.sin(t * 1.3) * 0.05 * motion;
+      animateRig(t, motion);
     } else {
       tia.position.y = Math.sin(t * 1.3) * 0.08 * motion;
       tia.rotation.y = Math.sin(t * 0.4) * 0.12 * motion + mouseX * 0.08;
@@ -484,6 +486,75 @@ export function createScene(container, { reducedMotion = false } = {}) {
     camera.lookAt(lookAt);
     renderer.render(scene, camera);
   }
+  // ---- rigged characters (Rigify / Character Creator style bone names) ----
+  // GLTFLoader strips dots from names ("DEF-upper_arm.L" -> "DEF-upper_armL"), so compare without them.
+  const norm = (n) => String(n || "").replace(/[\s.:\/\[\]]/g, "").toLowerCase();
+  function findBone(root, ...names) {
+    const wanted = names.map(norm);
+    let hit = null;
+    root.traverse((o) => {
+      if (!hit && (o.isBone || o.type === "Bone" || o.isObject3D) && wanted.includes(norm(o.name))) hit = o;
+    });
+    return hit;
+  }
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _q = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _wq = new THREE.Quaternion();
+  // Turn a bone (in world space) so the line to its child points along `dir` – works whatever the bone's own axes are.
+  function aimBone(bone, child, dir) {
+    if (!bone || !child) return;
+    bone.updateMatrixWorld(true);
+    _a.setFromMatrixPosition(bone.matrixWorld);
+    _b.setFromMatrixPosition(child.matrixWorld).sub(_a).normalize();
+    _q.setFromUnitVectors(_b, dir.clone().normalize());
+    bone.getWorldQuaternion(_wq);
+    bone.parent.getWorldQuaternion(_pq);
+    bone.quaternion.copy(_pq.invert().multiply(_q.multiply(_wq)));
+    bone.updateMatrixWorld(true);
+  }
+  // Rotate a bone by a small world-space rotation on top of its rest pose (used every frame).
+  function nudge(bone, rest, axis, angle) {
+    if (!bone) return;
+    bone.quaternion.copy(rest);
+    bone.updateMatrixWorld(true);
+    bone.getWorldQuaternion(_wq);
+    bone.parent.getWorldQuaternion(_pq);
+    _q.setFromAxisAngle(axis, angle);
+    bone.quaternion.copy(_pq.invert().multiply(_q.multiply(_wq)));
+  }
+  function setupRig(model) {
+    const b = (n) => findBone(model, n);
+    const arm = (side, sx) => {
+      const upper = b(`DEF-upper_arm.${side}`) || b(`upperarm_${side.toLowerCase()}`);
+      const fore = b(`DEF-forearm.${side}`) || b(`lowerarm_${side.toLowerCase()}`);
+      const hand = b(`DEF-hand.${side}`) || b(`hand_${side.toLowerCase()}`);
+      // relaxed: upper arm down along the body, forearm slightly forward
+      aimBone(upper, fore, new THREE.Vector3(0.2 * sx, -1, 0.04));
+      aimBone(fore, hand, new THREE.Vector3(0.12 * sx, -1, 0.32));
+    };
+    // the character's left is on +X when she faces the camera
+    arm("L", 1);
+    arm("R", -1);
+    const head = b("DEF-spine.006") || b("head");
+    const neck = b("DEF-spine.005") || b("neck");
+    const chest = b("DEF-spine.003") || b("chest");
+    if (!head) return null;
+    return {
+      head, neck, chest,
+      rest: { head: head.quaternion.clone(), neck: neck ? neck.quaternion.clone() : null, chest: chest ? chest.quaternion.clone() : null },
+    };
+  }
+  const UP = new THREE.Vector3(0, 1, 0), SIDE = new THREE.Vector3(1, 0, 0);
+  function animateRig(t, motion) {
+    if (!rig) return;
+    const look = mouseX * 0.35; // follow the pointer, a little
+    const nod = talking ? Math.sin(t * 7) * 0.05 + 0.03 : Math.sin(t * 0.8) * 0.015;
+    nudge(rig.head, rig.rest.head, UP, look * 0.6);
+    rig.head.updateMatrixWorld(true);
+    _q.setFromAxisAngle(SIDE, nod + reading * 0.25);
+    rig.head.quaternion.premultiply(_q.clone()).normalize();
+    if (rig.neck) nudge(rig.neck, rig.rest.neck, UP, look * 0.4);
+    if (rig.chest) nudge(rig.chest, rig.rest.chest, SIDE, Math.sin(t * 1.6) * 0.012 * motion); // breathing
+  }
+
   requestAnimationFrame(frame);
 
   return {
@@ -496,10 +567,11 @@ export function createScene(container, { reducedMotion = false } = {}) {
     },
     setSpeed: (k) => (speed.k = k),
     loadAvatar,
+    debug: () => ({ avatar, rig }), // for testing in the browser console
   };
 
   // Swap the simple-shape body for a real character (.glb). Keeps everything else: cards, portals, clock halo.
-  function loadAvatar(url, { height = 3.25 } = {}) {
+  function loadAvatar(url, { height = 3.6 } = {}) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     return new Promise((resolve, reject) => {
@@ -531,6 +603,8 @@ export function createScene(container, { reducedMotion = false } = {}) {
           avatarHeight = height;
           tia.add(model);
           avatar = model;
+          model.updateMatrixWorld(true);
+          rig = setupRig(model);
           resolve(model);
         },
         undefined,
