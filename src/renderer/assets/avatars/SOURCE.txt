@@ -1,5 +1,5 @@
-sample.vrm – "VRM1_Constraint_Twist_Sample" by pixiv Inc. (c) 2022
-Source: https://github.com/vrm-c/vrm-specification/tree/master/samples/VRM1_Constraint_Twist_Sample
-Licence: VRM Public License 1.0 (https://vrm.dev/licenses/1.0/) – from the model's own metadata:
-avatar use: everyone · commercial use: corporations allowed · modification + redistribution allowed · credit not required.
-Placeholder until Tia's own VRoid character (business outfit, lavender accent) is made.
+tia.vrm – "ユズキ / 黒いスーツ" (Yuzuki, black suit) by Tovie, VRoid Hub
+https://hub.vroid.com/en/characters/5420030512481141791/models/215177788091647819
+Conditions of use (VRoid Hub licence, also in the file's metadata): avatar use by everyone; corporate commercial
+use allowed; personal commercial use allowed; modification allowed; redistribution allowed; credit not required.
+Tia's changes: lavender blouse tint at run time (src/renderer/app.js → tint).

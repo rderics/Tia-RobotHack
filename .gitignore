@@ -8,3 +8,6 @@ config.*.json
 
 # Third-party character model (Tripo community model, licence unclear) - served by the site, not published here
 src/renderer/assets/tia-avatar.glb
+
+# design notes and reference sheets (third-party thumbnails) - local only
+design/

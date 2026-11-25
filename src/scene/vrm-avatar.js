@@ -11,7 +11,7 @@ const VOWEL = { a: "aa", e: "ee", i: "ih", y: "ih", o: "oh", u: "ou", w: "ou" };
 const SHAPES = ["aa", "ee", "ih", "oh", "ou"];
 const MOODS = { neutral: { relaxed: 0.15 }, happy: { happy: 0.35 }, relaxed: { relaxed: 0.45 }, sad: { sad: 0.4 }, surprised: { surprised: 0.3 }, angry: { angry: 0.3 } };
 
-export async function createAvatar(container, { url, mood = "neutral", onProgress } = {}) {
+export async function createAvatar(container, { url, mood = "neutral", tint = {}, onProgress } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -32,9 +32,16 @@ export async function createAvatar(container, { url, mood = "neutral", onProgres
   if (!vrm) throw new Error("not a VRM file");
   VRMUtils.removeUnnecessaryVertices(gltf.scene);
   VRMUtils.combineSkeletons(gltf.scene);
-  if (vrm.meta && vrm.meta.metaVersion === "0") VRMUtils.rotateVRM0(vrm); // old VRoid exports face the other way
+  const vrm0 = !!(vrm.meta && vrm.meta.metaVersion === "0");
+  if (vrm0) VRMUtils.rotateVRM0(vrm); // old VRoid exports face the other way
+  const flip = vrm0 ? -1 : 1; // …and their bones turn the other way round the vertical and depth axes
   vrm.scene.traverse((o) => (o.frustumCulled = false));
   scene.add(vrm.scene);
+  // brand colours: { "<part of material name>": 0xRRGGBB } multiplies that material's colour (e.g. a lavender blouse)
+  vrm.scene.traverse((o) => {
+    for (const m of [].concat(o.material || []))
+      for (const [part, hex] of Object.entries(tint)) if (m.name.includes(part) && m.color) m.color.setHex(hex);
+  });
 
   const bone = (n) => vrm.humanoid.getNormalizedBoneNode(n);
   const em = vrm.expressionManager;
@@ -46,12 +53,12 @@ export async function createAvatar(container, { url, mood = "neutral", onProgres
     leftLowerArm: [0, -0.25, -0.1], rightLowerArm: [0, 0.25, 0.1],
     leftHand: [0, 0, 0.1], rightHand: [0, 0, -0.1],
   };
-  for (const [n, r] of Object.entries(pose)) bone(n) && bone(n).rotation.set(...r);
+  for (const [n, [x, y, z]] of Object.entries(pose)) bone(n) && bone(n).rotation.set(x, y * flip, z * flip);
   for (const side of ["left", "right"])
     for (const f of ["Index", "Middle", "Ring", "Little"])
       for (const j of ["Proximal", "Intermediate", "Distal"]) {
         const b = bone(`${side}${f}${j}`);
-        if (b) b.rotation.z = (side === "left" ? -1 : 1) * 0.28;
+        if (b) b.rotation.z = (side === "left" ? -1 : 1) * 0.28 * flip;
       }
   vrm.update(0);
 
@@ -59,7 +66,7 @@ export async function createAvatar(container, { url, mood = "neutral", onProgres
   const head = new THREE.Vector3();
   bone("head").getWorldPosition(head);
   const target = new THREE.Vector3(0, head.y - 0.16, 0);
-  camera.position.set(0, head.y - 0.06, 2.1);
+  camera.position.set(0, head.y - 0.06, 1.9);
   camera.lookAt(target);
   const eyeTarget = new THREE.Object3D();
   camera.add(eyeTarget);

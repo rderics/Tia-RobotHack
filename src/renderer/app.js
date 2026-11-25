@@ -15,8 +15,8 @@ const eur = (n) => {
 };
 
 // ---------- the avatar (VRM character via three-vrm: lip-sync, blinking, eye contact, moods) ----------
-// Tia: a VRoid character (VRM). Sample by pixiv Inc. – commercial use, edits and redistribution allowed.
-const AVATAR_URL = "assets/avatars/sample.vrm";
+// Tia: "ユズキ / 黒いスーツ" by Tovie (VRoid Hub) – company commercial use, edits and redistribution allowed, no credit needed.
+const AVATAR_URL = "assets/avatars/tia.vrm";
 let avatar = null;
 const avatarReady = (async () => {
   if (!window.TiaAvatar) return null;
@@ -26,6 +26,7 @@ const avatarReady = (async () => {
       url,
       view: "upper",
       mood: "happy",
+      tint: { Onepiece_00_CLOTH: 0xe2d6ff }, // lavender blouse – Tia's accent colour
       onProgress: (ev) => {
         if (ev.lengthComputable) $("avatarLoading").textContent = `Tia is getting ready · ${Math.round((ev.loaded / ev.total) * 100)}%`;
       },
