@@ -1,6 +1,6 @@
-"""Builds demo/vault: the fictional Oakline Studio second brain (~650 linked notes).
+"""Builds demo/Business vault TIA: the fictional Oakline Studio second brain (~650 linked notes).
 
-    python scripts/make_demo_vault/build.py            # writes demo/vault (keeps nothing else)
+    python scripts/make_demo_vault/build.py            # writes demo/Business vault TIA (keeps nothing else)
 
 Deterministic (fixed random seed) – running it twice gives the same vault.
 Facts used by demo/inbox.json and demo/replay.json are fixed in world.py / here and stay true.
@@ -19,7 +19,7 @@ from world import (TODAY, OWNER, BUSINESS, TEAM, EXTERNAL_PEOPLE, AREAS, F_FIRST
 from knowledge import KNOWLEDGE, DECISIONS, TEMPLATES  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-OUT = os.path.join(ROOT, "demo", "vault")
+OUT = os.path.join(ROOT, "demo", "Business vault TIA")
 rng = random.Random(2611)
 
 D = dt.date

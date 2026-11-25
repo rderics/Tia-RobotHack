@@ -1,7 +1,7 @@
 // Offline demo script for voice commands. Used when Claude can't be reached (no internet at the venue,
 // usage limit) or when config.json says "commandMode": "scripted".
 // These answers are WRITTEN BY HAND for the stand script – they are not AI output, and the screen says so.
-// Facts and prices come from demo/vault (Clients/Ieva Bērziņa, Price list, Suppliers/Bolt Food).
+// Facts and prices come from demo/Business vault TIA (Clients/Ieva Bērziņa, Price list, Suppliers/Bolt Food).
 
 const OFFER_BASE = [
   { item: "L-shaped kitchen 4.2 m, painted MDF fronts (sage green), soft-close, installed", amount_eur: 7200 },

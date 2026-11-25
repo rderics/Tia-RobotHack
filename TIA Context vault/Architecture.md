@@ -1,7 +1,7 @@
 # Architecture
 
 ```
-            SHARED BRAIN: Obsidian vault  (demo: demo/vault = Oakline Studio; real owner: their own vault, private)
+            SHARED BRAIN: Obsidian vault  (demo: demo/Business vault TIA = Oakline Studio; real owner: their own vault, private)
             Business · Owner preferences · Price list · Calendar · Clients/ · Projects/ · Templates/ · Learned rules
                  │                                                    │
                  ▼                                                    ▼
@@ -28,7 +28,7 @@
 | Screen | `src/renderer/*` | same page in the browser and in Electron (`npm start`) |
 | Phone app | `mobile/` (Expo SDK 58) | hold-to-talk, chat, approve; loads in Expo Go (see README) |
 | Public demo | `scripts/build-static.js` → rderics.id.lv/tia/demo | replay only, no AI calls; voice lines pre-recorded |
-| Demo data | `demo/inbox.json` (12 messages), `demo/replay.json` (saved real run), `demo/vault` | fictional |
+| Demo data | `demo/inbox.json` (12 messages), `demo/replay.json` (saved real run), `demo/Business vault TIA` | fictional |
 
 ## Data rules
 - The real owner's vault and mailbox are read only on the owner's PC (`config.json`, gitignored). Never in the repo.

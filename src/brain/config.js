@@ -10,7 +10,7 @@ const DEFAULTS = {
   provider: "claude-code",
   model: "claude-sonnet-5-5",
   concurrency: 3,
-  vaultDir: "demo/vault",
+  vaultDir: "demo/Business vault TIA",
   inboxFile: "demo/inbox.json",
   replayFile: "demo/replay.json",
   dataDir: "data",

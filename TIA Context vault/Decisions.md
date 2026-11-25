@@ -2,6 +2,8 @@
 
 Add a line at the top when the team decides something: `date · who · decision · replaces`.
 
+- **25.11 · Rinalds** · Vault names: the demo business vault is **`demo/Business vault TIA`** (was `demo/vault`), the shared
+  project memory is **`TIA Context vault/`** (was `project/`). Open each folder as its own vault in Obsidian.
 - **25.11 · Rinalds** · **AI lead finder → Google Sheets CRM**: Tia finds real businesses that fit the target audience
   (OpenStreetMap + their websites), the AI scores the fit and writes a personal first line, rows appear live in the
   owner's Google Sheet (Apps Script bridge, `scripts/google-sheets-crm`). Emails to leads are **drafts only – never sent**.
@@ -14,7 +16,7 @@ Add a line at the top when the team decides something: `date · who · decision 
   rejected – the demo contains a complaint and a scam email, which must not be tied to a real firm). · replaces the old name
 - **25.11 · Rinalds** · **Real actions must be visible**: Outlook opens with the draft typed in, the contract becomes a PDF
   that opens and goes to the printer. Backend first, frontend animations after. Cards on screen are too text-heavy → redesign.
-- **25.11 · Rinalds** · Shared project memory lives in the repo (`project/`, `AGENTS.md`) so every teammate's agent has the same facts.
+- **25.11 · Rinalds** · Shared project memory lives in the repo (`TIA Context vault/`, `AGENTS.md`) so every teammate's agent has the same facts.
 - **25.11 · team (Discord)** · Ownership split – see [[Team and ownership]]. Cut: Bolt/Wolt food and Bolt taxi ordering
   (0 code; one approval card stays), floating Tia over the desktop, frontend rewrite from zero (polish only). · replaces
   the 24.11 idea list ("Bolt order real, taxi simulated")

@@ -29,7 +29,7 @@ function readVaultContext(vaultDir) {
 // What Tia reads for one message or request.
 // Notes the demo business always gives Tia (the rest is found by search).
 const STAND_ALWAYS = ["Business.md", "Owner preferences.md", "Price list.md", "Calendar — this week.md"];
-let smallVault = null; // the old 15-note demo vault is read whole; a big vault (demo/vault has ~800 notes) is searched
+let smallVault = null; // the old 15-note demo vault is read whole; a big vault (demo/Business vault TIA has ~800 notes) is searched
 
 function contextFor(cfg, query) {
   if (cfg.profile !== "owner") {

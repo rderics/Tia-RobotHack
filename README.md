@@ -25,7 +25,7 @@ Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds
 - **Port taken?** Set another one before starting: `set TIA_PORT=4848` (cmd) and open that port.
 - **The voice** needs internet (Microsoft neural voices). Offline, Tia falls back to the browser's voice.
 
-## The demo business vault (`demo/vault`)
+## The demo business vault (`demo/Business vault TIA`)
 
 A fictional Riga kitchen studio, **Oakline Studio**, built as a real second brain: ~800 linked notes (clients, projects, meetings since Oct 2025, daily notes since March 2026, leads, suppliers, team, SOPs, materials, decisions, finance, templates, MOCs). Open the folder in Obsidian to see the graph (colours by folder are preset).
 
@@ -38,7 +38,7 @@ A fictional Riga kitchen studio, **Oakline Studio**, built as a real second brai
 ## Real actions and the lead finder
 
 - **Approve a reply** → classic Outlook opens and Tia types the reply in (draft – you press Send). WhatsApp replies open WhatsApp with the text typed.
-- **"Prepare the contract for Ieva"** → Tia asks about open choices, builds the PDF from `demo/vault/Templates/Template — Contract.md`, opens it, prints it on the Windows default printer and puts it in an Outlook draft.
+- **"Prepare the contract for Ieva"** → Tia asks about open choices, builds the PDF from `demo/Business vault TIA/Templates/Template — Contract.md`, opens it, prints it on the Windows default printer and puts it in an Outlook draft.
 - **"Find architects in Riga who could send us clients"** → real businesses from OpenStreetMap, Tia reads their websites, scores the fit, writes a first line, and adds them to your **Google Sheet** (setup: `scripts/google-sheets-crm/Code.gs`, 2 minutes) or to Tia's own page http://localhost:4747/crm. The best two get a first email as a draft for your OK. Nothing is ever sent by Tia.
 - Settings in `config.json` → `"actions": { "show": true, "print": true, "outlook": true, "whatsapp": true }`.
 
@@ -110,7 +110,7 @@ Everything private behind the web address needs the **Tia code** (the pairing to
 
 1. **Start the day** → Tia goes through 12 messages; 5 handled, 7 need you, the fraud email is caught.
 2. Hold the mic: *"Ieva wants her kitchen offer by Friday."* → Tia has the measurements but **not the worktop** – she asks "Oak or quartz?" instead of guessing (the mistake/limit moment the challenge asks for).
-3. *"Quartz."* → a priced offer (9 400 €, from `demo/vault/Price list.md`) lands on the phone.
+3. *"Quartz."* → a priced offer (9 400 €, from `demo/Business vault TIA/Price list.md`) lands on the phone.
 4. **Approve** on the phone → the big screen opens the offer document → **Print / Save as PDF**.
 5. **Reset** for the next visitor.
 
@@ -127,7 +127,7 @@ Other things she understands: *"What needs me today?"*, *"Order the team lunch"*
 1. The 12 messages in `demo/inbox.json` (email, WhatsApp, Instagram, Slack – all fake) are read, 3 at a time.
 2. For each one, Tia gets the whole demo vault + the message and answers in a fixed format: category, handle or escalate, confidence, draft reply, actions, money involved, which notes she used.
 3. **The Guard** (`src/brain/guard.js`, plain code) has the final word. Money, complaints, partnerships, orders and payment-detail changes always go to the owner. New-lead replies go to the owner until they've approved 2.
-4. Handled items are written to `demo/vault/Tia/Activity log.md`. Approve / Edit / Reject writes a lesson to `demo/vault/Tia/Learned rules.md`.
+4. Handled items are written to `demo/Business vault TIA/Tia/Activity log.md`. Approve / Edit / Reject writes a lesson to `demo/Business vault TIA/Tia/Learned rules.md`.
 5. A successful live run is saved to `demo/replay.json`.
 
 ## Public demo: https://rderics.id.lv/tia
@@ -169,4 +169,4 @@ cd ../Website-Saldus && git add website/tia && git commit -m "Update /tia" && gi
 | `src/stt.js`, `src/stt/stt_worker.py` | Speech-to-text on this computer |
 | `src/renderer/*` | The big screen |
 | `mobile/` | The phone app (Expo) |
-| `demo/vault`, `demo/inbox.json` | The fictional business and its day |
+| `demo/Business vault TIA`, `demo/inbox.json` | The fictional business and its day |

@@ -4,13 +4,13 @@ This repo is **Tia**, an AI secretary for small-business owners, built by a 5-pe
 (partner challenge **PCH02 "Show and Explain AI for Business"**, demo day **28.11.2026**).
 
 ## Before you change anything
-1. Read **`project/Home.md`** – the shared project memory (an Obsidian vault). It holds the goal, who owns which
+1. Read **`TIA Context vault/Home.md`** – the shared project memory (an Obsidian vault). It holds the goal, who owns which
    files, the architecture, every decision and what is out of scope. Its facts win over your assumptions.
-2. Check **`project/Team and ownership.md`** – only edit files your human owns. Ask before touching others'.
+2. Check **`TIA Context vault/Team and ownership.md`** – only edit files your human owns. Ask before touching others'.
 3. `git pull` before you start, `git pull` again before you push. Small commits, clear messages.
 
 ## When the team decides something
-Add one line at the **top** of `project/Decisions.md` (date · who · decision · what it replaces) **in the same
+Add one line at the **top** of `TIA Context vault/Decisions.md` (date · who · decision · what it replaces) **in the same
 commit** as the change. A decision that lives only in a chat does not exist for the other agents.
 
 ## Hard rules
@@ -18,8 +18,8 @@ commit** as the change. A decision that lives only in a chat does not exist for 
   real phone numbers, anyone's private notes. Demo data is fictional and uses `.example` domains.
 - **Tia never sends, pays or signs by herself.** Every outward action (email, WhatsApp, order, contract) ends as a
   draft or a document that a human approves. Keep it that way in code (`src/brain/guard.js`).
-- `demo/vault` (the fictional business **Oakline Studio**) is **generated** – change
-  `scripts/make_demo_vault/*.py` and rebuild, except `demo/vault/Templates/`, which is hand-edited.
+- `demo/Business vault TIA` (the fictional business **Oakline Studio**) is **generated** – change
+  `scripts/make_demo_vault/*.py` and rebuild, except `demo/Business vault TIA/Templates/`, which is hand-edited.
 - `demo/replay.json` is the stage's safety recording – only re-record on purpose (`TIA_RECORD_REPLAY=1`).
 
 ## Run it

@@ -3,7 +3,7 @@
 ## In
 1. **Inbox triage live** – 12 demo messages sorted: handled vs Needs you, with reasons (explain view).
 2. **Outlook drafts, visibly** – approve → classic Outlook opens with the reply typed in (saved to Drafts, never sent).
-3. **Contract / offer → PDF → printer** – from `demo/vault/Templates`, filled with the project's real numbers.
+3. **Contract / offer → PDF → printer** – from `demo/Business vault TIA/Templates`, filled with the project's real numbers.
 4. **WhatsApp draft** – opens WhatsApp with the reply typed; the owner presses send.
 5. **Fraud catch** – fake "new bank details" email flagged, never answered with payment data.
 6. **Talk to Tia** – voice on the big screen and from the phone (Expo Go); she answers from the vault.

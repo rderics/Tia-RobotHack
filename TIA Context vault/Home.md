@@ -11,7 +11,7 @@ already drafted. Every approval teaches her. She talks (voice), has a 3D face, a
 
 - **Event:** RobotHack 2026 · challenge [[Goal and judging (PCH02)|PCH02 "Show and Explain AI for Business"]] · demo day **28.11.2026** · code freeze **27.11 evening**
 - **Repo:** github.com/rderics/Tia-RobotHack (public) · **Live:** rderics.id.lv/tia (owner's real Tia, login) · **Public demo:** rderics.id.lv/tia/demo (replay)
-- **Demo business:** **Oakline Studio** – fictional Riga kitchen & interiors studio, owner *Mārtiņš Ozols* → `demo/vault` (~800 notes)
+- **Demo business:** **Oakline Studio** – fictional Riga kitchen & interiors studio, owner *Mārtiņš Ozols* → `demo/Business vault TIA` (~800 notes)
 
 ## Map
 - [[Team and ownership]] – who does what, which files are whose

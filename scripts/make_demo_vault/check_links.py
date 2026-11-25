@@ -1,10 +1,10 @@
-"""Checks demo/vault for broken [[wikilinks]] and prints size stats. Exit code 1 if any link is broken."""
+"""Checks demo/Business vault TIA for broken [[wikilinks]] and prints size stats. Exit code 1 if any link is broken."""
 import collections
 import os
 import re
 import sys
 
-VAULT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "demo", "vault"))
+VAULT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "demo", "Business vault TIA"))
 notes = {}
 for root, dirs, files in os.walk(VAULT):
     dirs[:] = [d for d in dirs if not d.startswith(".")]
