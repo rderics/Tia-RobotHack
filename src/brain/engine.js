@@ -165,6 +165,14 @@ function info() {
   return {
     provider: cfg.provider,
     model: cfg.model,
+    ai: (() => {
+      try {
+        const st = require("./providers").aiStatus(cfg);
+        return st.now ? st.label(st.now) : "no AI set up";
+      } catch {
+        return "";
+      }
+    })(),
     hasReplay: fs.existsSync(cfg.replayFile),
     today: today(cfg),
     canGoLive: cfg.inboxMode !== "replay",

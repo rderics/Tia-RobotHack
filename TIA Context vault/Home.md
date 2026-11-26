@@ -27,6 +27,7 @@ already drafted. Every approval teaches her. She talks (voice), has a 3D face, a
 - [[Scope — in and out]] – what we build, what we cut
 - [[Features status]] – what works today
 - [[Stand script]] – the 3-minute demo
+- [[Pitch plan]] – 5-min pitch structure, demo video shot list, business model
 - [[Pitch PC guide]] – install on a teammate's PC, what works / doesn't and why
 - [[Conventions — git and files]]
 - Research: [[Research/Hermes Agent|Hermes Agent]] · [[Research/Avatar and voice|Avatar and voice]] · [[Research/Free AI providers|Free AI providers]]

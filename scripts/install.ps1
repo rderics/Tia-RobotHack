@@ -96,7 +96,9 @@ Say "6/6 Desktop icons"
 $desk = [Environment]::GetFolderPath("Desktop")
 $ws = New-Object -ComObject WScript.Shell
 $lnk = $ws.CreateShortcut((Join-Path $desk "Tia.lnk"))
-$lnk.TargetPath = Join-Path $dest "Start Tia (desktop app).cmd"
+# Electron directly: Tia opens as her own window (no console, no browser, no "localhost" in sight)
+$electron = Join-Path $dest "node_modules\electron\dist\electron.exe"
+if (Test-Path $electron) { $lnk.TargetPath = $electron; $lnk.Arguments = "`"$dest`"" } else { $lnk.TargetPath = Join-Path $dest "Start Tia (desktop app).cmd" }
 $lnk.WorkingDirectory = $dest
 $lnk.IconLocation = Join-Path $dest "src\renderer\assets\icon.ico"
 $lnk.WindowStyle = 7   # minimized: only Tia's window shows

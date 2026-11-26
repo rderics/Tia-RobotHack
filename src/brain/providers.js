@@ -242,6 +242,52 @@ function providerChain(cfg, kind = "inbox") {
   return chain;
 }
 const blockedUntil = {};
+let lastVia = null; // the AI that answered last – shown in the header and in Settings
+const LABELS = {
+  "claude-code": "Claude (Claude subscription on this PC)",
+  api: "Claude API (Anthropic key)",
+  codex: "OpenAI Codex (ChatGPT login)",
+  groq: "Groq – free",
+  gemini: "Google Gemini – free",
+  openrouter: "OpenRouter – free models",
+  custom: "Any OpenAI-compatible API",
+  hermes: "Hermes Agent (this PC)",
+};
+const SHORT = { "claude-code": "Claude", api: "Claude API", codex: "Codex", groq: "Groq", gemini: "Gemini", openrouter: "OpenRouter", custom: "Custom AI", hermes: "Hermes" };
+function modelOf(cfg, name) {
+  if (name === "claude-code" || name === "api") return cfg.model;
+  if (name === "codex") return cfg.codexModel || "codex default";
+  const p = presetFor(cfg, name);
+  return (p.models || [])[0] || "";
+}
+function aiStatus(cfg) {
+  const chain = providerChain(cfg, "inbox");
+  const all = ["claude-code", "api", "codex", ...OPENAI_STYLE];
+  return {
+    chain,
+    lastVia,
+    now: lastVia || chain[0] || null,
+    label: (n) => `${SHORT[n] || n} · ${modelOf(cfg, n)}`,
+    providers: all.map((n) => ({
+      id: n, label: LABELS[n] || n, short: SHORT[n] || n, model: modelOf(cfg, n), inChain: chain.includes(n),
+      configured: n === "claude-code" ? true : n === "codex" ? cfg.fallbackProvider === "codex" || (cfg.providers || []).includes("codex") : n === "api" ? !!process.env.ANTHROPIC_API_KEY : isConfigured(cfg, n, cfg.providers || [n]),
+      keyEnv: n === "api" ? "ANTHROPIC_API_KEY" : (PRESETS[n] || {}).keyEnv || "",
+      blocked: blockedUntil[n] > Date.now(),
+    })),
+  };
+}
+// One quick call to one AI – the Settings "Test" button
+async function testProvider(cfg, name) {
+  const t0 = Date.now();
+  const sys = "Reply with exactly: OK";
+  let r;
+  if (name === "claude-code") r = await viaClaudeText(cfg, "Say OK", sys);
+  else if (name === "codex") r = await viaCodex(cfg, "Say OK", sys, null);
+  else if (name === "api") r = await viaApi(cfg, "Say OK", sys, { type: "object", additionalProperties: false, properties: { text: { type: "string" } }, required: ["text"] });
+  else r = await viaOpenAI(cfg, name, "Say OK", sys, null);
+  delete blockedUntil[name];
+  return { ok: true, ms: Date.now() - t0, reply: String((r && (r.proposal && (r.proposal.text || r.proposal))) || "").slice(0, 60) };
+}
 async function tryChain(cfg, run, kind = "inbox") {
   const chain = providerChain(cfg, kind);
   const usable = chain.filter((n) => !(blockedUntil[n] > Date.now()));
@@ -251,6 +297,7 @@ async function tryChain(cfg, run, kind = "inbox") {
     try {
       const r = await run(name);
       delete blockedUntil[name];
+      lastVia = name;
       return { ...r, via: name };
     } catch (e) {
       lastErr = e;
@@ -290,4 +337,4 @@ async function chat(cfg, { system, prompt }) {
   return { text: r.proposal, via: r.via };
 }
 
-module.exports = { decide, ask, chat, providerChain };
+module.exports = { decide, ask, chat, providerChain, aiStatus, testProvider, PRESETS };

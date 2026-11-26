@@ -635,7 +635,7 @@ function markDecidedQuiet(node, st) {
 function setupOwner(info) {
   document.body.classList.add("owner");
   $("business").textContent = info.business || info.owner;
-  document.title = `Tia · ${info.owner}`;
+  document.title = `Tia · ${info.business || info.owner}`;
   $("phone").hidden = true;
   $("resetBtn").hidden = true;
   if (info.inboxSource === "none") {
@@ -651,7 +651,9 @@ function setupOwner(info) {
   // keep the clock in the header real
   setInterval(async () => {
     try {
-      $("today").textContent = (await window.tia.info()).today;
+      const i = await window.tia.info();
+      $("today").textContent = i.today;
+      if (i.ai && !state.isStatic) setMode("live", (state.live = `Live · ${i.ai}`)); // the AI that answers right now
     } catch {}
   }, 60000);
 }
@@ -660,7 +662,7 @@ async function init() {
   const info = await window.tia.info();
   state.isStatic = !!info.static;
   $("today").textContent = info.today;
-  state.live = info.provider === "api" ? `Claude API · ${info.model}` : `Live · ${info.model}`;
+  state.live = `Live · ${info.ai || info.model}`;
   if (info.static) setMode("script", "Recorded demo · a real Claude run, replayed");
   else setMode("live", state.live);
 

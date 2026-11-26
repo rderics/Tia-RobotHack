@@ -330,6 +330,71 @@ async function localApi(req, res, route, url) {
       return sendJson(res, 502, { error: String(e.message || e).slice(0, 300) });
     }
   }
+  // ---------- Settings: which AI thinks (order, model, key), test it, see the connections ----------
+  if (route.startsWith("/api/settings")) {
+    const P = require("./brain/providers");
+    const cfg = loadConfig();
+    if (req.method === "GET" && route === "/api/settings") {
+      const st = P.aiStatus(cfg);
+      const keys = {};
+      for (const k of ["ANTHROPIC_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "TIA_AI_KEY"]) keys[k] = process.env[k] ? `••••${String(process.env[k]).slice(-4)}` : "";
+      let live = {};
+      try {
+        live = await require("./connectors/live").status(cfg);
+      } catch {}
+      const W = require("./connectors/whatsapp").data(cfg);
+      return sendJson(res, 200, {
+        canEdit: isLocal(req), // keys are changed only on the PC itself, never over the internet
+        ai: { chain: st.chain, now: st.now, nowLabel: st.now ? st.label(st.now) : "", providers: st.providers },
+        keys,
+        custom: { baseUrl: process.env.TIA_AI_BASE_URL || "", model: process.env.TIA_AI_MODEL || "" },
+        business: { name: cfg.business, owner: cfg.owner, profile: cfg.profile, vault: path.basename(cfg.vaultDir) },
+        connections: { ...live, whatsappBusiness: { state: W.canSend ? "connected" : W.relay ? "pending" : "missing", name: W.canSend ? "sending ready" : W.relay ? "receiving only" : "" } },
+        publicUrl: publicUrl(),
+      });
+    }
+    if (req.method === "POST" && route === "/api/settings/test") {
+      const body = await readJson(req);
+      try {
+        return sendJson(res, 200, await P.testProvider(cfg, String(body.id || "")));
+      } catch (e) {
+        return sendJson(res, 200, { ok: false, error: String(e.message || e).slice(0, 240) });
+      }
+    }
+    if (req.method === "POST" && route === "/api/settings") {
+      if (!isLocal(req)) return sendJson(res, 403, { error: "Settings can only be changed on the PC Tia runs on." });
+      const body = await readJson(req);
+      // keys → .env (only the known names)
+      const allowed = new Set(["ANTHROPIC_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "TIA_AI_KEY", "TIA_AI_BASE_URL", "TIA_AI_MODEL"]);
+      const envFile = path.join(__dirname, "..", ".env");
+      let lines = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8").split(/\r?\n/) : [];
+      for (const [k, v] of Object.entries(body.keys || {})) {
+        if (!allowed.has(k) || typeof v !== "string") continue;
+        const val = v.trim();
+        if (/^••••/.test(val)) continue; // the masked value came back unchanged
+        lines = lines.filter((l) => !l.startsWith(`${k}=`));
+        if (val) lines.push(`${k}=${val.replace(/[\r\n]/g, "")}`);
+        if (val) process.env[k] = val;
+        else delete process.env[k];
+      }
+      fs.writeFileSync(envFile, lines.filter((l, i) => l || i < lines.length - 1).join("\n") + "\n");
+      // order + models → config.json
+      const cfgFile = path.join(__dirname, "..", "config.json");
+      const user = fs.existsSync(cfgFile) ? JSON.parse(fs.readFileSync(cfgFile, "utf8")) : {};
+      if (Array.isArray(body.order) && body.order.length) user.providers = body.order.map(String).slice(0, 8);
+      for (const [id, model] of Object.entries(body.models || {})) {
+        const m = String(model || "").trim();
+        if (!m) continue;
+        if (id === "claude-code" || id === "api") user.model = m;
+        else if (id === "codex") user.codexModel = m;
+        else if (P.PRESETS[id]) user.aiProviders = { ...(user.aiProviders || {}), [id]: { ...((user.aiProviders || {})[id] || {}), models: [m] } };
+      }
+      if (body.order && body.order[0] === "api") user.provider = "api";
+      else if (body.order && body.order[0] === "claude-code") user.provider = "claude-code";
+      fs.writeFileSync(cfgFile, JSON.stringify(user, null, 2));
+      return sendJson(res, 200, { ok: true });
+    }
+  }
   // ---------- the demo business's messages in the apps from the start + real actions for answers ----------
   if (route === "/api/demo/inbox" && req.method === "GET") {
     const inbox = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "demo", "inbox.json"), "utf8"));
@@ -555,7 +620,8 @@ function start() {
       return sendJson(res, 500, { error: String(e.message || e) });
     }
   });
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject); // e.g. EADDRINUSE: Tia already runs on this PC – the desktop window just opens it
     server.listen(PORT, "0.0.0.0", () => {
       const first = addresses()[0];
       console.log(`Tia is running: http://localhost:${PORT}  (Ctrl+C to stop)`);

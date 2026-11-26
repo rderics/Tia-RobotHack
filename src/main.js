@@ -12,7 +12,11 @@ const screenshotPath = shotArg ? path.resolve(shotArg.split("=")[1]) : null;
 let win;
 
 async function createWindow() {
-  await web.start();
+  try {
+    await web.start();
+  } catch (e) {
+    if (e && e.code !== "EADDRINUSE") throw e; // already running (e.g. started at logon) – just show it
+  }
   // Only the microphone, and only for Tia's own page (hold-to-talk).
   session.defaultSession.setPermissionRequestHandler((wc, permission, done) => {
     done(permission === "media" && wc.getURL().startsWith(`http://localhost:${web.PORT}`));
@@ -29,6 +33,13 @@ async function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.removeMenu();
+  // F11 = full screen for the stand / pitch (no window frame, no address bar)
+  win.webContents.on("before-input-event", (e, input) => {
+    if (input.type === "keyDown" && input.key === "F11") {
+      win.setFullScreen(!win.isFullScreen());
+      e.preventDefault();
+    }
+  });
   if (screenshotPath) {
     win.webContents.on("console-message", async (e) => {
       if ((e.message || "") !== "TIA-DONE") return;
