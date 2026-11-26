@@ -2,7 +2,7 @@
   "_note": "Where phones get Tia. The /connect page (QR on Tia's screen) shows every link that is filled in. Add the store links when our own app is published.",
   "expoGoIos": "https://apps.apple.com/app/expo-go/id982107779",
   "expoGoAndroid": "https://play.google.com/store/apps/details?id=host.exp.exponent",
-  "tiaAndroidApk": "https://expo.dev/artifacts/eas/FF9hTXOTU56bibaLmfK2953k0DzfNFNO0iGEYqeSEVM.apk",
+  "tiaAndroidApk": "https://github.com/rderics/Tia-RobotHack/releases/download/android-v1/Tia.apk",
   "tiaAppStore": "",
   "tiaPlayStore": ""
 }
