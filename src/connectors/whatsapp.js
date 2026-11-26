@@ -251,9 +251,13 @@ function addMessage(cfg, m) {
   write(cfg, d);
   return true;
 }
+function setNumber(cfg, waId, number) {
+  const d = read(cfg);
+  if (d.chats[waId] && !d.chats[waId].number) (d.chats[waId].number = number), write(cfg, d);
+}
 function setName(cfg, waId, name) {
   const d = read(cfg);
-  if (d.chats[waId] && !d.chats[waId].name) (d.chats[waId].name = name), write(cfg, d);
+  if (d.chats[waId] && d.chats[waId].name !== name && (!d.chats[waId].name || d.chats[waId].source === "link")) (d.chats[waId].name = name), write(cfg, d);
 }
 
 function data(cfg) {
@@ -269,4 +273,4 @@ function markRead(cfg, waId) {
   if (d.chats[waId]) (d.chats[waId].unread = 0), write(cfg, d);
 }
 
-module.exports = { verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay, addMessage, setName };
+module.exports = { verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay, addMessage, setName, setNumber };

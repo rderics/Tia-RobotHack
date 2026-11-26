@@ -87,6 +87,7 @@ async function start(cfg, onMessages) {
         state.status = "connected";
         state.qr = "";
         state.me = (sock && sock.user && (sock.user.name || sock.user.id)) || "";
+        setTimeout(() => resolveNumbers(cfg).catch(() => {}), 2500);
       }
       if (u.connection === "close") {
         const code = u.lastDisconnect && u.lastDisconnect.error && u.lastDisconnect.error.output && u.lastDisconnect.error.output.statusCode;
@@ -102,23 +103,48 @@ async function start(cfg, onMessages) {
       }
       for (const fn of listeners) fn({ ...state });
     });
-    sock.ev.on("messaging-history.set", ({ messages = [] }) => {
+    const names = (list) => {
+      const W = require("./whatsapp");
+      for (const c of list || []) {
+        const name = c.name || c.notify || c.verifiedName || c.pushName;
+        if (!name) continue;
+        for (const id of [c.id, c.lid, c.jid, c.phoneNumber].filter(Boolean)) if (personal(id)) W.setName(cfg, String(id).split("@")[0], name);
+      }
+    };
+    sock.ev.on("messaging-history.set", ({ messages = [], chats = [], contacts = [] }) => {
       // first link: the recent chats (kept small – last 40 per chat, newest chats only)
       store(cfg, messages.slice(-1500), { live: false });
+      names(contacts);
+      names(chats);
     });
+    sock.ev.on("contacts.update", names);
+    sock.ev.on("chats.upsert", names);
+    sock.ev.on("chats.update", names);
     sock.ev.on("messages.upsert", ({ messages = [], type }) => {
       const fresh = store(cfg, messages, { live: type === "notify" });
       if (fresh.length && onMessages) onMessages(fresh);
     });
-    sock.ev.on("contacts.upsert", (list) => {
-      const W = require("./whatsapp");
-      for (const c of list || []) if (personal(c.id) && (c.name || c.notify)) W.setName(cfg, c.id.split("@")[0], c.name || c.notify);
-    });
+    sock.ev.on("contacts.upsert", names);
     return state;
   })().finally(() => (starting = null));
   return starting;
 }
 
+// WhatsApp's private ids (…@lid) → the phone number, so chats without a saved name still show who it is
+async function resolveNumbers(cfg) {
+  const W = require("./whatsapp");
+  const map = sock && sock.signalRepository && sock.signalRepository.lidMapping;
+  if (!map || !map.getPNForLID) return 0;
+  let n = 0;
+  for (const c of W.data(cfg).chats) {
+    if (c.number || !/@lid$/.test(c.jid || "")) continue;
+    try {
+      const pn = await map.getPNForLID(c.jid);
+      if (pn) (W.setNumber(cfg, c.waId, String(pn).split("@")[0].split(":")[0]), n++);
+    } catch {}
+  }
+  return n;
+}
 async function send(jid, text) {
   if (!sock || state.status !== "connected") throw new Error("Your WhatsApp isn't linked right now");
   const r = await sock.sendMessage(jid, { text });
@@ -139,4 +165,4 @@ const status = () => ({ ...state });
 const connected = () => state.status === "connected";
 const onState = (fn) => (listeners.add(fn), () => listeners.delete(fn));
 
-module.exports = { start, send, unlink, status, connected, linkedBefore, onState };
+module.exports = { start, send, unlink, status, connected, linkedBefore, onState, resolveNumbers };

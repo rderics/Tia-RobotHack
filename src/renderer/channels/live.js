@@ -536,7 +536,7 @@
       const d = draftOf(id);
       const saved = d && Date.parse(d.savedAt) > Date.parse(lastIn.at || 0); // a draft newer than their last message
       return {
-        id, waId: ch.waId, live: "whatsapp", channel: "whatsapp", from: ch.name || (/@lid$/.test(ch.jid || "") ? "WhatsApp contact" : `+${ch.waId}`), address: /@lid$/.test(ch.jid || "") ? "" : `+${ch.waId}`,
+        id, waId: ch.waId, live: "whatsapp", channel: "whatsapp", from: ch.name || (/@lid$/.test(ch.jid || "") ? (ch.number ? `+${ch.number}` : "WhatsApp contact") : `+${ch.waId}`), address: /@lid$/.test(ch.jid || "") ? (ch.number ? `+${ch.number}` : "") : `+${ch.waId}`,
         text: last.text || "", time: last.at ? new Date(last.at).toTimeString().slice(0, 5) : "", received: last.at, thread: ch.messages,
         draft: (saved && d.text) || ch.suggestion || "", state: saved ? "edited" : "open", unread: ch.unread || 0, reason: "",
         actions: saved ? [{ step: "draft", status: "done", detail: `Saved ${new Date(d.savedAt).toTimeString().slice(0, 5)} and copied – paste it to the customer. Tia never sends.` }] : ch.skip && !ch.suggestion ? [{ step: "draft", status: "done", detail: `Tia: no reply needed – ${ch.skip}` }] : [],
