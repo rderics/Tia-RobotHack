@@ -96,6 +96,10 @@
     vaultSearch: (q) => get(`api/vault/search?q=${encodeURIComponent(q)}`),
     vaultGraph: () => get("api/vault/graph"),
     vaultSave: (p, text) => post("api/vault/note", { path: p, text }),
+    // The owner's real accounts (Composio): read + drafts only
+    live: (what, fresh) => get(`api/live/${what}${fresh ? "?refresh=1" : ""}`),
+    livePost: (what, body) => post(`api/live/${what}`, body),
+    liveImg: (u) => (u ? withToken(`api/live/img?u=${encodeURIComponent(u)}`) : ""),
     voice: (blob) => fetch("api/voice", { method: "POST", headers: headers({ "content-type": blob.type || "audio/webm" }), body: blob }).then(check),
     pair: (ip) => get(`api/pair${ip ? `?ip=${encodeURIComponent(ip)}` : ""}`),
     webLink: () => (token ? `${location.origin}${location.pathname}#t=${token}` : ""),

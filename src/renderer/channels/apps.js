@@ -25,6 +25,7 @@
   let folder = "inbox";
   function mail(c, items, x) {
     const { h } = c;
+    const A = c.acct || {}; // the owner's real account when the switch is on "live"
     const counts = {
       inbox: items.filter((i) => i.state === "open").length,
       needs: items.filter((i) => i.state === "open").length,
@@ -39,7 +40,7 @@
       F("inbox", folder === "inbox" ? "mail_inbox_filled" : "mail_inbox", "Inbox", counts.inbox),
       F("needs", "sparkle", "Needs you", counts.needs, "tia"),
       F("handled", "checkmark", "Handled by Tia", counts.handled, "tia"),
-      h("div", { class: "ol-acct" }, I("chevron_down"), "info@oakline-studio.example"),
+      h("div", { class: "ol-acct" }, I("chevron_down"), A.box || "info@oakline-studio.example"),
       F("inbox", "mail_inbox", "Inbox", counts.inbox),
       F("junk", "warning", "Junk Email", 0),
       F("drafts", "drafts", "Drafts", counts.drafts),
@@ -63,15 +64,15 @@
         h("div", { class: "ol-msg" },
           h("div", { class: "ol-from" }, c.avatar(x.from), h("div", { class: "n" }, x.from, " ", h("span", {}, `<${x.address}>`)),
             h("div", { class: "acts" }, h("div", { class: "t" }, x.time), h("div", {}, I("arrow_reply")), h("div", {}, I("arrow_reply_all")), h("div", {}, I("arrow_forward")), h("div", {}, I("more_horizontal"))),
-            h("div", { class: "to" }, "To: Mārtiņš Ozols")),
+            h("div", { class: "to" }, `To: ${A.me || "Mārtiņš Ozols"}`)),
           h("div", { class: "ol-body" }, x.text)));
-      if (x.draft) {
-        const open = x.state === "open";
-        const ta = h("textarea", { "aria-label": "Message body", oninput: (e) => (c.userEdited[x.id] = e.target.value) });
+      if (x.draft || x.live) {
+        const open = x.state === "open" || (x.live && x.state === "edited");
+        const ta = h("textarea", { "aria-label": "Message body", placeholder: x.live ? "Write your reply – or press “Let Tia write”" : "", oninput: (e) => (c.userEdited[x.id] = e.target.value) });
         ta.value = c.composerValue(x);
         read.append(h("div", { class: "ol-reply" },
-          tiaBanner(c, x, open ? "Tia drafted this reply – edit it, or save it as a draft." : x.state === "handled" ? "Tia handled this message with the reply below." : "Saved as a draft in Outlook."),
-          h("div", { class: "ol-line" }, h("span", { class: "k" }, "From"), h("span", {}, "info@oakline-studio.example")),
+          tiaBanner(c, x, x.live ? (x.state === "edited" ? A.savedBanner : A.banner) : open ? "Tia drafted this reply – edit it, or save it as a draft." : x.state === "handled" ? "Tia handled this message with the reply below." : "Saved as a draft in Outlook."),
+          h("div", { class: "ol-line" }, h("span", { class: "k" }, "From"), h("span", {}, A.from || "info@oakline-studio.example")),
           h("div", { class: "ol-line" }, h("span", { class: "k" }, "To"), h("span", { class: "ol-pill" }, c.avatar(x.from), x.address)),
           ta,
           h("div", { class: "ol-rbar" },
@@ -79,7 +80,7 @@
             h("button", { class: "ol-btn", disabled: !open, onclick: () => ((c.userEdited[x.id] = x.draft), c.typeDraft(x, ta)) }, "Let Tia write"),
             h("button", { class: "ol-btn", disabled: !open, onclick: () => c.reject(x) }, "Discard"),
             h("div", { class: "ic" }, I("attach"), I("image"), I("emoji")),
-            h("span", { class: "note" }, "Tia never sends – you press Send in Outlook.")),
+            h("span", { class: "note" }, A.note || "Tia never sends – you press Send in Outlook.")),
           c.steps(x)));
         if (c.pendingFor(x.id)) c.typeDraft(x, ta);
       }
@@ -87,7 +88,7 @@
     return h("div", { class: "ol" },
       h("div", { class: "ol-head" }, h("div", { class: "waffle" }, I("grid_dots")), h("div", { class: "name" }, "Mail"),
         h("div", { class: "search" }, I("search"), "Search"),
-        h("div", { class: "right" }, h("div", {}, I("megaphone")), h("div", {}, I("alert")), h("div", {}, I("settings")), h("div", {}, I("question_circle")), h("div", { class: "me" }, "MO"))),
+        h("div", { class: "right" }, h("div", {}, I("megaphone")), h("div", {}, I("alert")), h("div", {}, I("settings")), h("div", {}, I("question_circle")), h("div", { class: "me" }, A.initials || "MO"))),
       h("div", { class: "ol-main" },
         h("div", { class: "ol-apps" }, h("div", { class: "on" }, I("mail_filled")), h("div", {}, I("calendar")), h("div", {}, I("people")), h("div", {}, I("checkmark_square")), h("div", {}, I("grid_dots"))),
         h("div", { class: "ol-work" },
@@ -174,48 +175,53 @@
   // ============================ SLACK ============================
   function slack(c, items, x) {
     const { h } = c;
+    const A = c.acct || {};
+    const ws = A.ws || "Oakline Studio";
     const chans = {};
     for (const i of items) (chans[i.address || "#general"] = chans[i.address || "#general"] || []).push(i);
     if (x && !chans[x.address]) x = items[0];
     const side = h("div", { class: "sl-side" },
-      h("div", { class: "sl-wsn" }, "Oakline Studio", I("chevron_down"), h("span", { class: "sp" }), h("div", {}, I("compose"))),
+      h("div", { class: "sl-wsn" }, ws, I("chevron_down"), h("span", { class: "sp" }), h("div", {}, I("compose"))),
       h("div", { class: "sl-item" }, I("chat_multiple"), "Threads"), h("div", { class: "sl-item" }, I("send"), "Drafts & sent"),
       h("div", { class: "sl-sec" }, I("chevron_down"), "Channels"),
       Object.entries(chans).map(([name, list]) => {
-        const open = list.filter((i) => i.state === "open").length;
-        return h("div", { class: `sl-item ${open ? "unread" : ""} ${x && x.address === name ? "on" : ""}`, onclick: () => c.select(list[list.length - 1].id) }, h("span", {}, "#"), h("span", {}, name.replace(/^#/, "")), open ? h("span", { class: "cnt" }, open) : "");
+        const open = list.filter((i) => i.state === "open" && !i.placeholder).length;
+        return h("div", { class: `sl-item ${open ? "unread" : ""} ${x && x.address === name ? "on" : ""}`, onclick: () => c.select((list.find((i) => i.placeholder) || list[list.length - 1]).id) }, h("span", {}, "#"), h("span", {}, name.replace(/^#/, "")), open ? h("span", { class: "cnt" }, open) : "");
       }),
-      h("div", { class: "sl-item" }, "#", h("span", {}, "general")),
+      A.live ? "" : h("div", { class: "sl-item" }, "#", h("span", {}, "general")),
       h("div", { class: "sl-sec" }, I("chevron_down"), "Direct messages"),
-      ["Tia (assistant)", "Elīna Zariņa", "Kaspars Liepiņš"].map((n) => h("div", { class: "sl-item" }, c.avatar(n), n)),
+      (A.live ? ["Tia (assistant)"] : ["Tia (assistant)", "Elīna Zariņa", "Kaspars Liepiņš"]).map((n) => h("div", { class: "sl-item" }, c.avatar(n), n)),
       h("div", { class: "sl-sec" }, I("chevron_down"), "Apps"), h("div", { class: "sl-item" }, c.avatar("Tia"), "Tia"));
     const main = h("div", { class: "sl-main" });
     if (x) {
       const msgs = h("div", { class: "sl-msgs" }, h("div", { class: "sl-day" }, h("span", {}, "Today")));
       for (const i of chans[x.address]) {
+        if (i.placeholder) continue; // the channel's "new message" composer, not a message
         msgs.append(h("div", { class: "sl-msg", onclick: () => c.select(i.id) }, c.avatar(i.from), h("div", {}, h("span", { class: "nm" }, i.from), h("span", { class: "tm" }, i.time), h("div", { class: "tx" }, i.text))));
         if (i.state !== "open" && i.draft) msgs.append(h("div", { class: "sl-msg draft" }, c.avatar("Tia"), h("div", {}, h("span", { class: "nm" }, "Tia"), h("span", { class: "app" }, "APP"), h("span", { class: "tm" }, i.state === "handled" ? "handled" : "draft"), h("div", { class: "tx" }, i.draft))));
       }
       const open = x.state === "open";
       main.append(
-        h("div", { class: "sl-head" }, h("div", { class: "t" }, `# ${x.address.replace(/^#/, "")}`, I("chevron_down"), h("span", { class: "sp" }), h("div", { class: "mem" }, c.avatar("Elīna Zariņa"), c.avatar("Kaspars Liepiņš"), "6")),
+        h("div", { class: "sl-head" }, h("div", { class: "t" }, `# ${x.address.replace(/^#/, "")}`, I("chevron_down"), h("span", { class: "sp" }), A.live ? "" : h("div", { class: "mem" }, c.avatar("Elīna Zariņa"), c.avatar("Kaspars Liepiņš"), "6")),
           h("div", { class: "sl-htabs" }, h("span", { class: "on" }, I("chat_multiple"), "Messages"), h("span", {}, I("notebook"), "Add canvas"), h("span", {}, I("bookmark"), "Bookmarks"))),
         msgs);
       if (open) {
         const ta = c.textarea(x, `Message ${x.address}`);
-        main.append(h("div", { class: "sl-tia" }, tiaBanner(c, x, "Tia's reply is in the message box – edit it, then use it. Tia never posts by herself."), c.steps(x)),
+        if (A.live && chans[x.address].every((i) => i.placeholder)) msgs.append(h("div", { class: "sl-emptych" }, `This is the very beginning of ${x.address}. Write the first message below – Tia keeps it as a draft for you to post.`));
+        main.append(h("div", { class: "sl-tia" }, tiaBanner(c, x, A.live ? A.banner : "Tia's reply is in the message box – edit it, then use it. Tia never posts by herself."), c.steps(x)),
           h("div", { class: "sl-compose" },
             h("div", { class: "sl-fmt" }, ...["text_bold", "text_italic", "text_strikethrough"].map((n) => h("div", {}, I(n))), h("span", { class: "bar" }), h("div", {}, I("link")), h("span", { class: "bar" }), h("div", {}, I("list")), h("div", {}, I("code"))),
             ta,
             h("div", { class: "sl-act" }, h("div", {}, I("add")), h("div", {}, I("text_font")), h("div", {}, I("emoji")), h("div", {}, I("mention")), h("span", { class: "bar" }), h("div", {}, I("video")), h("div", {}, I("mic")), h("span", { class: "sp" }),
+              A.live && !x.placeholder ? h("button", { class: "ghost", onclick: () => c.typeDraft(x, ta) }, "Let Tia write") : "",
               h("button", { class: "ghost", onclick: () => c.reject(x) }, "Not now"),
-              h("div", { class: "sl-sendb" }, h("button", { title: "Use Tia's reply", onclick: () => c.decide(x, ta.value) }, I("send_filled")), h("button", {}, I("chevron_down"))))));
+              h("div", { class: "sl-sendb" }, h("button", { title: A.live ? "Save as a draft (you post it in Slack)" : "Use Tia's reply", onclick: () => c.decide(x, ta.value) }, I("send_filled")), h("button", {}, I("chevron_down"))))));
       } else main.append(h("div", { class: "sl-tia" }, c.chip(x), c.steps(x)));
     } else main.append(h("div", { class: "ch-empty" }, "No messages yet."));
     return h("div", { class: "sl" },
-      h("div", { class: "sl-top" }, h("div", { class: "search" }, I("search"), "Search Oakline Studio")),
+      h("div", { class: "sl-top" }, h("div", { class: "search" }, I("search"), `Search ${ws}`)),
       h("div", { class: "sl-body" },
-        h("div", { class: "sl-rail" }, h("div", { class: "sl-ws" }, "OS"), ...[["home_filled", "Home", true], ["chat_multiple", "DMs"], ["alert", "Activity"], ["bookmark", "Later"], ["more_horizontal", "More"]].map(([n, t, on]) => h("div", { class: `it ${on ? "on" : ""}` }, h("div", {}, I(n)), t))),
+        h("div", { class: "sl-rail" }, h("div", { class: "sl-ws" }, ws.slice(0, 2).toUpperCase()), ...[["home_filled", "Home", true], ["chat_multiple", "DMs"], ["alert", "Activity"], ["bookmark", "Later"], ["more_horizontal", "More"]].map(([n, t, on]) => h("div", { class: `it ${on ? "on" : ""}` }, h("div", {}, I(n)), t))),
         side, main));
   }
 

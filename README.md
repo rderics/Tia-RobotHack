@@ -43,8 +43,9 @@ What runs where: views, voice, avatar, lead finder and PDFs work on every PC. Ou
 ### Real apps through Composio (optional, your own accounts)
 Tia reads and **drafts** in real apps through [Composio](https://composio.dev) (free: 10 000 actions a month). Sending, posting and deleting are blocked in `src/connectors/composio.js`.
 1. Install the CLI (Windows PowerShell): `irm https://raw.githubusercontent.com/ComposioHQ/composio/next/install.ps1 | iex`, then run `composio login`.
-2. Connect an app: `composio link gmail` (and/or `composio link slack`, `composio link outlook`), then click **Allow**.
-3. Let Tia read that Gmail: create `config.json` in the Tia folder with `{ "inboxSource": "gmail" }` and restart Tia. **Start the day** now reads the newest Gmail messages, and approving saves a Gmail draft in the same thread and opens it.
+2. Connect an app: `composio link gmail` (and/or `slack`, `instagram`, `linkedin`, `metaads`, `outlook`), then click **Allow**. WhatsApp needs a WhatsApp Business Account ID (WABA) – the WhatsApp tab explains it and opens the link page.
+3. In Tia, each app tab (Mail, Slack, Instagram, WhatsApp, LinkedIn, Ads) has a switch at the bottom left: **Oakline Studio · demo** or **My … · live**. Live shows your own account (`src/connectors/live.js`, cached in `data/live/`): Gmail inbox (Tia writes the reply → **Save draft** = a real Gmail draft), Slack channels, Instagram profile + posts (Tia rewrites captions), LinkedIn (Tia writes a post, you edit, copy & open LinkedIn), Meta Ads (Ads Manager look-alike with spend/CTR/CPC per campaign and ad; Tia scores each ad and writes an improved version you can edit). Nothing is sent, posted or changed in a live ad account.
+4. Let Tia's **Start the day** read that Gmail: create `config.json` in the Tia folder with `{ "inboxSource": "gmail" }` and restart Tia. **Start the day** now reads the newest Gmail messages, and approving saves a Gmail draft in the same thread and opens it.
    - Use a **demo account** for the stand, not your private mail – it shows on the big screen.
 
 ## The demo business vault (`demo/Business vault TIA`)

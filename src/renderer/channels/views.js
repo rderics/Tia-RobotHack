@@ -25,6 +25,8 @@
     instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg>',
     slack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>',
     leads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+    linkedin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg>',
+    ads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M21 19H3"/></svg>',
     vault: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="17" r="2.6"/><path d="M8 8l2.6 7M16.3 7.6l-3 7.2M8.2 6.8l7.6-.6"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>',
   };
@@ -34,6 +36,8 @@
     ["whatsapp", "WhatsApp"],
     ["instagram", "Instagram"],
     ["slack", "Slack"],
+    ["linkedin", "LinkedIn"],
+    ["ads", "Ads"],
     ["leads", "Leads"],
     ["vault", "Vault"],
   ];
@@ -102,7 +106,7 @@
     tab = key;
     rail.querySelectorAll("button[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === key));
     const inChannel = key !== "tia";
-    document.body.classList.toggle("tab-vault", key === "vault");
+    for (const [k] of TABS) document.body.classList.toggle(`tab-${k}`, key === k);
     view.hidden = !inChannel;
     pip.hidden = !inChannel;
     moveAvatar(inChannel);
@@ -162,7 +166,9 @@
       ? h("div", { class: "tia-steps" }, x.actions.map((a) => h("div", { class: a.status === "error" ? "err" : "" }, `${a.status === "done" ? "✓" : a.status === "error" ? "⚠" : "…"} ${a.detail}`)))
       : ""; // "" not null – DOM append() would print "null"
   const chip = (x) =>
-    x.state === "open" ? h("span", { class: "tia-chip needs" }, "Needs you") : ["approved", "edited"].includes(x.state) ? h("span", { class: "tia-chip draft" }, "Draft made") : x.state === "rejected" ? h("span", { class: "tia-chip" }, "Skipped") : h("span", { class: "tia-chip done" }, "Handled by Tia");
+    x.live && x.state === "open"
+      ? "" // the owner's real mail: no triage chip until there is a draft
+      : x.state === "open" ? h("span", { class: "tia-chip needs" }, "Needs you") : ["approved", "edited"].includes(x.state) ? h("span", { class: "tia-chip draft" }, "Draft made") : x.state === "rejected" ? h("span", { class: "tia-chip" }, "Skipped") : h("span", { class: "tia-chip done" }, "Handled by Tia");
   const composerValue = (x) => (userEdited[x.id] !== undefined ? userEdited[x.id] : x.draft || "");
 
   // ---------- views ----------
@@ -172,12 +178,24 @@
     view.innerHTML = "";
     if (tab === "leads") return view.append(leadsView());
     if (tab === "vault") return window.TiaVault ? view.append(window.TiaVault.el()) : view.append(h("div", { class: "ch-empty" }, "Vault view not loaded."));
-    const items = S.list(tab).sort((a, b) => String(b.time).localeCompare(String(a.time)));
+    const L = window.TiaLive;
+    const LABEL = { email: "Gmail", slack: "Slack", instagram: "Instagram", whatsapp: "WhatsApp", linkedin: "LinkedIn", ads: "Meta Ads" };
+    // While Tia runs the stand demo with "Follow Tia" on, the apps show the demo business she is working on
+    const live = L && L.isLive(tab) && !(follow && document.body.classList.contains("running"));
+    if (L && LABEL[tab]) view.append(L.switcher(h, tab, LABEL[tab]));
+    if (L && (tab === "linkedin" || tab === "ads" || (live && (tab === "instagram" || tab === "whatsapp")))) return view.append(L.views[tab](baseCtx()));
+    const items = (live ? L.items(tab) : S.list(tab)).sort((a, b) => (a.placeholder ? -1 : b.placeholder ? 1 : String(b.received || b.time).localeCompare(String(a.received || a.time))));
     if (!sel[tab] || !items.find((x) => x.id === sel[tab])) sel[tab] = items[0] && items[0].id;
     const x = items.find((i) => i.id === sel[tab]);
     const A = window.TiaApps; // high-fidelity look-alikes (channels/apps.js); the simpler views below are the fallback
     if (A) {
-      const ctx = {
+      const ctx = live ? L.ctxFor(tab, baseCtx()) : baseCtx();
+      view.append({ email: A.mail, whatsapp: A.wa, instagram: A.ig, slack: A.slack }[tab](ctx, items, x));
+    } else view.append({ email: mailView, whatsapp: waView, instagram: igView, slack: slackView }[tab](items, x));
+  }
+  function baseCtx() {
+    {
+      return {
         h, avatar, chip, steps: stepsView, decide, reject, typeDraft, composerValue, userEdited, render,
         select: (id) => ((sel[tab] = id), render()),
         pendingFor: (id) => (follow && pendingType === id ? ((pendingType = null), true) : false),
@@ -187,8 +205,7 @@
           return c2.ta;
         },
       };
-      view.append({ email: A.mail, whatsapp: A.wa, instagram: A.ig, slack: A.slack }[tab](ctx, items, x));
-    } else view.append({ email: mailView, whatsapp: waView, instagram: igView, slack: slackView }[tab](items, x));
+    }
   }
 
   let mailFolder = "inbox";
@@ -349,6 +366,7 @@
     });
 
   build();
+  if (window.TiaLive) window.TiaLive.setRerender(() => (tab !== "tia" ? render() : null));
   S.load().then(render);
   window.TiaChannels.showTab = showTab;
 })();

@@ -287,6 +287,31 @@ async function localApi(req, res, route, url) {
     const shown = isLocal(req) ? list : list.filter((a) => a.url === (pub || "").replace(/\/$/, ""));
     return sendJson(res, 200, { addresses: shown, selected: pick, svg, appSvg, connect, appLink: open, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
   }
+  // ---------- The owner's real accounts through Composio (read + draft only) ----------
+  if (route.startsWith("/api/live/")) {
+    const L = require("./connectors/live");
+    const cfg = loadConfig();
+    const fresh = url.searchParams.get("refresh") === "1";
+    const app = route.slice("/api/live/".length);
+    try {
+      if (req.method === "GET") {
+        if (app === "img") return L.image(url.searchParams.get("u") || "", res);
+        if (app === "drafts") return sendJson(res, 200, L.drafts(cfg));
+        if (["status", "gmail", "slack", "instagram", "linkedin", "ads"].includes(app)) return sendJson(res, 200, await L[app](cfg, fresh));
+      }
+      if (req.method === "POST") {
+        const body = await readJson(req);
+        if (app === "draft") return sendJson(res, 200, await L.saveDraft(cfg, body));
+        if (app === "link") return sendJson(res, 200, await require("./connectors/composio").link(body.app === "ads" ? "metaads" : body.app));
+        if (app === "suggest") return sendJson(res, 200, await L.suggest(cfg, body));
+        if (app === "linkedin/write") return sendJson(res, 200, await L.linkedinPost(cfg, body));
+        if (app === "ads/review") return sendJson(res, 200, await L.reviewAd(cfg, body));
+      }
+      return sendJson(res, 404, { error: "unknown live route" });
+    } catch (e) {
+      return sendJson(res, 502, { error: String(e.message || e).slice(0, 300) });
+    }
+  }
   // ---------- Business vault (tab on the screen) ----------
   if (route.startsWith("/api/vault/")) {
     const V = require("./vault-api");
