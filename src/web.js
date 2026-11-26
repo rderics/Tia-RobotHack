@@ -287,6 +287,19 @@ async function localApi(req, res, route, url) {
     const shown = isLocal(req) ? list : list.filter((a) => a.url === (pub || "").replace(/\/$/, ""));
     return sendJson(res, 200, { addresses: shown, selected: pick, svg, appSvg, connect, appLink: open, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
   }
+  // ---------- Business vault (tab on the screen) ----------
+  if (route.startsWith("/api/vault/")) {
+    const V = require("./vault-api");
+    const cfg = loadConfig();
+    if (req.method === "GET" && route === "/api/vault/tree") return sendJson(res, 200, { notes: V.tree(cfg), editable: V.editable(cfg), name: path.basename(cfg.vaultDir) });
+    if (req.method === "GET" && route === "/api/vault/note") return sendJson(res, 200, V.read(cfg, url.searchParams.get("path")));
+    if (req.method === "GET" && route === "/api/vault/search") return sendJson(res, 200, V.search(cfg, url.searchParams.get("q")));
+    if (req.method === "GET" && route === "/api/vault/graph") return sendJson(res, 200, V.graph(cfg));
+    if (req.method === "POST" && route === "/api/vault/note") {
+      const body = await readJson(req);
+      return sendJson(res, 200, V.save(cfg, body.path, body.text));
+    }
+  }
   if (req.method === "GET" && route === "/api/events") {
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
     res.write(": connected\n\n");

@@ -28,6 +28,9 @@
   }
 
   let voiceIndex = null;
+  let vaultPromise = null;
+  const localEdits = {};
+  const vault = () => (vaultPromise = vaultPromise || fetch("data/vault.json").then((r) => r.json()));
   let dataPromise = null;
   function data() {
     if (!dataPromise) {
@@ -72,6 +75,29 @@
       return { approvals: l.approvals[cat] || 0, needed: CFG.approvalsToLearn };
     },
     reset: async () => save(fresh()),
+    // Business vault tab: the fictional demo vault, shipped as one file (data/vault.json); edits stay in this browser
+    vaultTree: async () => {
+      const v = await vault();
+      return { notes: v.notes.map((n) => ({ path: n.path, name: n.path.split("/").pop().replace(/\.md$/, ""), folder: n.path.includes("/") ? n.path.slice(0, n.path.lastIndexOf("/")) : "" })), editable: true, name: "Business vault TIA" };
+    },
+    vaultNote: async (p) => {
+      const v = await vault();
+      const n = v.notes.find((x) => x.path === p);
+      if (!n) throw new Error("note not found");
+      return { path: p, text: localEdits[p] !== undefined ? localEdits[p] : n.text, editable: true };
+    },
+    vaultSearch: async (q) => {
+      const v = await vault();
+      const words = String(q).toLowerCase().split(/\W+/).filter((w) => w.length > 2);
+      return v.notes
+        .map((n) => ({ n, score: words.reduce((s, w) => s + (n.text.toLowerCase().split(w).length - 1) + (n.path.toLowerCase().includes(w) ? 5 : 0), 0) }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 12)
+        .map(({ n, score }) => ({ path: n.path, name: n.path.split("/").pop().replace(/\.md$/, ""), section: "", snippet: n.text.replace(/^---[\s\S]*?---/, "").replace(/\s+/g, " ").slice(0, 160), score }));
+    },
+    vaultGraph: async () => (await vault()).graph,
+    vaultSave: async (p, text) => ((localEdits[p] = text), { ok: true }),
     // Tia's natural voice, pre-recorded at build time (scripts/demo-voice-lines.json). Unknown text → browser voice.
     tts: async (text) => {
       voiceIndex = voiceIndex || fetch("data/voice/index.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));

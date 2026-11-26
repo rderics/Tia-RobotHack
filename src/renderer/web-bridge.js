@@ -90,6 +90,12 @@
     decide: (id, verdict, editedText) => post("api/decide", { id, verdict, editedText }),
     say: (text) => post("api/say", { text }),
     tts: (text) => post("api/tts", { text }),
+    // Business vault tab
+    vaultTree: () => get("api/vault/tree"),
+    vaultNote: (p) => get(`api/vault/note?path=${encodeURIComponent(p)}`),
+    vaultSearch: (q) => get(`api/vault/search?q=${encodeURIComponent(q)}`),
+    vaultGraph: () => get("api/vault/graph"),
+    vaultSave: (p, text) => post("api/vault/note", { path: p, text }),
     voice: (blob) => fetch("api/voice", { method: "POST", headers: headers({ "content-type": blob.type || "audio/webm" }), body: blob }).then(check),
     pair: (ip) => get(`api/pair${ip ? `?ip=${encodeURIComponent(ip)}` : ""}`),
     webLink: () => (token ? `${location.origin}${location.pathname}#t=${token}` : ""),

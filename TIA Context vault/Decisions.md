@@ -2,6 +2,7 @@
 
 Add a line at the top when the team decides something: `date · who · decision · replaces`.
 
+- **26.11 · Rinalds** · **Business vault tab**: browse, search and edit the vault inside Tia, Obsidian-style graph, and live "Tia is reading" (the notes she uses light up). Owner's real vault read-only from Tia. QR now opens `/connect` (works with any phone camera; later our own app).
 - **25.11 · Rinalds** · Views must be **identical to the real apps** and connect to them: high-fidelity Outlook web /
   WhatsApp Web / Instagram Direct / Slack (`src/renderer/channels/apps.js`) with Microsoft Fluent UI System Icons (MIT);
   still no brand logos. Real connections through **Composio** (CLI logged in on Rinalds' PC; `src/connectors/composio.js`:

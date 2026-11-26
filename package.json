@@ -11,7 +11,8 @@
     "replay": "electron . --replay",
     "day": "node scripts/run-day.js",
     "screenshot": "electron . --replay --screenshot=data/screenshot.png",
-    "build:avatar": "esbuild src/scene/vrm-avatar.js --bundle --format=iife --global-name=TiaAvatar --minify --alias:three=three186 --outfile=src/renderer/avatar.js"
+    "build:avatar": "esbuild src/scene/vrm-avatar.js --bundle --format=iife --global-name=TiaAvatar --minify --alias:three=three186 --outfile=src/renderer/avatar.js",
+    "build:graph": "esbuild src/scene/graph-entry.js --bundle --format=iife --minify --outfile=src/renderer/channels/graph.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.10.0",
@@ -21,6 +22,7 @@
     "@pixiv/three-vrm": "^3.6.0",
     "electron": "45.4.1",
     "esbuild": "0.24.0",
+    "force-graph": "^1.52.0",
     "three": "0.170.0",
     "three186": "npm:three@^0.186.0"
   },

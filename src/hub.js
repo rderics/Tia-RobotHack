@@ -3,6 +3,8 @@
 const engine = require("./brain/engine");
 const { loadConfig } = require("./brain/config");
 const { contextFor, logActivity } = require("./brain/vault");
+// Live: every time Tia reads the vault, the screen hears which notes (Business vault tab + graph glow).
+require("./brain/vault").onRead(({ query, sources }) => emit({ type: "vault-read", query, sources, at: Date.now() }));
 const outlook = require("./connectors/outlook");
 const { runCommand, liveBlocked } = require("./brain/command");
 const { chat: chatModel } = require("./brain/providers");

@@ -48,6 +48,12 @@ fs.cpSync(path.join(ROOT, "src/renderer/channels"), path.join(out, "channels"), 
 fs.copyFileSync(path.join(ROOT, "src/static/static-bridge.js"), path.join(out, "web-bridge.js"));
 fs.writeFileSync(path.join(out, "data/inbox.json"), JSON.stringify(inbox));
 fs.writeFileSync(path.join(out, "data/replay.json"), JSON.stringify(replay));
+// Business vault tab: the fictional demo vault (notes + link graph) in one file
+{
+  const cfgPath = require("../src/brain/config");
+  process.env.TIA_CONFIG = "none";
+  fs.writeFileSync(path.join(out, "data/vault.json"), JSON.stringify(require("../src/vault-api").snapshot(cfgPath.loadConfig())));
+}
 
 // Cache-busting: Cloudflare lets browsers keep scripts for hours, so each link gets ?v=<content hash>.
 // A changed file gets a new URL; an unchanged one stays cached.

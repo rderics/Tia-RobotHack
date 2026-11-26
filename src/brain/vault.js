@@ -31,6 +31,10 @@ function readVaultContext(vaultDir) {
 const STAND_ALWAYS = ["Business.md", "Owner preferences.md", "Price list.md", "Calendar — this week.md"];
 let smallVault = null; // the old 15-note demo vault is read whole; a big vault (demo/Business vault TIA has ~800 notes) is searched
 
+// The screen's Business vault tab shows live which notes Tia reads (vault-api.js / hub.js subscribe here).
+const readers = new Set();
+const onRead = (fn) => (readers.add(fn), () => readers.delete(fn));
+
 function contextFor(cfg, query) {
   if (cfg.profile !== "owner") {
     if (smallVault === null) smallVault = listNotes(cfg.vaultDir).length <= 40;
@@ -56,6 +60,11 @@ function contextFor(cfg, query) {
     budget -= h.doc.text.length;
     if (!sources.includes(h.doc.name)) sources.push(h.doc.name);
   }
+  for (const fn of readers) {
+    try {
+      fn({ query: String(query || "").slice(0, 200), sources: sources.slice(0, 12) });
+    } catch {}
+  }
   return { text: parts.join("\n\n") || "(no matching notes)", sources };
 }
 
@@ -80,4 +89,4 @@ function resetNotes(notesDir) {
   fs.copyFileSync(path.join(templates, "activity-log.template.md"), path.join(notesDir, "Activity log.md"));
 }
 
-module.exports = { readVaultContext, contextFor, logActivity, addLearnedRule, resetNotes, listNotes };
+module.exports = { onRead, readVaultContext, contextFor, logActivity, addLearnedRule, resetNotes, listNotes };

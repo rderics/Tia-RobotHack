@@ -25,6 +25,7 @@
     instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg>',
     slack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>',
     leads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+    vault: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="17" r="2.6"/><path d="M8 8l2.6 7M16.3 7.6l-3 7.2M8.2 6.8l7.6-.6"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>',
   };
   const TABS = [
@@ -34,6 +35,7 @@
     ["instagram", "Instagram"],
     ["slack", "Slack"],
     ["leads", "Leads"],
+    ["vault", "Vault"],
   ];
   const COLORS = ["#4F6BED", "#C239B3", "#E3008C", "#038387", "#CA5010", "#8764B8", "#498205", "#0078D4", "#986F0B", "#D13438"];
   const color = (s) => COLORS[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
@@ -100,6 +102,7 @@
     tab = key;
     rail.querySelectorAll("button[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === key));
     const inChannel = key !== "tia";
+    document.body.classList.toggle("tab-vault", key === "vault");
     view.hidden = !inChannel;
     pip.hidden = !inChannel;
     moveAvatar(inChannel);
@@ -168,6 +171,7 @@
     if (tab === "tia") return;
     view.innerHTML = "";
     if (tab === "leads") return view.append(leadsView());
+    if (tab === "vault") return window.TiaVault ? view.append(window.TiaVault.el()) : view.append(h("div", { class: "ch-empty" }, "Vault view not loaded."));
     const items = S.list(tab).sort((a, b) => String(b.time).localeCompare(String(a.time)));
     if (!sel[tab] || !items.find((x) => x.id === sel[tab])) sel[tab] = items[0] && items[0].id;
     const x = items.find((i) => i.id === sel[tab]);
