@@ -40,7 +40,7 @@ const hhmm = (d) => (d && !isNaN(d) ? d.toTimeString().slice(0, 5) : "");
 const day = (d) => (d && !isNaN(d) ? d.toISOString().slice(0, 10) : "");
 
 // ---------- which accounts are linked ----------
-const APPS = { gmail: "gmail", slack: "slack", instagram: "instagram", linkedin: "linkedin", ads: "metaads", whatsapp: "whatsapp", outlook: "outlook" };
+const APPS = { calendar: "googlecalendar", gmail: "gmail", slack: "slack", instagram: "instagram", linkedin: "linkedin", ads: "metaads", whatsapp: "whatsapp", outlook: "outlook" };
 async function status(cfg, fresh) {
   return cached(cfg, "status", fresh, async () => {
     const all = await C.connections();
@@ -171,7 +171,7 @@ async function saveDraft(cfg, b) {
   const all = drafts(cfg);
   const rec = { app: b.app, text: String(b.text || ""), to: b.to || "", subject: b.subject || "", savedAt: new Date().toISOString(), where: "Tia drafts" };
   if (b.app === "gmail") {
-    const id = await C.gmailDraft({ to: b.to, subject: /^re:/i.test(b.subject || "") ? b.subject : `Re: ${b.subject || ""}`, body: rec.text, threadId: b.threadId });
+    const id = await C.gmailDraft({ to: b.to, subject: b.isNew || /^re:/i.test(b.subject || "") ? b.subject || "" : `Re: ${b.subject || ""}`, body: rec.text, threadId: b.threadId });
     rec.where = "Gmail → Drafts";
     rec.draftId = id;
     rec.link = "https://mail.google.com/mail/u/0/#drafts";
@@ -196,6 +196,16 @@ async function suggest(cfg, b) {
 Numbers: ${b.stats || "-"}`,
     });
     return { text: String(r.text || "").trim(), via: r.via };
+  }
+  if (b.mode === "compose") {
+    // a NEW mail from a few words ("ask Ieva if Friday works for the worktop") – facts from the business vault
+    const ctx = b.vault ? require("../brain/vault").contextFor(cfg, `${b.to || ""} ${b.subject || ""} ${b.text || ""}`).text.slice(0, 9000) : "";
+    const r = await brain().ask(cfg, {
+      system: `You are Tia, the assistant of ${who}${cfg.business ? ` at ${cfg.business}` : ""}. Write one short, friendly, ready-to-send email from the owner (first person, signed with the owner's first name). Use only facts from the notes and the business facts; never invent prices or dates.${ctx ? `\n\nBusiness facts:\n${ctx}` : ""}`,
+      schema: { type: "object", additionalProperties: false, properties: { subject: { type: "string" }, text: { type: "string" } }, required: ["subject", "text"] },
+      prompt: `To: ${b.to || "(not given)"}\nSubject: ${b.subject || "(write one)"}\nWhat it should say: ${String(b.text || "").slice(0, 2000)}`,
+    });
+    return { subject: String(r.answer.subject || "").trim(), text: String(r.answer.text || "").trim(), via: r.via };
   }
   // Messages to the business itself (WhatsApp Business number) are answered from the business vault – the notes Tia
   // reads light up live in the Vault tab. The owner's private inbox apps get no vault context.
@@ -224,6 +234,7 @@ async function linkedinPost(cfg, b) {
 
 const REVIEW_SCHEMA = {
   type: "object",
+  additionalProperties: false,
   properties: {
     score: { type: "integer", description: "0-100, how well this ad is doing for its goal" },
     verdict: { type: "string", description: "one short sentence" },
@@ -297,4 +308,38 @@ function image(u, res) {
     .on("error", () => (res.writeHead(502), res.end()));
 }
 
-module.exports = { status, gmail, slack, instagram, linkedin, ads, drafts, saveDraft, suggest, linkedinPost, reviewAd, image };
+// ---------- Google Calendar: the week, add an event (the owner presses Add), Tia turns a sentence into an event ----------
+async function calendar(cfg, week) {
+  const start = new Date(`${week || new Date().toISOString().slice(0, 10)}T00:00:00`);
+  const end = new Date(start.getTime() + 7 * 864e5);
+  const data = await C.execute("GOOGLECALENDAR_EVENTS_LIST", { calendarId: "primary", timeMin: start.toISOString(), timeMax: end.toISOString(), singleEvents: true, orderBy: "startTime", maxResults: 100 });
+  const items = data.items || data.events || [];
+  return {
+    account: ((await status(cfg)).calendar || {}).name || "",
+    events: items.map((e) => ({
+      id: e.id, title: e.summary || "(no title)", location: e.location || "", description: String(e.description || "").slice(0, 400), link: e.htmlLink || "",
+      allDay: !!(e.start && e.start.date), start: (e.start && (e.start.dateTime || e.start.date)) || "", end: (e.end && (e.end.dateTime || e.end.date)) || "",
+    })),
+  };
+}
+async function addEvent(cfg, b) {
+  const title = String(b.title || "").trim();
+  if (!title || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(b.start || ""))) throw new Error("title and start time are needed");
+  const minutes = Math.max(15, Math.min(24 * 60, Number(b.minutes) || 60));
+  const r = await C.execute("GOOGLECALENDAR_CREATE_EVENT", {
+    calendar_id: "primary", summary: title, start_datetime: String(b.start).slice(0, 16) + ":00", timezone: cfg.timezone || "Europe/Riga",
+    event_duration_hour: Math.floor(minutes / 60), event_duration_minutes: minutes % 60, location: String(b.location || ""), description: String(b.description || ""), send_updates: false,
+  });
+  return { ok: true, id: r.id || (r.response_data && r.response_data.id) || "", link: r.htmlLink || (r.response_data && r.response_data.htmlLink) || "" };
+}
+async function parseEvent(cfg, b) {
+  const r = await brain().ask(cfg, {
+    system: "Turn the owner's sentence into ONE calendar event. Dates relative to TODAY. Use 24h time. If no time is given, choose 10:00. If no length is given, 60 minutes. Keep the title short (max 6 words) and in the owner's language.",
+    schema: { type: "object", additionalProperties: false, properties: { title: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD" }, time: { type: "string", description: "HH:MM" }, minutes: { type: "integer" }, location: { type: "string" } }, required: ["title", "date", "time", "minutes", "location"] },
+    prompt: `TODAY: ${b.today || new Date().toISOString().slice(0, 10)} (${new Date(b.today || Date.now()).toLocaleDateString("en-GB", { weekday: "long" })})
+Sentence: ${String(b.text || "").slice(0, 500)}`,
+  });
+  return r.answer;
+}
+
+module.exports = { status, gmail, slack, instagram, linkedin, ads, drafts, saveDraft, suggest, linkedinPost, reviewAd, image, calendar, addEvent, parseEvent };

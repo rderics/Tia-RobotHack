@@ -519,8 +519,8 @@ body.tab-vault .tia-pip { top: auto; bottom: 16px; right: auto; left: 80px; }
 .wa-card ol { padding-left: 20px; margin: 0; } .wa-card li { margin: 0 0 14px; } .wa-card li b { display: block; color: #111B21; } .wa-card li div { color: #3B4A54; }
 .wa-foot { border-top: 1px solid #E9EDEF; padding-top: 12px; color: #667781; font-size: 13px; }
 /* Apps with a right-hand drawer: Tia's picture sits bottom-left, smaller, above the source switch */
-body.tab-ads .tia-pip, body.tab-linkedin .tia-pip, body.tab-instagram .tia-pip, body.tab-docs .tia-pip { top: auto; bottom: 60px; right: auto; left: 76px; width: 150px; }
-body.tab-ads .tia-pip .pipbox, body.tab-linkedin .tia-pip .pipbox, body.tab-instagram .tia-pip .pipbox, body.tab-docs .tia-pip .pipbox { height: 128px; }
+body.tab-ads .tia-pip, body.tab-linkedin .tia-pip, body.tab-instagram .tia-pip, body.tab-docs .tia-pip, body.tab-email .tia-pip, body.tab-whatsapp .tia-pip, body.tab-slack .tia-pip { top: auto; bottom: 60px; right: auto; left: 76px; width: 150px; }
+body.tab-ads .tia-pip .pipbox, body.tab-linkedin .tia-pip .pipbox, body.tab-instagram .tia-pip .pipbox, body.tab-docs .tia-pip .pipbox, body.tab-email .tia-pip .pipbox, body.tab-whatsapp .tia-pip .pipbox, body.tab-slack .tia-pip .pipbox { height: 128px; }
 body.tab-ads .tia-pip .pipcap, body.tab-linkedin .tia-pip .pipcap, body.tab-instagram .tia-pip .pipcap { max-height: 54px; font-size: 11.5px; }
 .wa-redo { border: 0; background: transparent; color: #7B5CE0; width: 40px; height: 40px; border-radius: 50%%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
 .wa-redo:hover { background: #F0EBFD; } .wa-redo svg.i { width: 22px; height: 22px; }
@@ -555,3 +555,93 @@ body.tab-ads .tia-pip .pipcap, body.tab-linkedin .tia-pip .pipcap, body.tab-inst
 .dx-msg { font-size: 12.5px; color: #0E700E; }
 .dx-pdf { flex: 1; width: 100%; border: 0; background: #E1DFDD; }
 @media (max-width: 1350px) { .dx { grid-template-columns: 290px 240px 1fr; } }
+
+/* ======================= ONLY WORKING CONTROLS (27.11): layouts without the decorative rails ======================= */
+.ol-head .name { width: 220px; padding-left: 18px; }
+.ol-search { flex: 1; max-width: 640px; height: 32px; border: 0; border-radius: 4px; padding: 0 12px; font: 14px "Segoe UI", sans-serif; color: #242424; outline: none; }
+.ol-work { padding: 6px 8px 8px 8px; }
+.ol-primary { background: #0F6CBD; color: #fff; border: 0; border-radius: 4px; padding: 6px 16px; font: 600 14px "Segoe UI", sans-serif; cursor: pointer; }
+.ol-primary:disabled { opacity: .45; cursor: default; }
+.ol-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.ol-btn svg.i { width: 16px; height: 16px; color: #7B5CE0; }
+.ol-compose { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.ol-compose .ol-subj { padding: 0 0 4px; }
+.ol-compose textarea { min-height: 240px; }
+.ol-in { flex: 1; border: 0; border-bottom: 1px solid #E0E0E0; height: 30px; font: 14px "Segoe UI", sans-serif; outline: none; background: transparent; }
+.ol-in:focus { border-color: #0F6CBD; }
+.ol-row, .ol-f, .wa-row, .ig-row, .sl-item, .sl-msg { cursor: pointer; }
+
+.wa { grid-template-columns: 420px 1fr; }
+.wa-search div { padding: 0 14px; }
+.wa-searchin { flex: 1; border: 0; background: transparent; outline: none; font: 14px "Segoe UI", sans-serif; color: #111B21; height: 100%; }
+.wa-chips span { cursor: pointer; }
+.wa-compose textarea { flex: 1; }
+
+.ig.ig-clean { grid-template-columns: 397px 1fr; }
+.ig.igp-wrap { grid-template-columns: 1fr 400px; }
+.ig-search { padding: 0 20px 12px; }
+.ig-searchin { width: 100%; height: 36px; border-radius: 8px; border: 0; background: #EFEFEF; padding: 0 14px; outline: none; font: 14px -apple-system, "Segoe UI", sans-serif; }
+.ig-tabs span.on { font-weight: 700; color: #000; }
+.ig-compose .ghost { background: transparent; color: #0095F6; border: 0; font-weight: 600; cursor: pointer; white-space: nowrap; }
+a.igp-b { text-decoration: none; color: #000; }
+
+.sl-body.sl-clean { grid-template-columns: 260px 1fr; padding-left: 4px; }
+.sl-top .search { padding-right: 10px; }
+.sl-searchin { flex: 1; background: transparent; border: 0; outline: none; color: #fff; font: 13px Lato, "Segoe UI", sans-serif; }
+.sl-searchin::placeholder { color: rgba(255,255,255,.75); }
+.sl-msg.sel { background: #F4EDE4; box-shadow: inset 3px 0 #1264A3; }
+.sl-act .sp { flex: 1; }
+.sl-sendone { background: #007A5A; color: #fff; border: 0; border-radius: 4px; width: 38px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.sl-sendone svg.i { width: 16px; height: 16px; }
+
+.am-body { grid-template-columns: 1fr auto; }
+.am-range { border: 0; padding: 0; color: #65676B; }
+.fb-acts { justify-content: center; font-size: 12px; font-weight: 400; color: #8A8D91; }
+.li-title { font-weight: 600; font-size: 16px; margin-left: 8px; }
+a.li-btn { text-decoration: none; }
+
+/* ======================= CALENDAR (Google Calendar look-alike) ======================= */
+.gc { height: 100%; display: grid; grid-template-rows: 60px 1fr; background: #fff; color: #1F1F1F; font: 14px/1.4 "Google Sans", Roboto, "Segoe UI", sans-serif; }
+.gc-top { display: flex; align-items: center; gap: 10px; padding: 0 18px; border-bottom: 1px solid #E0E3E7; }
+.gc-logo { width: 36px; height: 36px; border-radius: 8px; background: #1A73E8; color: #fff; display: flex; align-items: center; justify-content: center; }
+.gc-title { font-size: 21px; color: #444746; margin-right: 22px; }
+.gc-top .sp { flex: 1; }
+.gc-btn { border: 1px solid #C4C7C5; background: #fff; color: #1F1F1F; border-radius: 18px; padding: 7px 16px; font: 500 14px "Segoe UI", sans-serif; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
+.gc-btn:hover { background: #F2F2F2; }
+.gc-nav { border: 0; background: transparent; width: 34px; height: 34px; border-radius: 50%; font-size: 22px; line-height: 1; color: #444746; cursor: pointer; }
+.gc-nav:hover { background: #F1F3F4; }
+.gc-range { font-size: 20px; color: #1F1F1F; margin-left: 6px; }
+.gc-create { display: inline-flex; align-items: center; gap: 8px; border: 0; background: #C2E7FF; color: #001D35; border-radius: 16px; padding: 10px 18px; font: 600 14px "Segoe UI", sans-serif; cursor: pointer; }
+.gc-create:hover { box-shadow: 0 1px 3px rgba(0,0,0,.2); } .gc-create:disabled { opacity: .6; cursor: default; }
+.gc-create svg.i { width: 16px; height: 16px; }
+.gc-wrap { display: grid; grid-template-columns: 1fr 330px; min-height: 0; }
+.gc-main { display: flex; flex-direction: column; min-height: 0; position: relative; }
+.gc-grid { display: grid; grid-template-columns: 56px repeat(7, 1fr); border-bottom: 1px solid #E0E3E7; }
+.gc-dh { text-align: center; padding: 8px 0 4px; } .gc-dh span { display: block; font-size: 11px; color: #444746; font-weight: 600; }
+.gc-dh b { display: inline-flex; width: 42px; height: 42px; align-items: center; justify-content: center; border-radius: 50%; font-size: 24px; font-weight: 400; }
+.gc-dh.today span { color: #1A73E8; } .gc-dh.today b { background: #1A73E8; color: #fff; }
+.gc-allday { min-height: 24px; padding: 2px 2px 4px; border-left: 1px solid #E0E3E7; display: flex; flex-direction: column; gap: 2px; }
+.gc-chip { background: #039BE5; color: #fff; border-radius: 4px; font-size: 12px; padding: 1px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-chip.on { box-shadow: 0 0 0 2px #1A73E8; }
+.gc-body { flex: 1; overflow: auto; display: grid; grid-template-columns: 56px repeat(7, 1fr); position: relative; }
+.gc-hours .gc-h { height: 48px; font-size: 10px; color: #70757A; text-align: right; padding-right: 8px; transform: translateY(-6px); }
+.gc-col { position: relative; border-left: 1px solid #E0E3E7; background: repeating-linear-gradient(#fff 0 47px, #E0E3E7 47px 48px); min-height: 672px; }
+.gc-col.today { background-color: #fff; }
+.gc-ev { position: absolute; left: 2px; right: 6px; background: #039BE5; color: #fff; border-radius: 6px; padding: 3px 6px; font-size: 12px; line-height: 1.3; overflow: hidden; cursor: pointer; box-shadow: 0 0 0 1px #fff; }
+.gc-ev b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-ev.on { background: #1A73E8; box-shadow: 0 2px 8px rgba(26,115,232,.5); }
+.gc-load, .gc-err { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid #E0E3E7; border-radius: 8px; padding: 8px 14px; font-size: 13px; color: #444746; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.gc-err { color: #B3261E; position: static; transform: none; margin-top: 8px; box-shadow: none; }
+.gc-main > .gc-err { position: absolute; transform: translateX(-50%); }
+.gc-side { border-left: 1px solid #E0E3E7; padding: 18px 18px 80px; overflow: auto; display: flex; flex-direction: column; gap: 10px; background: #F8FAFD; }
+.gc-st { font-size: 20px; color: #1F1F1F; }
+.gc-sl { display: flex; align-items: center; gap: 8px; color: #444746; } .gc-sl svg.i { width: 18px; height: 18px; color: #5F6368; }
+.gc-desc { color: #444746; font-size: 13px; white-space: pre-wrap; } .gc-desc.muted { color: #70757A; }
+.gc-tia { display: flex; flex-direction: column; gap: 8px; }
+.gc-in { width: 100%; border: 1px solid #C4C7C5; border-radius: 8px; padding: 8px 10px; font: 14px "Segoe UI", sans-serif; background: #fff; color: #1F1F1F; outline: none; resize: vertical; }
+.gc-in:focus { border-color: #1A73E8; }
+.gc-new { display: flex; flex-direction: column; gap: 6px; } .gc-new label { font-size: 12px; color: #444746; margin-top: 4px; }
+.gc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gc-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+body.tab-calendar .tia-pip { top: auto; bottom: 60px; right: auto; left: 76px; width: 150px; }
+body.tab-calendar .tia-pip .pipbox { height: 128px; }

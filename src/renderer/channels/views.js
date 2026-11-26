@@ -27,6 +27,7 @@
     leads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
     linkedin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg>',
     ads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M21 19H3"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     docs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>',
     vault: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="17" r="2.6"/><path d="M8 8l2.6 7M16.3 7.6l-3 7.2M8.2 6.8l7.6-.6"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>',
@@ -34,6 +35,7 @@
   const TABS = [
     ["tia", "Tia"],
     ["email", "Mail"],
+    ["calendar", "Calendar"],
     ["whatsapp", "WhatsApp"],
     ["instagram", "Instagram"],
     ["slack", "Slack"],
@@ -120,7 +122,36 @@
   }
 
   // ---------- actions (same desk as everywhere: the phone sees it too) ----------
+  // A demo message Tia hasn't sorted yet ("new"): the owner answers it himself or with Tia's help,
+  // and the real action runs – Outlook opens and types the draft, WhatsApp opens with the text.
+  async function demoReply(x, text) {
+    const body = String(text || "").trim();
+    if (!body) return alert("Write a reply first – or press “Let Tia write”.");
+    x.draft = body;
+    userEdited[x.id] = undefined;
+    const done = (detail) => ((x.state = "edited"), (x.actions = [{ step: "draft", status: "done", detail }]), render());
+    if (x.channel === "instagram" || x.channel === "slack") {
+      try {
+        await navigator.clipboard.writeText(body);
+      } catch {}
+      return done(`Copied – paste it in ${x.channel === "slack" ? "Slack" : "Instagram"}. Tia never posts by herself.`);
+    }
+    if (!window.tia.demoAct) return done(x.channel === "email" ? "On the live Tia: Outlook opens and the reply is typed in – you press Send." : "On the live Tia: WhatsApp opens with the reply typed – you press send.");
+    x.actions = [{ step: "draft", status: "start", detail: x.channel === "email" ? "Opening Outlook and typing the reply…" : "Opening WhatsApp with the text…" }];
+    render();
+    try {
+      const r = await window.tia.demoAct({ channel: x.channel, to: x.address, subject: x.subject ? `Re: ${x.subject.replace(/^re:\s*/i, "")}` : "", text: body });
+      if (r && r.error) throw new Error(r.error);
+      x.state = "edited";
+      x.actions = ((r && r.steps) || []).filter((s) => s.detail).map((s) => ({ ...s }));
+      if (!x.actions.length) x.actions = [{ step: "draft", status: "done", detail: "Done – you press Send." }];
+    } catch (e) {
+      x.actions = [{ step: "draft", status: "error", detail: e.message || String(e) }];
+    }
+    render();
+  }
   async function decide(x, text) {
+    if (x.state === "new") return demoReply(x, text);
     const changed = text !== undefined && text.trim() && text.trim() !== (x.draft || "").trim();
     if (!window.tia.decide) {
       // public replay (no server): show what the live Tia does, without doing it
@@ -136,12 +167,30 @@
     }
   }
   async function reject(x) {
+    if (x.state === "new") return ((x.state = "rejected"), render());
     if (!window.tia.decide) return ((x.state = "rejected"), render());
     try {
       await window.tia.decide(x.id, "reject");
     } catch {}
   }
   function typeDraft(x, textarea, onDone) {
+    if (!x.draft && x.tiaDraft) x.draft = x.tiaDraft; // the demo's recorded answer – instant
+    if (!x.draft && !x.live) {
+      // ask Tia now (live server): she answers from the business vault
+      if (!window.tia.livePost) return (textarea.placeholder = "Tia writes replies on the live Tia – here press “Start the day” on the Tia tab.");
+      textarea.value = "";
+      textarea.placeholder = "Tia is writing…";
+      window.tia
+        .livePost("suggest", { app: x.channel === "email" ? "gmail" : x.channel, vault: true, from: x.from, address: x.address, subject: x.subject, text: x.text })
+        .then((r) => {
+          if (r.error) throw new Error(r.error);
+          if (r.skip) return (textarea.placeholder = `Tia: no reply needed – ${r.skip}`);
+          x.draft = r.text;
+          typeDraft(x, textarea, onDone);
+        })
+        .catch((e) => (textarea.placeholder = `Tia couldn't write it: ${e.message || e}`));
+      return;
+    }
     typing[x.id] = true;
     const words = (x.draft || "").split(/(\s+)/);
     let i = 0;
@@ -168,8 +217,8 @@
       ? h("div", { class: "tia-steps" }, x.actions.map((a) => h("div", { class: a.status === "error" ? "err" : "" }, `${a.status === "done" ? "✓" : a.status === "error" ? "⚠" : "…"} ${a.detail}`)))
       : ""; // "" not null – DOM append() would print "null"
   const chip = (x) =>
-    x.live && x.state === "open"
-      ? "" // the owner's real mail: no triage chip until there is a draft
+    (x.live && x.state === "open") || x.state === "new"
+      ? "" // the owner's real mail / a demo message not sorted yet: no chip until there is a draft
       : x.state === "open" ? h("span", { class: "tia-chip needs" }, "Needs you") : ["approved", "edited"].includes(x.state) ? h("span", { class: "tia-chip draft" }, "Draft made") : x.state === "rejected" ? h("span", { class: "tia-chip" }, "Skipped") : h("span", { class: "tia-chip done" }, "Handled by Tia");
   const composerValue = (x) => (userEdited[x.id] !== undefined ? userEdited[x.id] : x.draft || "");
 
@@ -182,10 +231,11 @@
     if (tab === "docs") return window.TiaDocs ? view.append(window.TiaDocs.view(baseCtx())) : null;
     if (tab === "vault") return window.TiaVault ? view.append(window.TiaVault.el()) : view.append(h("div", { class: "ch-empty" }, "Vault view not loaded."));
     const L = window.TiaLive;
-    const LABEL = { email: "Gmail", slack: "Slack", instagram: "Instagram", whatsapp: "WhatsApp", linkedin: "LinkedIn", ads: "Meta Ads" };
+    const LABEL = { calendar: "Google Calendar", email: "Gmail", slack: "Slack", instagram: "Instagram", whatsapp: "WhatsApp", linkedin: "LinkedIn", ads: "Meta Ads" };
     // While Tia runs the stand demo with "Follow Tia" on, the apps show the demo business she is working on
     const live = L && L.isLive(tab) && !(follow && document.body.classList.contains("running"));
     if (L && LABEL[tab]) view.append(L.switcher(h, tab, LABEL[tab]));
+    if (tab === "calendar") return window.TiaCalendar ? view.append(window.TiaCalendar.view(baseCtx())) : null;
     if (L && (tab === "linkedin" || tab === "ads" || (live && (tab === "instagram" || tab === "whatsapp")))) return view.append(L.views[tab](baseCtx()));
     const items = (live ? L.items(tab) : S.list(tab)).sort((a, b) => (a.placeholder ? -1 : b.placeholder ? 1 : String(b.received || b.time).localeCompare(String(a.received || a.time))));
     if (!sel[tab] || !items.find((x) => x.id === sel[tab])) sel[tab] = items[0] && items[0].id;
@@ -201,6 +251,20 @@
       return {
         h, avatar, chip, steps: stepsView, decide, reject, typeDraft, composerValue, userEdited, render,
         select: (id) => ((sel[tab] = id), render()),
+        // New mail (Outlook look-alike): Tia writes it from a few words; Save draft = Outlook draft typed in
+        writeNew: async ({ to, subject, notes }) => {
+          if (!window.tia.livePost) throw new Error("Tia writes new mails on the live Tia.");
+          const r = await window.tia.livePost("suggest", { mode: "compose", vault: true, to, subject, text: notes });
+          if (r.error) throw new Error(r.error);
+          return r;
+        },
+        sendNew: async ({ channel, to, subject, text }) => {
+          if (!window.tia.demoAct) throw new Error("On the live Tia this opens Outlook and types the mail in.");
+          const r = await window.tia.demoAct({ channel, to, subject, text });
+          if (r.error) throw new Error(r.error);
+          const last = (r.steps || []).filter((s) => s.detail).pop();
+          return { detail: last ? last.detail : "Draft saved – you press Send." };
+        },
         pendingFor: (id) => (follow && pendingType === id ? ((pendingType = null), true) : false),
         textarea: (x2, placeholder) => {
           const c2 = chatCompose(x2);
@@ -236,7 +300,7 @@
       if (x.draft) {
         const ta = h("textarea", { "aria-label": "Reply", oninput: (e) => (userEdited[x.id] = e.target.value) });
         ta.value = composerValue(x);
-        const open = x.state === "open";
+        const open = x.state === "open" || x.state === "new" || (x.live && x.state === "edited");
         const box = h("div", { class: "mail-tia" },
           h("div", { class: "top" }, chip(x), h("span", {}, open ? "Tia drafted a reply – edit it or use it" : x.state === "handled" ? "Tia handled this with the reply below" : "Draft made in Outlook")),
           x.reason ? h("div", { class: "why" }, `Why: ${x.reason}`) : null,
@@ -258,7 +322,7 @@
 
   function chatCompose(x, cls, sendLabel) {
     if (!x) return null;
-    const open = x.state === "open";
+    const open = x.state === "open" || x.state === "new" || (x.live && x.state === "edited");
     const ta = h("textarea", { rows: 1, placeholder: "Type a message", oninput: (e) => (userEdited[x.id] = e.target.value) });
     ta.value = open ? composerValue(x) : "";
     const fit = () => (ta.rows = Math.min(7, Math.max(2, ta.value.split("\n").length + Math.floor(ta.value.length / 90)))); // grow with the draft
@@ -369,6 +433,7 @@
     });
 
   build();
+  if (window.TiaCalendar) window.TiaCalendar.setRerender(() => (tab === "calendar" ? render() : null));
   if (window.TiaDocs) window.TiaDocs.setRerender(() => (tab === "docs" ? render() : null));
   if (window.TiaLive) window.TiaLive.setRerender(() => (tab !== "tia" ? render() : null));
   S.load().then(render);

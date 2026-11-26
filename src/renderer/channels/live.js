@@ -13,14 +13,14 @@
   const pct = (v) => (v === null || v === undefined ? "—" : `${Number(v).toFixed(2)}%`);
 
   let rerender = () => {};
-  const LIVE_TABS = ["email", "slack", "instagram", "whatsapp", "linkedin", "ads"];
+  const LIVE_TABS = ["calendar", "email", "slack", "instagram", "whatsapp", "linkedin", "ads"];
   const mode = {};
   for (const t of LIVE_TABS) {
     let saved = null;
     try {
       saved = localStorage.getItem(`tia.src.${t}`);
     } catch {}
-    mode[t] = saved || (["linkedin", "ads"].includes(t) ? "live" : "demo");
+    mode[t] = saved || (["linkedin", "ads", "calendar"].includes(t) ? "live" : "demo");
   }
   const isLive = (tab) => canLive() && mode[tab] === "live";
 
@@ -180,6 +180,15 @@
         rerender();
       },
       reject: (x) => ((skipped[x.id] = true), rerender()),
+      writeNew: async ({ to, subject, notes }) => {
+        const r = await T().livePost("suggest", { mode: "compose", vault: false, to, subject, text: notes });
+        if (r.error) throw new Error(r.error);
+        return r;
+      },
+      sendNew: async ({ to, subject, text }) => {
+        const r = await saveDraft({ app: "gmail", id: `new_${Date.now()}`, isNew: true, to, subject, text });
+        return { detail: `Saved – ${r.where}. Open Gmail to send it.` };
+      },
       typeDraft: (x, ta, done) => {
         if (x.live === "whatsapp") {
           // the server keeps the chat's draft; ask for a fresh one
@@ -262,7 +271,7 @@
       h("div", { class: "fb-text" }, text || ""),
       pic,
       h("div", { class: "fb-link" }, h("div", {}, h("div", { class: "fb-host" }, host || (isLive("ads") ? page.toUpperCase() : "OAKLINE-STUDIO.EXAMPLE")), h("div", { class: "fb-hl" }, headline || "")), h("button", {}, cta)),
-      h("div", { class: "fb-acts" }, h("span", {}, I("heart"), "Like"), h("span", {}, I("chat_multiple"), "Comment"), h("span", {}, I("arrow_forward"), "Share")));
+      h("div", { class: "fb-acts" }, "Preview – how people see the ad in their feed"));
   }
   function adsView(c) {
     const { h } = c;
@@ -282,7 +291,7 @@
     const cur = acc.currency;
     const sel = h("select", { class: "am-acc", onchange: (e) => ((ads.acc = +e.target.value), (ads.camp = ads.ad = null), (ads.level = "campaigns"), rerender()) },
       data.accounts.map((a, i) => h("option", { value: i, selected: i === ads.acc ? "selected" : null }, `${a.name} (${a.id.replace(/^act_/, "")})`)));
-    top.append(sel, h("span", { class: "sp" }), h("div", { class: "am-range" }, I("calendar"), `${data.range.since} – ${data.range.until}`));
+    top.append(sel, h("span", { class: "sp" }), h("div", { class: "am-range" }, `Results ${data.range.since} – ${data.range.until}`));
     // account summary
     const spend = acc.campaigns.reduce((t, x) => t + x.spend, 0);
     const imp = acc.campaigns.reduce((t, x) => t + x.impressions, 0);
@@ -297,16 +306,14 @@
     const shownAds = acc.ads.filter((a) => !camp || a.campaignId === camp.id);
     const tabs = h("div", { class: "am-tabs" },
       h("button", { class: ads.level === "campaigns" ? "on" : "", onclick: () => ((ads.level = "campaigns"), (ads.camp = null), rerender()) }, I("folder"), "Campaigns", h("span", { class: "n" }, acc.campaigns.length)),
-      h("button", { class: "dis", title: "Ad sets are not shown in Tia" }, I("grid_dots"), "Ad sets"),
       h("button", { class: ads.level === "ads" ? "on" : "", onclick: () => ((ads.level = "ads"), rerender()) }, I("image"), camp ? `Ads in “${camp.name}”` : "Ads", h("span", { class: "n" }, shownAds.length)));
     const tools = h("div", { class: "am-tools" },
-      h("button", { class: "am-create", disabled: true, title: "Tia never creates or changes live ads – she drafts, you publish in Ads Manager" }, I("add"), "Create"),
       h("button", { class: "am-btn", onclick: () => { const first = (ads.level === "ads" ? shownAds : acc.ads)[0]; if (first) { ads.level = "ads"; ads.ad = first.id; review(first, acc.campaigns.find((x) => x.id === first.campaignId), cur); } } }, I("sparkle"), "Ask Tia to review"),
       h("span", { class: "sp" }),
       h("span", { class: "am-note" }, "Read-only from Meta · Tia's changes are drafts"));
     // table
     const T2 = h("table", { class: "am-table" });
-    const cols = ["", ads.level === "ads" ? "Ad" : "Campaign", "Delivery", "Tia", "Results", "Cost per result", "Amount spent", "Impressions", "Reach", "CTR", "CPC"];
+    const cols = [ads.level === "ads" ? "Ad" : "Campaign", "Delivery", "Tia", "Results", "Cost per result", "Amount spent", "Impressions", "Reach", "CTR", "CPC"];
     T2.append(h("thead", {}, h("tr", {}, cols.map((t) => h("th", {}, t)))));
     const body = h("tbody");
     const rows = ads.level === "ads" ? shownAds : acc.campaigns;
@@ -322,7 +329,6 @@
         } else ((ads.camp = x.id), (ads.level = "ads"), (ads.ad = null));
         rerender();
       } },
-        h("td", {}, h("span", { class: `am-tg ${on ? "on" : ""}`, title: "Read-only – switch it in Ads Manager" }, h("i"))),
         h("td", { class: "nm" }, h("div", {}, x.name), h("div", { class: "sub" }, ads.level === "ads" ? (x.headline || "").slice(0, 60) : `${x.objective} · ${x.budget}`)),
         h("td", {}, h("span", { class: `am-dl ${on ? "on" : ""}` }, on ? "Active" : "Off")),
         h("td", {}, rv && rv.score !== undefined ? h("span", { class: `am-score s${rv.score >= 70 ? "g" : rv.score >= 45 ? "o" : "b"}` }, rv.score) : h("span", { class: `am-flag ${fc}` }, ft)),
@@ -332,7 +338,7 @@
     if (!rows.length) body.append(h("tr", {}, h("td", { colspan: cols.length, class: "empty" }, "Nothing here yet.")));
     T2.append(body);
     const left = h("div", { class: "am-left" }, tiles, tabs, tools, h("div", { class: "am-twrap" }, T2));
-    const main = h("div", { class: "am-body" }, h("div", { class: "am-rail" }, ...["home", "megaphone", "grid_dots", "people", "settings"].map((n, i) => h("div", { class: i === 1 ? "on" : "" }, I(n)))), left);
+    const main = h("div", { class: "am-body" }, left);
     // drawer: ad preview + Tia's review + editable improved version
     const ad = ads.ad && acc.ads.find((x) => x.id === ads.ad);
     if (ad) main.append(adDrawer(c, ad, acc));
@@ -398,8 +404,8 @@
     const s = live ? load("linkedin") : { data: D().linkedin };
     const wait = notice(h, "linkedin", s, "LinkedIn profile");
     const p = (s.data && s.data.profile) || { name: "", headline: "" };
-    const nav = h("div", { class: "li-top" }, h("div", { class: "li-logo" }, "in"), h("div", { class: "li-search" }, I("search"), "Search"), h("span", { class: "sp" }),
-      ...[["home_filled", "Home", true], ["people", "My Network"], ["bookmark", "Jobs"], ["chat_multiple", "Messaging"], ["alert", "Notifications"]].map(([i, t, on]) => h("div", { class: `li-nav ${on ? "on" : ""}` }, I(i), h("span", {}, t))));
+    const nav = h("div", { class: "li-top" }, h("div", { class: "li-logo" }, "in"), h("div", { class: "li-title" }, "Write a post"), h("span", { class: "sp" }),
+      h("a", { class: "li-btn ghost", href: "https://www.linkedin.com/feed/", target: "_blank", rel: "noopener" }, "Open LinkedIn"));
     if (wait) return h("div", { class: "li" }, nav, wait);
     const av = (cls) => {
       const pic = img(p.picture);
@@ -442,7 +448,7 @@
       h("div", { class: "li-tia" }, I("sparkle"), topic, h("button", { class: "li-btn", disabled: li.busy, onclick: () => write(false) }, li.busy ? "Writing…" : "Let Tia write")),
       li.err ? h("div", { class: "lv-wait err" }, li.err) : "",
       ta,
-      h("div", { class: "li-bar" }, h("div", { class: "ic" }, I("image"), I("video"), I("calendar"), I("add")), h("span", { class: "sp" }),
+      h("div", { class: "li-bar" }, h("span", { class: "sp" }),
         h("button", { class: "li-btn ghost", disabled: li.busy || !(li.text || "").trim(), onclick: () => write(true) }, "Improve with Tia"),
         h("button", { class: "li-btn ghost", disabled: !(li.text || "").trim(), onclick: async () => {
           await saveDraft({ app: "linkedin", id: `li_${Date.now()}`, text: li.text });
@@ -468,7 +474,7 @@
   function instagramLive(c) {
     const { h } = c;
     const s = load("instagram");
-    const nav = h("div", { class: "ig-nav" }, ...["home", "search", "compass_northwest", "play_circle", "send_filled", "heart", "add"].map((n) => h("div", {}, I(n))));
+    const nav = "";
     const wait = notice(h, "instagram", s, "Instagram");
     if (wait) return h("div", { class: "ig" }, nav, wait);
     const { profile: p, posts, dmNote } = s.data;
@@ -478,7 +484,7 @@
       return im;
     };
     const head = h("div", { class: "igp-head" }, pic(p.picture, "igp-av"),
-      h("div", {}, h("div", { class: "igp-un" }, p.username, h("button", { class: "igp-b" }, "Edit profile"), h("button", { class: "igp-b" }, "View archive")),
+      h("div", {}, h("div", { class: "igp-un" }, p.username, h("a", { class: "igp-b", href: `https://www.instagram.com/${p.username}/`, target: "_blank", rel: "noopener" }, "Open on Instagram")),
         h("div", { class: "igp-st" }, h("span", {}, h("b", {}, n0(p.posts)), " posts"), h("span", {}, h("b", {}, n0(p.followers)), " followers"), h("span", {}, h("b", {}, n0(p.follows)), " following")),
         h("div", { class: "igp-nm" }, p.name), h("div", { class: "igp-bio" }, p.bio)));
     const grid = h("div", { class: "igp-grid" });
@@ -488,7 +494,7 @@
       if (x.type === "VIDEO") cell.append(h("div", { class: "rl" }, I("play_circle")));
       grid.append(cell);
     }
-    const main = h("div", { class: "igp" }, dmNote ? h("div", { class: "igp-note" }, I("info"), dmNote) : "", head, h("div", { class: "igp-tabs" }, h("span", { class: "on" }, I("grid_dots"), "POSTS"), h("span", {}, I("play_circle"), "REELS"), h("span", {}, I("bookmark"), "SAVED")), grid);
+    const main = h("div", { class: "igp" }, dmNote ? h("div", { class: "igp-note" }, I("info"), dmNote) : "", head, h("div", { class: "igp-tabs" }, h("span", { class: "on" }, I("grid_dots"), "POSTS")), grid);
     const sel = posts.find((x) => x.id === ig.post);
     const side = h("div", { class: "igp-side" });
     if (sel) {

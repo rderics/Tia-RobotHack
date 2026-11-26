@@ -43,6 +43,11 @@
   }
 
   window.tia = {
+    // the demo business's messages in the apps from the start; Let Tia write uses the recorded real answer
+    demoInbox: async () => {
+      const [inbox, replay] = await data();
+      return inbox.map((m) => ({ ...m, draft: (replay[m.id] && replay[m.id].proposal && replay[m.id].proposal.draft_reply) || "" }));
+    },
     info: async () => ({ provider: "replay", model: "recorded demo", hasReplay: true, today: "Thursday 19 November 2026, 13:00", static: true }),
     run: async () => {
       const [inbox, saved] = await data();

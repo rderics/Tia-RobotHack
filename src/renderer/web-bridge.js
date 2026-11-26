@@ -99,6 +99,9 @@
     // The owner's real accounts (Composio): read + drafts only
     live: (what, fresh) => get(`api/live/${what}${fresh ? "?refresh=1" : ""}`),
     livePost: (what, body) => post(`api/live/${what}`, body),
+    // demo business messages in the apps + real actions for answers
+    demoInbox: () => get("api/demo/inbox"),
+    demoAct: (body) => post("api/demo/act", body),
     // Documents tab
     docs: () => get("api/docs"),
     docFile: (name) => withToken(`api/docs/file?name=${encodeURIComponent(name)}`),

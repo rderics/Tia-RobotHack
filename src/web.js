@@ -302,12 +302,15 @@ async function localApi(req, res, route, url) {
       if (req.method === "GET") {
         if (app === "img") return L.image(url.searchParams.get("u") || "", res);
         if (app === "whatsapp") return sendJson(res, 200, require("./connectors/whatsapp").data(cfg));
+        if (app === "calendar") return sendJson(res, 200, await L.calendar(cfg, url.searchParams.get("week")));
         if (app === "drafts") return sendJson(res, 200, L.drafts(cfg));
         if (["status", "gmail", "slack", "instagram", "linkedin", "ads"].includes(app)) return sendJson(res, 200, await L[app](cfg, fresh));
       }
       if (req.method === "POST") {
         const body = await readJson(req);
         if (app === "draft") return sendJson(res, 200, await L.saveDraft(cfg, body));
+        if (app === "calendar/add") return sendJson(res, 200, await L.addEvent(cfg, body));
+        if (app === "calendar/parse") return sendJson(res, 200, await L.parseEvent(cfg, body));
         if (app === "whatsapp/send") {
           // the owner pressed Send on a reply (his approval) – Tia never calls this by herself
           const W = require("./connectors/whatsapp");
@@ -325,6 +328,31 @@ async function localApi(req, res, route, url) {
       return sendJson(res, 404, { error: "unknown live route" });
     } catch (e) {
       return sendJson(res, 502, { error: String(e.message || e).slice(0, 300) });
+    }
+  }
+  // ---------- the demo business's messages in the apps from the start + real actions for answers ----------
+  if (route === "/api/demo/inbox" && req.method === "GET") {
+    const inbox = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "demo", "inbox.json"), "utf8"));
+    let replay = {};
+    try {
+      replay = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "demo", "replay.json"), "utf8"));
+    } catch {}
+    return sendJson(res, 200, inbox.map((m) => ({ ...m, draft: (replay[m.id] && replay[m.id].proposal && replay[m.id].proposal.draft_reply) || "" })));
+  }
+  if (route === "/api/demo/act" && req.method === "POST") {
+    // the owner pressed Save draft / send on a message → Outlook draft typed in, or WhatsApp opened with the text
+    const body = await readJson(req);
+    const A = require("./actions");
+    const cfg = loadConfig();
+    const steps = [];
+    const step = (s) => steps.push(s);
+    try {
+      if (body.channel === "email") await A.outlook(cfg, { to: String(body.to || ""), subject: String(body.subject || ""), text: String(body.text || "") }, step);
+      else if (body.channel === "whatsapp") A.whatsapp(cfg, { phone: String(body.to || ""), text: String(body.text || "") }, step);
+      else return sendJson(res, 400, { error: "unknown channel" });
+      return sendJson(res, 200, { ok: true, steps });
+    } catch (e) {
+      return sendJson(res, 200, { error: String(e.message || e), steps });
     }
   }
   // ---------- Documents tab: contracts / offers Tia made → preview, print, email as draft ----------

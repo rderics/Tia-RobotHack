@@ -1,10 +1,9 @@
-// High-fidelity look-alikes of the apps owners use every day: Outlook (web), WhatsApp Web, Instagram Direct, Slack.
-// Structure follows the real apps (header, nav rail, list, conversation, composer). Icons: Fluent UI System Icons (MIT).
-// No brand logos. Each view gets a context `c` from views.js with the data and Tia's actions.
+// Look-alikes of the apps owners use every day: Outlook (web), WhatsApp Web, Instagram Direct, Slack.
+// Layout and colours follow the real apps so they feel familiar – but every control on screen WORKS: no decorative
+// buttons. Icons: Fluent UI System Icons (MIT). No brand logos. Each view gets a context `c` from views.js.
 (function () {
   const ICONS = window.TiaIcons || {};
   const NS = "http://www.w3.org/2000/svg";
-  // Fluent icon as inline SVG (20px grid)
   function I(name) {
     const svg = document.createElementNS(NS, "svg");
     svg.setAttribute("viewBox", "0 0 20 20");
@@ -16,110 +15,152 @@
     }
     return svg;
   }
-  const box = (c, cls, ...kids) => c.h("div", { class: cls }, ...kids);
-  const icons = (c, cls, names) => c.h("div", { class: cls }, names.map((n) => c.h("div", { title: n.replace(/_/g, " ") }, I(n))));
   const tiaBanner = (c, x, text) =>
-    c.h("div", { class: "tia-banner" }, I("sparkle"), c.h("div", {}, c.h("b", {}, text), x.reason ? c.h("span", { class: "why" }, x.reason) : null));
+    c.h("div", { class: "tia-banner" }, I("sparkle"), c.h("div", {}, c.h("b", {}, text), x && x.reason ? c.h("span", { class: "why" }, x.reason) : null));
+  // search boxes keep their text across re-renders
+  const query = { email: "", whatsapp: "", instagram: "", slack: "" };
+  const match = (tab, i) => {
+    const q = query[tab].trim().toLowerCase();
+    return !q || `${i.from} ${i.subject || ""} ${i.text}`.toLowerCase().includes(q);
+  };
+  function searchBox(c, tab, cls, placeholder) {
+    const inp = c.h("input", { class: cls, placeholder, value: query[tab], oninput: (e) => ((query[tab] = e.target.value), c.render(), refocus(tab)) });
+    return inp;
+  }
+  // after a re-render, put the cursor back into the search box the owner is typing in
+  function refocus(tab) {
+    setTimeout(() => {
+      const el = document.querySelector(`[data-search="${tab}"]`);
+      if (el && document.activeElement !== el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    }, 0);
+  }
+  const isOpen = (x) => x.state === "open" || x.state === "new" || (x.live && x.state === "edited");
+  const replyable = (x) => x.draft || x.live || x.state === "new";
 
   // ============================ OUTLOOK ============================
   let folder = "inbox";
+  let composing = null; // { to, subject, text } while writing a new mail
   function mail(c, items, x) {
     const { h } = c;
-    const A = c.acct || {}; // the owner's real account when the switch is on "live"
-    const counts = {
-      inbox: items.filter((i) => i.state === "open").length,
-      needs: items.filter((i) => i.state === "open").length,
-      handled: items.filter((i) => i.state === "handled").length,
-      drafts: items.filter((i) => ["approved", "edited"].includes(i.state)).length,
-    };
-    const shown = items.filter((i) => ({ inbox: true, needs: i.state === "open", handled: i.state === "handled", drafts: ["approved", "edited"].includes(i.state) })[folder] ?? false);
-    const F = (key, icon, label, n, extra = "") =>
-      h("div", { class: `ol-f ${folder === key ? "on" : ""} ${extra}`, onclick: () => ((folder = key), c.render()) }, I(icon), h("span", {}, label), n ? h("span", { class: "n" }, n) : "");
-    const folders = box(c, "ol-folders",
-      h("div", { class: "ol-fav" }, I("chevron_down"), "Favorites"),
-      F("inbox", folder === "inbox" ? "mail_inbox_filled" : "mail_inbox", "Inbox", counts.inbox),
-      F("needs", "sparkle", "Needs you", counts.needs, "tia"),
-      F("handled", "checkmark", "Handled by Tia", counts.handled, "tia"),
-      h("div", { class: "ol-acct" }, I("chevron_down"), A.box || "info@oakline-studio.example"),
-      F("inbox", "mail_inbox", "Inbox", counts.inbox),
-      F("junk", "warning", "Junk Email", 0),
-      F("drafts", "drafts", "Drafts", counts.drafts),
-      F("sent", "send", "Sent Items", 0),
-      F("deleted", "delete", "Deleted Items", 0),
-      F("archive", "archive", "Archive", 0),
-      F("notes", "notebook", "Notes", 0));
+    const A = c.acct || {};
+    const inFolder = (i) => ({ inbox: true, unread: isOpen(i), needs: i.state === "open" && !i.live, handled: i.state === "handled", drafts: ["approved", "edited"].includes(i.state) })[folder];
+    const shown = items.filter((i) => inFolder(i) && match("email", i));
+    const n = (f) => items.filter((i) => ({ inbox: isOpen(i), unread: isOpen(i), needs: i.state === "open" && !i.live, handled: i.state === "handled", drafts: ["approved", "edited"].includes(i.state) })[f]).length;
+    const F = (key, icon, label, extra = "") =>
+      h("div", { class: `ol-f ${folder === key ? "on" : ""} ${extra}`, onclick: () => ((folder = key), (composing = null), c.render()) }, I(icon), h("span", {}, label), n(key) ? h("span", { class: "n" }, n(key)) : "");
+    const folders = h("div", { class: "ol-folders" },
+      h("div", { class: "ol-acct" }, A.box || "info@oakline-studio.example"),
+      F("inbox", folder === "inbox" ? "mail_inbox_filled" : "mail_inbox", "Inbox"),
+      A.live ? "" : F("needs", "sparkle", "Needs you", "tia"),
+      A.live ? "" : F("handled", "checkmark", "Handled by Tia", "tia"),
+      F("drafts", "drafts", "Drafts"));
+    const search = searchBox(c, "email", "ol-search", "Search mail");
+    search.setAttribute("data-search", "email");
     const list = h("div", { class: "ol-card" },
-      h("div", { class: "ol-lhd" }, { inbox: "Inbox", needs: "Needs you", handled: "Handled by Tia", drafts: "Drafts", sent: "Sent Items" }[folder] || "Folder", I("star"), h("span", { class: "sp" }), I("checkmark_square"), I("filter")),
-      h("div", { class: "ol-pivot" }, h("span", { class: "on" }, "Focused"), h("span", {}, "Other")),
-      shown.length ? h("div", { class: "ol-group" }, "Today") : null,
+      h("div", { class: "ol-lhd" }, { inbox: "Inbox", needs: "Needs you", handled: "Handled by Tia", drafts: "Drafts" }[folder] || "Inbox"),
       shown.map((i) =>
-        h("div", { class: `ol-row ${i.state === "open" ? "unread" : ""} ${x && i.id === x.id ? "sel" : ""}`, onclick: () => c.select(i.id) },
+        h("div", { class: `ol-row ${isOpen(i) && i.state !== "edited" ? "unread" : ""} ${x && i.id === x.id && !composing ? "sel" : ""}`, onclick: () => ((composing = null), c.select(i.id)) },
           c.avatar(i.from), h("div", { class: "who" }, i.from), h("div", { class: "time" }, i.time),
           h("div", { class: "subj" }, i.subject || "(No subject)"), h("div", { class: "prev" }, c.chip(i), h("span", {}, i.text.slice(0, 90))))),
-      shown.length ? null : h("div", { class: "ch-empty" }, folder === "sent" ? "Tia never sends. Your drafts wait in Drafts until you press Send." : "Nothing in this folder."));
+      shown.length ? null : h("div", { class: "ch-empty" }, query.email ? "No mail matches your search." : folder === "drafts" ? "No drafts yet – answer a mail and press Save draft." : "Nothing here."));
     const read = h("div", { class: "ol-card ol-read" });
-    if (x) {
+    if (composing) read.append(composeView(c, A));
+    else if (x) {
       read.append(
-        h("div", { class: "ol-subj" }, x.subject || "(No subject)", h("span", { class: "sp" }), I("more_horizontal")),
+        h("div", { class: "ol-subj" }, x.subject || "(No subject)"),
         h("div", { class: "ol-msg" },
-          h("div", { class: "ol-from" }, c.avatar(x.from), h("div", { class: "n" }, x.from, " ", h("span", {}, `<${x.address}>`)),
-            h("div", { class: "acts" }, h("div", { class: "t" }, x.time), h("div", {}, I("arrow_reply")), h("div", {}, I("arrow_reply_all")), h("div", {}, I("arrow_forward")), h("div", {}, I("more_horizontal"))),
+          h("div", { class: "ol-from" }, c.avatar(x.from), h("div", { class: "n" }, x.from, " ", h("span", {}, `<${x.address}>`)), h("div", { class: "acts" }, h("div", { class: "t" }, x.time)),
             h("div", { class: "to" }, `To: ${A.me || "Mārtiņš Ozols"}`)),
           h("div", { class: "ol-body" }, x.text)));
-      if (x.draft || x.live) {
-        const open = x.state === "open" || (x.live && x.state === "edited");
-        const ta = h("textarea", { "aria-label": "Message body", placeholder: x.live ? "Write your reply – or press “Let Tia write”" : "", oninput: (e) => (c.userEdited[x.id] = e.target.value) });
+      if (replyable(x)) {
+        const open = isOpen(x);
+        const ta = h("textarea", { "aria-label": "Message body", placeholder: "Write your reply – or press “Let Tia write”", oninput: (e) => (c.userEdited[x.id] = e.target.value) });
         ta.value = c.composerValue(x);
         read.append(h("div", { class: "ol-reply" },
-          tiaBanner(c, x, x.live ? (x.state === "edited" ? A.savedBanner : A.banner) : open ? "Tia drafted this reply – edit it, or save it as a draft." : x.state === "handled" ? "Tia handled this message with the reply below." : "Saved as a draft in Outlook."),
+          tiaBanner(c, x, x.live ? (x.state === "edited" ? A.savedBanner : A.banner) : x.state === "new" ? "Write your reply, or let Tia write it from the business notes. “Save draft” opens Outlook and types it in – you press Send." : open ? "Tia drafted this reply – edit it, or save it as a draft." : x.state === "handled" ? "Tia handled this message with the reply below." : "Saved as a draft in Outlook."),
           h("div", { class: "ol-line" }, h("span", { class: "k" }, "From"), h("span", {}, A.from || "info@oakline-studio.example")),
           h("div", { class: "ol-line" }, h("span", { class: "k" }, "To"), h("span", { class: "ol-pill" }, c.avatar(x.from), x.address)),
           ta,
           h("div", { class: "ol-rbar" },
-            h("div", { class: "ol-send" }, h("button", { disabled: !open, onclick: () => c.decide(x, ta.value) }, "Save draft"), h("button", { disabled: !open, title: "More" }, I("chevron_down"))),
-            h("button", { class: "ol-btn", disabled: !open, onclick: () => ((c.userEdited[x.id] = x.draft), c.typeDraft(x, ta)) }, "Let Tia write"),
+            h("button", { class: "ol-primary", disabled: !open, onclick: () => c.decide(x, ta.value) }, "Save draft"),
+            h("button", { class: "ol-btn", disabled: !open, onclick: () => ((c.userEdited[x.id] = undefined), c.typeDraft(x, ta)) }, I("sparkle"), "Let Tia write"),
             h("button", { class: "ol-btn", disabled: !open, onclick: () => c.reject(x) }, "Discard"),
-            h("div", { class: "ic" }, I("attach"), I("image"), I("emoji")),
             h("span", { class: "note" }, A.note || "Tia never sends – you press Send in Outlook.")),
           c.steps(x)));
         if (c.pendingFor(x.id)) c.typeDraft(x, ta);
       }
-    } else read.append(h("div", { class: "ch-empty" }, "Select an item to read. Nothing is selected."));
+    } else read.append(h("div", { class: "ch-empty" }, "Select a mail to read it."));
     return h("div", { class: "ol" },
-      h("div", { class: "ol-head" }, h("div", { class: "waffle" }, I("grid_dots")), h("div", { class: "name" }, "Mail"),
-        h("div", { class: "search" }, I("search"), "Search"),
-        h("div", { class: "right" }, h("div", {}, I("megaphone")), h("div", {}, I("alert")), h("div", {}, I("settings")), h("div", {}, I("question_circle")), h("div", { class: "me" }, A.initials || "MO"))),
-      h("div", { class: "ol-main" },
-        h("div", { class: "ol-apps" }, h("div", { class: "on" }, I("mail_filled")), h("div", {}, I("calendar")), h("div", {}, I("people")), h("div", {}, I("checkmark_square")), h("div", {}, I("grid_dots"))),
-        h("div", { class: "ol-work" },
-          h("div", { class: "ol-ribbon" },
-            h("div", { class: "ol-tabs" }, h("span", { class: "on" }, "Home"), h("span", {}, "View"), h("span", {}, "Help")),
-            h("div", { class: "ol-cmds" },
-              h("button", { class: "ol-cmd new", onclick: () => alert("New mail: ask Tia on the Tia tab – e.g. “Write to Ieva about the worktop”.") }, I("mail"), "New mail"),
-              ...[["delete", "Delete"], ["archive", "Archive"], ["warning", "Report"]].map(([i, t]) => h("button", { class: "ol-cmd" }, I(i), t)),
-              h("span", { class: "ol-sep" }),
-              ...[["folder", "Move to"], ["arrow_reply", "Reply"], ["arrow_reply_all", "Reply all"], ["arrow_forward", "Forward"]].map(([i, t]) => h("button", { class: "ol-cmd" }, I(i), t)),
-              h("span", { class: "ol-sep" }),
-              ...[["mail_read", "Read / Unread"], ["flag", "Flag"], ["pin", "Pin"]].map(([i, t]) => h("button", { class: "ol-cmd" }, I(i), t)),
-              h("button", { class: "ol-cmd" }, I("more_horizontal")))),
-          h("div", { class: "ol-panes" }, folders, list, read))));
+      h("div", { class: "ol-head" }, h("div", { class: "name" }, "Mail"), search, h("div", { class: "right" }, h("div", { class: "me", title: A.box || "" }, A.initials || "MO"))),
+      h("div", { class: "ol-work" },
+        h("div", { class: "ol-ribbon" },
+          h("div", { class: "ol-cmds" },
+            h("button", { class: "ol-cmd new", onclick: () => ((composing = { to: "", subject: "", text: "" }), c.render()) }, I("mail"), "New mail"),
+            x && !composing && replyable(x) ? h("button", { class: "ol-cmd", onclick: () => document.querySelector(".ol-reply textarea") && document.querySelector(".ol-reply textarea").focus() }, I("arrow_reply"), "Reply") : "",
+            x && !composing && isOpen(x) ? h("button", { class: "ol-cmd", onclick: () => c.reject(x) }, I("archive"), "Done – no reply") : "")),
+        h("div", { class: "ol-panes" }, folders, list, read)));
+  }
+  function composeView(c, A) {
+    const { h } = c;
+    const m = composing;
+    const to = h("input", { class: "ol-in", placeholder: "To (name or email)", value: m.to, oninput: (e) => (m.to = e.target.value) });
+    const subj = h("input", { class: "ol-in", placeholder: "Add a subject", value: m.subject, oninput: (e) => (m.subject = e.target.value) });
+    const ta = h("textarea", { placeholder: "Write the mail – or write a few words about what it should say and press “Let Tia write”", oninput: (e) => (m.text = e.target.value) });
+    ta.value = m.text;
+    const status = h("div", { class: "tia-steps" });
+    return h("div", { class: "ol-reply ol-compose" },
+      h("div", { class: "ol-subj" }, "New message"),
+      tiaBanner(c, null, "Write it yourself, or give Tia a few words and she writes it from the business notes. Save draft = a real draft you send yourself."),
+      h("div", { class: "ol-line" }, h("span", { class: "k" }, "To"), to),
+      h("div", { class: "ol-line" }, h("span", { class: "k" }, "Subject"), subj),
+      ta,
+      h("div", { class: "ol-rbar" },
+        h("button", { class: "ol-primary", onclick: async () => {
+          if (!m.text.trim()) return ta.focus();
+          status.textContent = "Saving the draft…";
+          try {
+            const r = await c.sendNew({ channel: "email", to: m.to, subject: m.subject, text: m.text });
+            status.textContent = `✓ ${(r && r.detail) || "Draft saved – you press Send."}`;
+          } catch (e) {
+            status.textContent = `⚠ ${e.message || e}`;
+          }
+        } }, "Save draft"),
+        h("button", { class: "ol-btn", onclick: async () => {
+          status.textContent = "Tia is writing…";
+          try {
+            const r = await c.writeNew({ channel: "email", to: m.to, subject: m.subject, notes: m.text });
+            m.text = r.text || "";
+            if (r.subject && !m.subject) m.subject = r.subject;
+            ta.value = m.text;
+            subj.value = m.subject;
+            status.textContent = "";
+          } catch (e) {
+            status.textContent = `⚠ ${e.message || e}`;
+          }
+        } }, I("sparkle"), "Let Tia write"),
+        h("button", { class: "ol-btn", onclick: () => ((composing = null), c.render()) }, "Cancel")),
+      status);
   }
 
   // ============================ WHATSAPP ============================
+  let waFilter = "all";
   function wa(c, items, x) {
     const { h } = c;
-    const list = h("div", { class: "wa-list" }, items.map((i) =>
-      h("div", { class: `wa-row ${i.state === "open" ? "unread" : ""} ${x && i.id === x.id ? "sel" : ""}`, onclick: () => c.select(i.id) },
+    const shown = items.filter((i) => (waFilter === "all" || isOpen(i)) && match("whatsapp", i));
+    const list = h("div", { class: "wa-list" }, shown.map((i) =>
+      h("div", { class: `wa-row ${isOpen(i) ? "unread" : ""} ${x && i.id === x.id ? "sel" : ""}`, onclick: () => c.select(i.id) },
         c.avatar(i.from), h("div", { class: "mid" },
           h("div", { class: "l1" }, h("span", { class: "nm" }, i.from), h("span", { class: "tm" }, i.time)),
-          h("div", { class: "l2" }, h("span", {}, i.text), i.state === "open" ? h("span", { class: "cnt" }, "1") : null)))));
+          h("div", { class: "l2" }, h("span", {}, i.text), isOpen(i) && (i.unread || !i.live) ? h("span", { class: "cnt" }, i.unread || "1") : null)))),
+      shown.length ? "" : h("div", { class: "ch-empty" }, query.whatsapp ? "No chat matches your search." : "No chats."));
     const main = h("div", { class: "wa-main" });
     if (x) {
-      const open = x.state === "open" || (x.live && x.state === "edited");
-      const msgs = h("div", { class: "wa-msgs" },
-        h("div", { class: "wa-enc" }, "Messages are end-to-end encrypted. No one outside of this chat can read them."));
+      const open = isOpen(x);
+      const msgs = h("div", { class: "wa-msgs" }, h("div", { class: "wa-enc" }, "Messages are end-to-end encrypted. No one outside of this chat can read them."));
       if (x.thread) {
-        // a real chat (WhatsApp Business webhook): the whole conversation, grouped by day
         let day = "";
         for (const m of x.thread) {
           const d = new Date(m.at);
@@ -129,23 +170,23 @@
         }
       } else msgs.append(h("div", { class: "wa-day" }, "Today"), h("div", { class: "wb in" }, x.text, h("span", { class: "t" }, x.time)));
       if (!open && x.draft) msgs.append(h("div", { class: "wb out draft" }, h("span", { class: "lbl" }, x.state === "handled" ? "Tia · handled" : "Tia · draft"), x.draft, h("span", { class: "t" }, x.time)));
-      main.append(
-        h("div", { class: "wa-chathead" }, c.avatar(x.from), h("div", {}, h("div", { class: "nm" }, x.from), h("div", { class: "s" }, x.live ? x.address : "click here for contact info")), h("span", { class: "sp" }), h("div", { class: "ic" }, I("video"), I("search"), I("more_vertical"))),
-        msgs);
+      main.append(h("div", { class: "wa-chathead" }, c.avatar(x.from), h("div", {}, h("div", { class: "nm" }, x.from), h("div", { class: "s" }, x.address || ""))), msgs);
       if (open) {
         const ta = c.textarea(x, "Type a message");
-        main.append(h("div", { class: "wa-tia" }, tiaBanner(c, x, x.live ? (c.acct && c.acct.banner) || "" : "Tia's draft is in the message box – change it or press send: WhatsApp opens with the text, you press send."), c.steps(x)),
-          h("div", { class: "wa-compose" }, h("div", { class: "ic" }, I("add")), h("div", { class: "ic" }, I("emoji")), ta,
-            x.live ? h("button", { class: "wa-redo", title: "Let Tia write it again", onclick: () => c.typeDraft(x, ta) }, I("sparkle")) : "",
-            h("button", { class: "wa-send", title: x.live ? "Save the draft and copy it" : "Open in WhatsApp", onclick: () => c.decide(x, ta.value) }, I("send_filled"))));
-      } else main.append(h("div", { class: "wa-tia" }, c.chip(x), c.steps(x)), h("div", { class: "wa-compose" }, h("div", { class: "ic" }, I("add")), h("div", { class: "ic" }, I("emoji")), h("textarea", { rows: 1, placeholder: "Type a message" }), h("div", { class: "ic" }, I("mic"))));
-    } else main.append(h("div", { class: "ch-empty" }, "Send and receive messages without keeping your phone online."));
+        main.append(h("div", { class: "wa-tia" }, tiaBanner(c, x, x.live ? (c.acct && c.acct.banner) || "" : "Tia's reply is in the box – change it, or press ✦ to let her write it again. ➤ opens WhatsApp with the text, you press send."), c.steps(x)),
+          h("div", { class: "wa-compose" }, ta,
+            h("button", { class: "wa-redo", title: "Let Tia write it", onclick: () => c.typeDraft(x, ta) }, I("sparkle")),
+            h("button", { class: "wa-send", title: x.live ? "Send" : "Open in WhatsApp", onclick: () => c.decide(x, ta.value) }, I("send_filled"))));
+      } else main.append(h("div", { class: "wa-tia" }, c.chip(x), c.steps(x)));
+    } else main.append(h("div", { class: "ch-empty" }, "Pick a chat on the left."));
+    const search = searchBox(c, "whatsapp", "wa-searchin", "Search or start a new chat");
+    search.setAttribute("data-search", "whatsapp");
+    const chip = (k, t) => h("span", { class: waFilter === k ? "on" : "", onclick: () => ((waFilter = k), c.render()) }, t);
     return h("div", { class: "wa" },
-      h("div", { class: "wa-nav" }, h("div", { class: "on" }, I("chat_multiple_filled")), h("div", {}, I("record")), h("div", {}, I("megaphone")), h("div", {}, I("people_community")), h("span", { class: "sp" }), h("div", {}, I("settings")), c.avatar("Mārtiņš Ozols")),
       h("div", { class: "wa-side" },
-        h("div", { class: "wa-head" }, "Chats", h("span", { class: "sp" }), h("div", {}, I("compose")), h("div", {}, I("more_vertical"))),
-        h("div", { class: "wa-search" }, h("div", {}, I("search"), "Search or start a new chat")),
-        h("div", { class: "wa-chips" }, h("span", { class: "on" }, "All"), h("span", {}, "Unread"), h("span", {}, "Favourites"), h("span", {}, "Groups")),
+        h("div", { class: "wa-head" }, "Chats"),
+        h("div", { class: "wa-search" }, h("div", {}, I("search"), search)),
+        h("div", { class: "wa-chips" }, chip("all", "All"), chip("unread", "Unread")),
         list),
       main);
   }
@@ -153,31 +194,34 @@
   // ============================ INSTAGRAM ============================
   function ig(c, items, x) {
     const { h } = c;
-    const list = h("div", { class: "ig-list" }, items.map((i) =>
-      h("div", { class: `ig-row ${i.state === "open" ? "unread" : ""} ${x && i.id === x.id ? "sel" : ""}`, onclick: () => c.select(i.id) },
-        c.avatar(i.from), h("div", { class: "tx" }, h("div", { class: "nm" }, i.from.replace(/^@/, "")), h("div", { class: "pv" }, `${i.text.slice(0, 38)} · ${i.time}`)), i.state === "open" ? h("span", { class: "dot" }) : null)));
+    const shown = items.filter((i) => match("instagram", i));
+    const list = h("div", { class: "ig-list" }, shown.map((i) =>
+      h("div", { class: `ig-row ${isOpen(i) ? "unread" : ""} ${x && i.id === x.id ? "sel" : ""}`, onclick: () => c.select(i.id) },
+        c.avatar(i.from), h("div", { class: "tx" }, h("div", { class: "nm" }, i.from.replace(/^@/, "")), h("div", { class: "pv" }, `${i.text.slice(0, 38)} · ${i.time}`)), isOpen(i) ? h("span", { class: "dot" }) : null)),
+      shown.length ? "" : h("div", { class: "ch-empty" }, "No messages."));
     const main = h("div", { class: "ig-main" });
     if (x) {
-      const open = x.state === "open";
+      const open = isOpen(x);
       const user = x.from.replace(/^@/, "");
       const msgs = h("div", { class: "ig-msgs" },
-        h("div", { class: "ig-intro" }, c.avatar(x.from), h("div", { class: "nm" }, user), h("div", { class: "un" }, `${user} · Instagram`), h("button", {}, "View profile")),
+        h("div", { class: "ig-intro" }, c.avatar(x.from), h("div", { class: "nm" }, user), h("div", { class: "un" }, `${user} · Instagram`)),
         h("div", { class: "ig-time" }, `Today ${x.time}`),
         h("div", { class: "igb in" }, x.text));
       if (!open && x.draft) msgs.append(h("div", { class: "igb draft" }, h("span", { class: "lbl" }, x.state === "handled" ? "Tia · handled" : "Tia · draft"), x.draft));
-      main.append(h("div", { class: "ig-head" }, c.avatar(x.from), h("div", {}, h("div", { class: "nm" }, user), h("div", { class: "un" }, user)), h("span", { class: "sp" }), h("div", { class: "ic" }, I("call"), I("video"), I("info"))), msgs);
+      main.append(h("div", { class: "ig-head" }, c.avatar(x.from), h("div", {}, h("div", { class: "nm" }, user), h("div", { class: "un" }, user))), msgs);
       if (open) {
         const ta = c.textarea(x, "Message...");
-        main.append(h("div", { class: "ig-tia" }, tiaBanner(c, x, "Tia's reply is in the message box – edit it and press Send. Tia never posts by herself."), c.steps(x)),
-          h("div", { class: "ig-compose" }, I("emoji"), ta, h("button", { onclick: () => c.decide(x, ta.value) }, "Send")));
-      } else main.append(h("div", { class: "ig-tia" }, c.chip(x), c.steps(x)), h("div", { class: "ig-compose" }, I("emoji"), h("textarea", { rows: 1, placeholder: "Message..." }), I("mic"), I("image"), I("heart")));
-    } else main.append(h("div", { class: "ch-empty" }, "Your messages – send a message to start a chat."));
-    return h("div", { class: "ig" },
-      h("div", { class: "ig-nav" }, ...["home", "search", "compass_northwest", "play_circle", "send_filled", "heart", "add"].map((n) => h("div", {}, I(n))), h("div", {}, c.avatar("Oakline Studio")), h("span", { class: "sp" }), h("div", {}, I("more_horizontal"))),
+        main.append(h("div", { class: "ig-tia" }, tiaBanner(c, x, "Tia's reply is in the box – edit it, or let her write it again. Send = copied for you to paste in Instagram."), c.steps(x)),
+          h("div", { class: "ig-compose" }, ta, h("button", { class: "ghost", onclick: () => c.typeDraft(x, ta) }, "Let Tia write"), h("button", { onclick: () => c.decide(x, ta.value) }, "Send")));
+      } else main.append(h("div", { class: "ig-tia" }, c.chip(x), c.steps(x)));
+    } else main.append(h("div", { class: "ch-empty" }, "Pick a conversation on the left."));
+    const search = searchBox(c, "instagram", "ig-searchin", "Search");
+    search.setAttribute("data-search", "instagram");
+    return h("div", { class: "ig ig-clean" },
       h("div", { class: "ig-side" },
-        h("div", { class: "ig-me" }, "oakline.studio", I("chevron_down"), h("span", { class: "sp" }), I("compose")),
-        h("div", { class: "ig-notes" }, h("div", { class: "ig-note" }, h("span", { class: "bubble" }, "New kitchens 🌿"), c.avatar("Oakline Studio"), "Your note")),
-        h("div", { class: "ig-tabs" }, h("span", {}, "Messages"), h("span", {}, "Requests")),
+        h("div", { class: "ig-me" }, (c.acct && c.acct.ig) || "oakline.studio"),
+        h("div", { class: "ig-search" }, search),
+        h("div", { class: "ig-tabs" }, h("span", { class: "on" }, "Messages")),
         list),
       main);
   }
@@ -188,51 +232,40 @@
     const A = c.acct || {};
     const ws = A.ws || "Oakline Studio";
     const chans = {};
-    for (const i of items) (chans[i.address || "#general"] = chans[i.address || "#general"] || []).push(i);
+    for (const i of items) if (i.placeholder || match("slack", i)) (chans[i.address || "#general"] = chans[i.address || "#general"] || []).push(i);
     if (x && !chans[x.address]) x = items[0];
     const side = h("div", { class: "sl-side" },
-      h("div", { class: "sl-wsn" }, ws, I("chevron_down"), h("span", { class: "sp" }), h("div", {}, I("compose"))),
-      h("div", { class: "sl-item" }, I("chat_multiple"), "Threads"), h("div", { class: "sl-item" }, I("send"), "Drafts & sent"),
-      h("div", { class: "sl-sec" }, I("chevron_down"), "Channels"),
+      h("div", { class: "sl-wsn" }, ws),
+      h("div", { class: "sl-sec" }, "Channels"),
       Object.entries(chans).map(([name, list]) => {
-        const open = list.filter((i) => i.state === "open" && !i.placeholder).length;
-        return h("div", { class: `sl-item ${open ? "unread" : ""} ${x && x.address === name ? "on" : ""}`, onclick: () => c.select((list.find((i) => i.placeholder) || list[list.length - 1]).id) }, h("span", {}, "#"), h("span", {}, name.replace(/^#/, "")), open ? h("span", { class: "cnt" }, open) : "");
-      }),
-      A.live ? "" : h("div", { class: "sl-item" }, "#", h("span", {}, "general")),
-      h("div", { class: "sl-sec" }, I("chevron_down"), "Direct messages"),
-      (A.live ? ["Tia (assistant)"] : ["Tia (assistant)", "Elīna Zariņa", "Kaspars Liepiņš"]).map((n) => h("div", { class: "sl-item" }, c.avatar(n), n)),
-      h("div", { class: "sl-sec" }, I("chevron_down"), "Apps"), h("div", { class: "sl-item" }, c.avatar("Tia"), "Tia"));
+        const open = list.filter((i) => isOpen(i) && !i.placeholder).length;
+        return h("div", { class: `sl-item ${open ? "unread" : ""} ${x && x.address === name ? "on" : ""}`, onclick: () => c.select((list.find((i) => i.placeholder) || list.find(isOpen) || list[list.length - 1]).id) }, h("span", {}, "#"), h("span", {}, name.replace(/^#/, "")), open ? h("span", { class: "cnt" }, open) : "");
+      }));
     const main = h("div", { class: "sl-main" });
     if (x) {
       const msgs = h("div", { class: "sl-msgs" }, h("div", { class: "sl-day" }, h("span", {}, "Today")));
-      for (const i of chans[x.address]) {
-        if (i.placeholder) continue; // the channel's "new message" composer, not a message
-        msgs.append(h("div", { class: "sl-msg", onclick: () => c.select(i.id) }, c.avatar(i.from), h("div", {}, h("span", { class: "nm" }, i.from), h("span", { class: "tm" }, i.time), h("div", { class: "tx" }, i.text))));
-        if (i.state !== "open" && i.draft) msgs.append(h("div", { class: "sl-msg draft" }, c.avatar("Tia"), h("div", {}, h("span", { class: "nm" }, "Tia"), h("span", { class: "app" }, "APP"), h("span", { class: "tm" }, i.state === "handled" ? "handled" : "draft"), h("div", { class: "tx" }, i.draft))));
+      for (const i of chans[x.address] || []) {
+        if (i.placeholder) continue;
+        msgs.append(h("div", { class: `sl-msg ${i.id === x.id ? "sel" : ""}`, title: "Click to answer this message", onclick: () => c.select(i.id) }, c.avatar(i.from), h("div", {}, h("span", { class: "nm" }, i.from), h("span", { class: "tm" }, i.time), h("div", { class: "tx" }, i.text))));
+        if (!isOpen(i) && i.draft) msgs.append(h("div", { class: "sl-msg draft" }, c.avatar("Tia"), h("div", {}, h("span", { class: "nm" }, "Tia"), h("span", { class: "app" }, "APP"), h("span", { class: "tm" }, i.state === "handled" ? "handled" : "draft"), h("div", { class: "tx" }, i.draft))));
       }
-      const open = x.state === "open";
-      main.append(
-        h("div", { class: "sl-head" }, h("div", { class: "t" }, `# ${x.address.replace(/^#/, "")}`, I("chevron_down"), h("span", { class: "sp" }), A.live ? "" : h("div", { class: "mem" }, c.avatar("Elīna Zariņa"), c.avatar("Kaspars Liepiņš"), "6")),
-          h("div", { class: "sl-htabs" }, h("span", { class: "on" }, I("chat_multiple"), "Messages"), h("span", {}, I("notebook"), "Add canvas"), h("span", {}, I("bookmark"), "Bookmarks"))),
-        msgs);
-      if (open) {
-        const ta = c.textarea(x, `Message ${x.address}`);
-        if (A.live && chans[x.address].every((i) => i.placeholder)) msgs.append(h("div", { class: "sl-emptych" }, `This is the very beginning of ${x.address}. Write the first message below – Tia keeps it as a draft for you to post.`));
-        main.append(h("div", { class: "sl-tia" }, tiaBanner(c, x, A.live ? A.banner : "Tia's reply is in the message box – edit it, then use it. Tia never posts by herself."), c.steps(x)),
-          h("div", { class: "sl-compose" },
-            h("div", { class: "sl-fmt" }, ...["text_bold", "text_italic", "text_strikethrough"].map((n) => h("div", {}, I(n))), h("span", { class: "bar" }), h("div", {}, I("link")), h("span", { class: "bar" }), h("div", {}, I("list")), h("div", {}, I("code"))),
-            ta,
-            h("div", { class: "sl-act" }, h("div", {}, I("add")), h("div", {}, I("text_font")), h("div", {}, I("emoji")), h("div", {}, I("mention")), h("span", { class: "bar" }), h("div", {}, I("video")), h("div", {}, I("mic")), h("span", { class: "sp" }),
-              A.live && !x.placeholder ? h("button", { class: "ghost", onclick: () => c.typeDraft(x, ta) }, "Let Tia write") : "",
-              h("button", { class: "ghost", onclick: () => c.reject(x) }, "Not now"),
-              h("div", { class: "sl-sendb" }, h("button", { title: A.live ? "Save as a draft (you post it in Slack)" : "Use Tia's reply", onclick: () => c.decide(x, ta.value) }, I("send_filled")), h("button", {}, I("chevron_down"))))));
+      if (A.live && (chans[x.address] || []).every((i) => i.placeholder)) msgs.append(h("div", { class: "sl-emptych" }, `This is the very beginning of ${x.address}. Write the first message below – Tia keeps it as a draft for you to post.`));
+      main.append(h("div", { class: "sl-head" }, h("div", { class: "t" }, `# ${String(x.address || "").replace(/^#/, "")}`)), msgs);
+      if (isOpen(x)) {
+        const ta = c.textarea(x, x.placeholder ? `Message ${x.address}` : `Reply to ${x.from}`);
+        main.append(h("div", { class: "sl-tia" }, tiaBanner(c, x, A.live ? A.banner : "Tia's reply is in the box – edit it, then use it. Tia never posts by herself."), c.steps(x)),
+          h("div", { class: "sl-compose" }, ta,
+            h("div", { class: "sl-act" }, h("span", { class: "sp" }),
+              x.placeholder ? "" : h("button", { class: "ghost", onclick: () => c.typeDraft(x, ta) }, "Let Tia write"),
+              x.placeholder ? "" : h("button", { class: "ghost", onclick: () => c.reject(x) }, "Not now"),
+              h("button", { class: "sl-sendone", title: A.live ? "Save as a draft (you post it in Slack)" : "Use this reply", onclick: () => c.decide(x, ta.value) }, I("send_filled")))));
       } else main.append(h("div", { class: "sl-tia" }, c.chip(x), c.steps(x)));
-    } else main.append(h("div", { class: "ch-empty" }, "No messages yet."));
+    } else main.append(h("div", { class: "ch-empty" }, "Pick a channel."));
+    const search = searchBox(c, "slack", "sl-searchin", `Search ${ws}`);
+    search.setAttribute("data-search", "slack");
     return h("div", { class: "sl" },
-      h("div", { class: "sl-top" }, h("div", { class: "search" }, I("search"), `Search ${ws}`)),
-      h("div", { class: "sl-body" },
-        h("div", { class: "sl-rail" }, h("div", { class: "sl-ws" }, ws.slice(0, 2).toUpperCase()), ...[["home_filled", "Home", true], ["chat_multiple", "DMs"], ["alert", "Activity"], ["bookmark", "Later"], ["more_horizontal", "More"]].map(([n, t, on]) => h("div", { class: `it ${on ? "on" : ""}` }, h("div", {}, I(n)), t))),
-        side, main));
+      h("div", { class: "sl-top" }, h("div", { class: "search" }, I("search"), search)),
+      h("div", { class: "sl-body sl-clean" }, side, main));
   }
 
   window.TiaApps = { mail, wa, ig, slack, I };

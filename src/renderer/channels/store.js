@@ -34,11 +34,24 @@
   }
 
   async function load() {
-    if (!window.tia || !window.tia.state) return;
-    try {
-      const s = await window.tia.state();
-      for (const c of [...(s.needs || []), ...(s.done || [])]) put(fromCard(c));
-    } catch {}
+    if (!window.tia) return;
+    if (window.tia.state) {
+      try {
+        const s = await window.tia.state();
+        for (const c of [...(s.needs || []), ...(s.done || [])]) put(fromCard(c));
+      } catch {}
+    }
+    // The demo business's messages are in the apps from the start (state "new" = Tia hasn't sorted them yet),
+    // so every app can be clicked and answered before "Start the day".
+    if (window.tia.demoInbox) {
+      try {
+        for (const m of await window.tia.demoInbox()) {
+          if (items.has(m.id) || !CHANNELS.includes(m.channel)) continue;
+          items.set(m.id, { id: m.id, channel: m.channel, from: m.from, address: m.address || "", subject: m.subject || "", text: m.text || "", time: m.time || "", draft: "", tiaDraft: m.draft || "", state: "new", summary: "", reason: "", urgent: false, actions: [], decision: "", sources: [], guard: [] });
+        }
+        emit("item");
+      } catch {}
+    }
   }
 
   function onEvent(ev) {
@@ -61,6 +74,7 @@
     } else if (ev.type === "reset") {
       items.clear();
       emit("reset");
+      load();
     }
   }
 
