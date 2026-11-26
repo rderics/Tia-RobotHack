@@ -145,6 +145,7 @@ const PRESETS = {
   openrouter: { baseUrl: "https://openrouter.ai/api/v1", keyEnv: "OPENROUTER_API_KEY", models: ["openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"], json: "prompt" },
   // Hermes Agent (NousResearch/hermes-agent) on this computer: `hermes gateway` with API_SERVER_ENABLED=true.
   hermes: { baseUrl: "http://127.0.0.1:8642/v1", keyEnv: "HERMES_API_KEY", models: ["hermes-agent"], json: "prompt", timeoutMs: 240000, headers: { "X-Hermes-Session-Key": "tia-desk" } },
+  openai: { baseUrl: "https://api.openai.com/v1", keyEnv: "OPENAI_API_KEY", models: ["gpt-4o-mini"], json: "schema" },
   // Anything else: TIA_AI_BASE_URL + TIA_AI_KEY + TIA_AI_MODEL
   custom: { baseUrl: "", keyEnv: "TIA_AI_KEY", models: [], json: "prompt" },
 };
@@ -238,23 +239,24 @@ function providerChain(cfg, kind = "inbox") {
   if (Array.isArray(list) && list.length) return list.filter((n) => !OPENAI_STYLE.includes(n) || isConfigured(cfg, n, list));
   const chain = [cfg.provider === "api" ? "api" : "claude-code"];
   if (cfg.fallbackProvider === "codex") chain.push("codex");
-  for (const n of ["groq", "gemini", "openrouter", "custom"]) if (isConfigured(cfg, n)) chain.push(n);
+  for (const n of ["gemini", "groq", "openrouter", "openai", "custom"]) if (isConfigured(cfg, n)) chain.push(n);
   return chain;
 }
 const blockedUntil = {};
 let lastVia = null; // the AI that answered last – shown in the header and in Settings
 const LABELS = {
-  "claude-code": "Claude (Claude subscription on this PC)",
+  "claude-code": "Claude (sign-in on this PC)",
   api: "Claude API (Anthropic key)",
-  codex: "OpenAI Codex (ChatGPT login)",
-  antigravity: "Google Antigravity (Gemini 4 – your Google login, free, slower)",
-  groq: "Groq – free",
-  gemini: "Google Gemini – free",
-  openrouter: "OpenRouter – free models",
+  codex: "ChatGPT (Codex sign-in)",
+  antigravity: "Google Antigravity",
+  groq: "Groq",
+  gemini: "Google Gemini",
+  openrouter: "OpenRouter",
+  openai: "ChatGPT API (OpenAI)",
   custom: "Any OpenAI-compatible API",
   hermes: "Hermes Agent (this PC)",
 };
-const SHORT = { "claude-code": "Claude", api: "Claude API", codex: "Codex", antigravity: "Antigravity", groq: "Groq", gemini: "Gemini", openrouter: "OpenRouter", custom: "Custom AI", hermes: "Hermes" };
+const SHORT = { "claude-code": "Claude", api: "Claude API", codex: "ChatGPT", antigravity: "Antigravity", openai: "ChatGPT API", groq: "Groq", gemini: "Gemini", openrouter: "OpenRouter", custom: "Custom AI", hermes: "Hermes" };
 function modelOf(cfg, name) {
   if (name === "claude-code" || name === "api") return cfg.model;
   if (name === "codex") return cfg.codexModel || "codex default";
@@ -272,7 +274,7 @@ function aiStatus(cfg) {
     label: (n) => `${SHORT[n] || n} · ${modelOf(cfg, n)}`,
     providers: all.map((n) => ({
       id: n, label: LABELS[n] || n, short: SHORT[n] || n, model: modelOf(cfg, n), inChain: chain.includes(n),
-      configured: n === "claude-code" ? true : n === "antigravity" ? hasAntigravity() : n === "codex" ? cfg.fallbackProvider === "codex" || (cfg.providers || []).includes("codex") : n === "api" ? !!process.env.ANTHROPIC_API_KEY : isConfigured(cfg, n, cfg.providers || [n]),
+      configured: n === "claude-code" ? hasClaude() : n === "antigravity" ? hasAntigravity() : n === "codex" ? hasCodex() : n === "api" ? !!process.env.ANTHROPIC_API_KEY : isConfigured(cfg, n, cfg.providers || [n]),
       keyEnv: n === "api" ? "ANTHROPIC_API_KEY" : (PRESETS[n] || {}).keyEnv || "",
       blocked: blockedUntil[n] > Date.now(),
     })),
@@ -318,6 +320,11 @@ function agyExe() {
   return known.find((p) => fs.existsSync(p)) || "";
 }
 const hasAntigravity = () => !!agyExe();
+// is Claude Code / Codex installed and signed in on this PC?
+const HOME = os.homedir();
+const APPDATA = process.env.APPDATA || "";
+const hasClaude = () => [path.join(HOME, ".local", "bin", "claude.exe"), path.join(HOME, ".local", "bin", "claude"), path.join(APPDATA, "npm", "claude.cmd")].some((p) => fs.existsSync(p)) && fs.existsSync(path.join(HOME, ".claude"));
+const hasCodex = () => fs.existsSync(path.join(APPDATA, "npm", "codex.cmd")) && fs.existsSync(path.join(HOME, ".codex", "auth.json"));
 function viaAntigravity(cfg, prompt, system, schema) {
   const exe = agyExe();
   if (!exe) return Promise.reject(new Error("Antigravity CLI (agy) isn't installed on this PC"));

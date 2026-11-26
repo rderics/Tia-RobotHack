@@ -348,7 +348,7 @@ async function localApi(req, res, route, url) {
     if (req.method === "GET" && route === "/api/settings") {
       const st = P.aiStatus(cfg);
       const keys = {};
-      for (const k of ["ANTHROPIC_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "TIA_AI_KEY"]) keys[k] = process.env[k] ? `••••${String(process.env[k]).slice(-4)}` : "";
+      for (const k of ["ANTHROPIC_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "TIA_AI_KEY"]) keys[k] = process.env[k] ? `••••${String(process.env[k]).slice(-4)}` : "";
       let live = {};
       try {
         live = await require("./connectors/live").status(cfg);
@@ -362,9 +362,33 @@ async function localApi(req, res, route, url) {
         business: { name: cfg.business, owner: cfg.owner, profile: cfg.profile, vault: path.basename(cfg.vaultDir) },
         composio: await require("./connectors/composio").whoami(),
         team: require("./team").status(),
+        update: require("./updater").status(),
         connections: { ...live, whatsappBusiness: { state: W.canSend ? "connected" : W.relay ? "pending" : "missing", name: W.relay ? "messages arrive via the team relay" : "" } },
         publicUrl: publicUrl(),
       });
+    }
+    if (req.method === "POST" && route === "/api/settings/signin") {
+      // opens the sign-in for an AI that works with an account instead of a key (a window the owner finishes himself)
+      if (!isLocal(req)) return sendJson(res, 403, { error: "Sign in on the PC Tia runs on." });
+      const body = await readJson(req);
+      const { spawn: sp } = require("child_process");
+      const win = (title, cmd) => sp("cmd", ["/c", "start", `"${title}"`, "cmd", "/k", cmd], { detached: true, stdio: "ignore", windowsHide: false }).unref();
+      if (body.id === "codex") win("ChatGPT sign-in for Tia", "npm install -g @openai/codex && codex login && echo. && echo Signed in - you can close this window.");
+      else if (body.id === "claude-code") win("Claude sign-in for Tia", "where claude >nul 2>nul || powershell -NoProfile -Command \"irm https://claude.ai/install.ps1 | iex\" & claude");
+      else if (body.id === "antigravity") require("./actions").open("https://antigravity.google/download");
+      else return sendJson(res, 400, { error: "unknown" });
+      return sendJson(res, 200, { ok: true });
+    }
+    if (route === "/api/settings/update") {
+      const U = require("./updater");
+      if (req.method === "GET") return sendJson(res, 200, U.status());
+      if (!isLocal(req)) return sendJson(res, 403, { error: "Update on the PC Tia runs on." });
+      const body = await readJson(req);
+      if (body.restart) {
+        sendJson(res, 200, { ok: true, restarting: true });
+        return U.restart();
+      }
+      return sendJson(res, 200, await U.check((u) => hub.emit({ type: "update", ...u })));
     }
     if (req.method === "POST" && route === "/api/settings/team") {
       if (!isLocal(req)) return sendJson(res, 403, { error: "Join the team on the PC Tia runs on." });
@@ -389,7 +413,7 @@ async function localApi(req, res, route, url) {
       if (!isLocal(req)) return sendJson(res, 403, { error: "Settings can only be changed on the PC Tia runs on." });
       const body = await readJson(req);
       // keys → .env (only the known names)
-      const allowed = new Set(["ANTHROPIC_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "TIA_AI_KEY", "TIA_AI_BASE_URL", "TIA_AI_MODEL"]);
+      const allowed = new Set(["ANTHROPIC_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "TIA_AI_KEY", "TIA_AI_BASE_URL", "TIA_AI_MODEL"]);
       const envFile = path.join(__dirname, "..", ".env");
       let lines = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8").split(/\r?\n/) : [];
       for (const [k, v] of Object.entries(body.keys || {})) {
@@ -666,6 +690,8 @@ const linkedMessages = (fresh) => {
 // "send messages here" and fetch anything it kept while this PC was off. The Tia that starts last receives WhatsApp.
 async function startOnline() {
   const cfg = loadConfig();
+  // auto-update from GitHub (every 15 min) – the screen shows "Tia was updated"
+  require("./updater").start(cfg, (u) => hub.emit({ type: "update", ...u }));
   // team keys (free AI, WhatsApp Business) from the team code – refreshed at every start
   const team = await require("./team").sync().catch(() => null);
   if (team && team.ok) console.log(`Team keys synced (${team.keys})`);

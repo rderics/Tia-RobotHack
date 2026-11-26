@@ -23,10 +23,17 @@ function Winget($id, $name) {
 Write-Host "Tia installer - AI secretary (RobotHack 2026)" -ForegroundColor Magenta
 
 Say "1/6 Download Tia"
+# Git makes Tia update herself from GitHub later (Tia checks every 15 minutes)
+if (-not (Has "git") -and -not $testRun) { Winget "Git.Git" "Git (for automatic updates)" }
 if (Test-Path (Join-Path $dest ".git")) {
   if (Has "git") { git -C $dest pull --ff-only; Write-Host "Updated with git pull" }
 } elseif ((Has "git") -and -not (Test-Path $dest)) {
-  git clone --depth 1 "$repo.git" $dest
+  git clone "$repo.git" $dest
+} elseif ((Has "git") -and (Test-Path $dest)) {
+  # an older zip copy → turn it into a git copy (keeps .env, data and config.json – they're not in git)
+  git -C $dest init -q; git -C $dest remote add origin "$repo.git" 2>$null
+  git -C $dest fetch -q origin main; git -C $dest reset -q --hard origin/main; git -C $dest branch -q -M main; git -C $dest branch -q --set-upstream-to=origin/main main
+  Write-Host "Switched to automatic updates (git)"
 } else {
   $zip = Join-Path $env:TEMP "tia-main.zip"
   $tmp = Join-Path $env:TEMP "tia-main"

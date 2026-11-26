@@ -34,10 +34,12 @@ On your desktop you now have:
 1. Double-click **Tia**. She opens as her own app window. **F11** = full screen.
 2. Press **Check inbox** (top right). In about a minute Tia sorts the 12 demo messages:
    routine ones go to **Done**, decisions go to **Needs you**.
-3. Left rail → **Settings** (gear at the bottom) → **Tia's brain** → press **Test** next to **Groq**.
-   It should say **"Works"**. If not: **Settings → Join the team** → paste the team code → **Join**.
-4. **Better free AI (optional, 1 min):** Settings → **Best free brain: Google Gemini** → **Get a free key** → sign in with
-   Google → **Create API key** → paste it → **Save & use Gemini first**. (Or, if you use Google Antigravity, add it as a backup.)
+3. Left rail → **Settings** (gear at the bottom) → **AI**. Pick the AI you want – they are all options, no "best" one:
+   - **Google Gemini / Groq / OpenRouter** – paste a free API key (**Get a key ↗** opens the page) → **Save** (top right)
+   - **Claude** or **ChatGPT** – press **Sign in** and sign in with your own account
+   - **Claude API / ChatGPT API** – paste a paid key · **Google Antigravity** – sign in in the Antigravity app
+   Then **Use first** (or **Add** as a backup) and **Test** → it should say **"Works"**.
+   The team code already gives everyone Groq, so Tia works even if you skip this.
 
 ---
 
@@ -91,7 +93,7 @@ The team's **WhatsApp Business** number works through the team code (no setup ne
 ---
 
 ## Before the pitch
-- Evening before: double-click **Update Tia**.
+- Tia **updates herself** from GitHub (every 15 min) and shows a bar "Tia was updated – Restart now". Installed before 27.11? Double-click **Update Tia** once to get this.
 - On the pitch laptop, start Tia **last** – the PC that started Tia last receives the team's WhatsApp Business messages.
 - Pitch plan + video shot list: `TIA Context vault/Pitch plan.md` · what works where: `TIA Context vault/Pitch PC guide.md`.
 

@@ -91,26 +91,6 @@
     const add = edit && notUsed.length
       ? h("div", { class: "st-add" }, h("span", {}, "Add:"), ...notUsed.map((p) => h("button", { class: "st-btn", onclick: () => ((order = [...order, p.id]), rerender()) }, `+ ${p.label}`)))
       : "";
-    const keysBox = h("div", { class: "st-card" },
-      h("div", { class: "st-h" }, "API keys"),
-      h("div", { class: "st-desc" }, "Free keys: Groq (console.groq.com/keys), Gemini (aistudio.google.com/apikey), OpenRouter (openrouter.ai/keys). Saved only in .env on this PC."),
-      h("div", { class: "st-grid" },
-        h("label", {}, "Groq"), keyInput("GROQ_API_KEY", "gsk_…"),
-        h("label", {}, "Google Gemini"), keyInput("GEMINI_API_KEY", "AIza…"),
-        h("label", {}, "OpenRouter"), keyInput("OPENROUTER_API_KEY", "sk-or-…"),
-        h("label", {}, "Claude API"), keyInput("ANTHROPIC_API_KEY", "sk-ant-…"),
-        h("label", {}, "Custom API key"), keyInput("TIA_AI_KEY", "key for any OpenAI-compatible API")),
-      h("div", { class: "st-grid" },
-        h("label", {}, "Custom API address"), (() => {
-          const i = h("input", { class: "st-in", placeholder: "https://…/v1", disabled: !edit, oninput: (e) => (keys.TIA_AI_BASE_URL = e.target.value) });
-          i.value = keys.TIA_AI_BASE_URL ?? s.custom.baseUrl;
-          return i;
-        })(),
-        h("label", {}, "Custom model"), (() => {
-          const i = h("input", { class: "st-in", placeholder: "model name", disabled: !edit, oninput: (e) => (keys.TIA_AI_MODEL = e.target.value) });
-          i.value = keys.TIA_AI_MODEL ?? s.custom.model;
-          return i;
-        })()));
     const conn = s.connections || {};
     const NAMES = { calendar: "Google Calendar", gmail: "Gmail", slack: "Slack", instagram: "Instagram", linkedin: "LinkedIn", ads: "Meta Ads", whatsappBusiness: "WhatsApp Business" };
     const connBox = h("div", { class: "st-card" },
@@ -132,13 +112,12 @@
       h("div", { class: "st-cols" },
         h("div", {},
           teamCard(h, edit),
-          geminiCard(h, P, edit),
+          aiOptions(h, P, edit, keyInput),
           h("div", { class: "st-card" },
-            h("div", { class: "st-h" }, "Tia's brain"),
-            h("div", { class: "st-desc" }, "Tia asks the first AI; if it is busy, out of credit or fails, she moves to the next one by herself. Change the order, the model, or add a free one."),
-            chain, add),
-          keysBox),
-        h("div", {}, biz, connBox)));
+            h("div", { class: "st-h" }, "Order"),
+            h("div", { class: "st-desc" }, "Tia asks the first one; if it is busy, out of credit or fails, she moves to the next by herself."),
+            chain)),
+        h("div", {}, updateCard(h, edit), biz, connBox)));
     return root;
   }
   // Team code: the shared keys (free AI, WhatsApp Business) come from Cloudflare – no files to pass around
@@ -159,29 +138,66 @@
       } }, "Join") : ""),
       teamMsg || t.error ? h("div", { class: `st-test ${String(teamMsg).startsWith("✓") ? "ok" : "bad"}` }, teamMsg || t.error) : "");
   }
-  // The best free brain: Google Gemini – a free API key (fast) or the Antigravity login (no key, slower)
-  function geminiCard(h, P, edit) {
-    const g = P.gemini || {};
-    const a = P.antigravity || {};
-    const geminiFirst = order[0] === "gemini";
-    const key = h("input", { class: "st-in", type: "password", placeholder: s.keys.GEMINI_API_KEY ? `saved ${s.keys.GEMINI_API_KEY}` : "paste the key (AIza…)", disabled: !edit, oninput: (e) => (keys.GEMINI_API_KEY = e.target.value) });
-    key.value = keys.GEMINI_API_KEY || "";
-    const useFirst = (id) => ((order = [id, ...order.filter((x) => x !== id)]), save());
-    return h("div", { class: "st-card st-gem" },
-      h("div", { class: "st-h" }, "✦ Best free brain: Google Gemini"),
-      h("div", { class: "st-desc" }, "Better answers than Groq, free, and no waiting for Claude limits."),
-      h("div", { class: "st-gopt" },
-        h("div", {}, h("b", {}, "1 · Gemini key (recommended – fast)"),
-          h("div", { class: "st-desc" }, "Takes 1 minute: open the link, sign in with Google, press “Create API key”, copy it, paste it here.")),
+  // Every AI Tia can use – what it needs (a key or a sign-in), no ranking: the owner picks
+  const OPTIONS = [
+    { id: "gemini", name: "Google Gemini", how: "API key · free tier", key: "GEMINI_API_KEY", ph: "AIza…", link: "https://aistudio.google.com/apikey" },
+    { id: "groq", name: "Groq", how: "API key · free tier", key: "GROQ_API_KEY", ph: "gsk_…", link: "https://console.groq.com/keys" },
+    { id: "openrouter", name: "OpenRouter", how: "API key · free models", key: "OPENROUTER_API_KEY", ph: "sk-or-…", link: "https://openrouter.ai/keys" },
+    { id: "claude-code", name: "Claude", how: "Sign in · Claude subscription", signin: true },
+    { id: "api", name: "Claude API", how: "API key · paid", key: "ANTHROPIC_API_KEY", ph: "sk-ant-…", link: "https://console.anthropic.com/settings/keys" },
+    { id: "codex", name: "ChatGPT", how: "Sign in · ChatGPT account", signin: true },
+    { id: "openai", name: "ChatGPT API", how: "API key · paid", key: "OPENAI_API_KEY", ph: "sk-…", link: "https://platform.openai.com/api-keys" },
+    { id: "antigravity", name: "Google Antigravity", how: "Sign in · Google account in the Antigravity app (slower answers)", signin: true },
+    { id: "custom", name: "Other", how: "Any OpenAI-compatible API · address + key + model", custom: true },
+  ];
+  function aiOptions(h, P, edit, keyInput) {
+    const tiles = OPTIONS.filter((o) => P[o.id]).map((o) => {
+      const p = P[o.id];
+      const inList = order.includes(o.id);
+      const t = tests[o.id];
+      const ctrl = [];
+      if (o.key) ctrl.push(h("div", { class: "st-grow" }, keyInput(o.key, o.ph), h("a", { class: "st-btn", href: o.link, target: "_blank", rel: "noopener" }, "Get a key ↗")));
+      if (o.signin && !p.configured && edit) ctrl.push(h("div", { class: "st-grow" }, h("button", { class: "st-btn", onclick: async (e) => ((e.target.textContent = "Finish in the window that opened, then ↻"), await T().aiSignin(o.id)) }, "Sign in"), h("button", { class: "st-btn", onclick: () => load() }, "↻")));
+      if (o.custom) {
+        const u = h("input", { class: "st-in", placeholder: "API address https://…/v1", disabled: !edit, oninput: (e) => (keys.TIA_AI_BASE_URL = e.target.value) });
+        u.value = keys.TIA_AI_BASE_URL ?? s.custom.baseUrl;
+        const m = h("input", { class: "st-in", placeholder: "model name", disabled: !edit, oninput: (e) => (keys.TIA_AI_MODEL = e.target.value) });
+        m.value = keys.TIA_AI_MODEL ?? s.custom.model;
+        ctrl.push(h("div", { class: "st-grow" }, u), h("div", { class: "st-grow" }, m, keyInput("TIA_AI_KEY", "key")));
+      }
+      return h("div", { class: `st-opt ${p.configured ? "ready" : ""}` },
+        h("div", { class: "st-oh" }, h("b", {}, o.name), h("span", { class: `st-chip ${p.configured ? "ok" : ""}` }, p.configured ? "Ready" : "Not set up"), inList ? h("span", { class: "st-chip in" }, `#${order.indexOf(o.id) + 1} in order`) : ""),
+        h("div", { class: "st-desc" }, o.how),
+        ...ctrl,
         h("div", { class: "st-grow" },
-          h("a", { class: "st-btn", href: "https://aistudio.google.com/apikey", target: "_blank", rel: "noopener" }, "Get a free key ↗"),
-          key,
-          edit ? h("button", { class: "st-save", onclick: () => useFirst("gemini") }, geminiFirst ? "Save" : "Save & use Gemini first") : ""),
-        g.configured ? h("div", { class: "st-test ok" }, `Key saved · model ${g.model}${geminiFirst ? " · Tia's first choice" : ""}`) : ""),
-      h("div", { class: "st-gopt" },
-        h("div", {}, h("b", {}, "2 · Antigravity (your Google login – no key)"),
-          h("div", { class: "st-desc" }, a.configured ? "Antigravity is installed and signed in on this PC. Gemini 4 quality, but each answer takes ~30 s – best as a backup after a fast one." : "Needs the Antigravity app installed and signed in (antigravity.google). Then it appears here.")),
-        a.configured && edit && !order.includes("antigravity") ? h("div", { class: "st-grow" }, h("button", { class: "st-btn", onclick: () => ((order = [...order, "antigravity"]), save()) }, "+ Add as backup"), h("button", { class: "st-btn", onclick: () => useFirst("antigravity") }, "Use it first")) : a.configured && order.includes("antigravity") ? h("div", { class: "st-test ok" }, "In Tia's list ✓") : ""));
+          edit ? h("button", { class: "st-btn", onclick: () => ((order = [o.id, ...order.filter((x) => x !== o.id)]), save()) }, "Use first") : "",
+          edit && !inList ? h("button", { class: "st-btn", onclick: () => ((order = [...order, o.id]), save()) }, "Add") : "",
+          edit && inList && order.length > 1 ? h("button", { class: "st-btn", onclick: () => ((order = order.filter((x) => x !== o.id)), save()) }, "Remove") : "",
+          h("button", { class: "st-btn", onclick: () => test(o.id) }, "Test"),
+          t ? h("span", { class: `st-test ${t.ok ? "ok" : t.busy ? "" : "bad"}` }, t.busy ? "Testing…" : t.text) : ""));
+    });
+    return h("div", { class: "st-card" },
+      h("div", { class: "st-h" }, "AI"),
+      h("div", { class: "st-desc" }, "Choose which AI Tia thinks with. Keys are saved only on this PC. Press Save (top right) after pasting a key."),
+      h("div", { class: "st-opts" }, tiles));
+  }
+  // Updates from GitHub (Tia checks every 15 minutes by herself)
+  let updMsg = "";
+  function updateCard(h, edit) {
+    const u = s.update || {};
+    return h("div", { class: "st-card" },
+      h("div", { class: "st-h" }, "Updates"),
+      h("div", { class: "st-desc" }, u.enabled ? "Tia updates herself from GitHub (checks every 15 minutes)." : "Automatic updates are off on this PC."),
+      h("div", { class: "st-kv" }, h("span", {}, "Version"), h("b", {}, u.version || "–"), h("span", {}, "Last check"), h("b", {}, u.lastCheck ? new Date(u.lastCheck).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "not yet")),
+      u.error ? h("div", { class: "st-test bad" }, u.error) : "",
+      updMsg ? h("div", { class: "st-test ok" }, updMsg) : "",
+      edit ? h("div", { class: "st-grow" }, h("button", { class: "st-btn", onclick: async (e) => {
+        e.target.disabled = true;
+        e.target.textContent = "Checking…";
+        const r = await T().checkUpdate();
+        updMsg = r.updated && Date.now() - r.updated.at < 60000 ? `✓ Updated: ${r.updated.subject}` : r.error ? "" : "✓ Up to date";
+        await load();
+      } }, "Check now")) : "");
   }
   const CONNECTABLE = { calendar: 1, gmail: 1, slack: 1, instagram: 1, linkedin: 1, ads: 1 };
   async function connect(app, btn) {

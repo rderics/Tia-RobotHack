@@ -104,6 +104,9 @@
     settingsSave: (body) => post("api/settings", body),
     composioLogin: () => post("api/settings/composio-login"),
     joinTeam: (code) => post("api/settings/team", { code }),
+    checkUpdate: () => post("api/settings/update", {}),
+    aiSignin: (id) => post("api/settings/signin", { id }),
+    restartTia: () => post("api/settings/update", { restart: true }),
     // demo business messages in the apps + real actions for answers
     demoInbox: () => get("api/demo/inbox"),
     demoAct: (body) => post("api/demo/act", body),
