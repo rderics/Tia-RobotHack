@@ -51,7 +51,39 @@ function execute(slug, data = {}, { account, timeoutMs = 60000 } = {}) {
 }
 
 // Start linking an app: returns the Composio page where the owner signs in / pastes an ID himself.
-const LINKABLE = new Set(["whatsapp", "outlook", "gmail", "slack", "instagram", "linkedin", "metaads"]);
+const LINKABLE = new Set(["whatsapp", "outlook", "gmail", "slack", "instagram", "linkedin", "metaads", "googlecalendar"]);
+const installed = () => fs.existsSync(cli()) || cli() !== "composio";
+// Who is signed in to Composio on this PC (each teammate uses their own free account)
+function whoami() {
+  return new Promise((resolve) => {
+    let out = "";
+    let child;
+    try {
+      child = spawn(cli(), ["whoami"], { windowsHide: true });
+    } catch {
+      return resolve({ installed: false, loggedIn: false });
+    }
+    const t = setTimeout(() => (child.kill(), resolve({ installed: true, loggedIn: false })), 15000);
+    child.stdout.on("data", (d) => (out += d));
+    child.on("error", () => (clearTimeout(t), resolve({ installed: false, loggedIn: false })));
+    child.on("close", () => {
+      clearTimeout(t);
+      try {
+        const j = JSON.parse(out.slice(out.indexOf("{")));
+        resolve({ installed: true, loggedIn: !!j.email, email: j.email || "" });
+      } catch {
+        resolve({ installed: true, loggedIn: false });
+      }
+    });
+  });
+}
+// Opens the Composio sign-in page in the browser (the teammate signs in / signs up there – free)
+function login() {
+  const child = spawn(cli(), ["login"], { windowsHide: true, detached: true, stdio: "ignore" });
+  child.on("error", () => {});
+  child.unref();
+  return { started: true };
+}
 function link(toolkit) {
   if (!LINKABLE.has(toolkit)) return Promise.reject(new Error(`can't link ${toolkit} from Tia`));
   return new Promise((resolve, reject) => {
@@ -147,4 +179,4 @@ async function slackHistory(channel, limit = 20) {
   return data.messages || [];
 }
 
-module.exports = { htmlToText, link, execute, connections, gmailInbox, gmailDraft, outlookDraft, slackHistory, cli };
+module.exports = { htmlToText, link, whoami, login, installed, execute, connections, gmailInbox, gmailDraft, outlookDraft, slackHistory, cli };

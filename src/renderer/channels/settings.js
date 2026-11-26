@@ -112,11 +112,18 @@
           return i;
         })()));
     const conn = s.connections || {};
-    const NAMES = { calendar: "Google Calendar", gmail: "Gmail", outlook: "Outlook (Composio)", slack: "Slack", instagram: "Instagram", linkedin: "LinkedIn", ads: "Meta Ads", whatsapp: "WhatsApp (Composio)", whatsappBusiness: "WhatsApp Business (Meta)" };
+    const NAMES = { calendar: "Google Calendar", gmail: "Gmail", slack: "Slack", instagram: "Instagram", linkedin: "LinkedIn", ads: "Meta Ads", whatsappBusiness: "WhatsApp Business" };
     const connBox = h("div", { class: "st-card" },
       h("div", { class: "st-h" }, "Connected apps"),
-      h("div", { class: "st-conn" }, Object.entries(NAMES).filter(([k]) => conn[k]).map(([k, n]) => h("div", { class: "st-ci" }, h("span", { class: `dot ${conn[k].state}` }), h("b", {}, n), h("span", {}, conn[k].state === "connected" ? conn[k].name || "connected" : conn[k].state === "pending" ? conn[k].name || "waiting" : "not connected")))),
-      h("div", { class: "st-desc" }, "Classic Outlook works directly on this PC (no account link needed). Others link with Composio: composio link <app>."));
+      composioBox(h, s.composio || {}, edit),
+      h("div", { class: "st-conn" }, Object.entries(NAMES).filter(([k]) => conn[k] || CONNECTABLE[k]).map(([k, n]) => {
+        const st = (conn[k] || {}).state || "missing";
+        const canLink = CONNECTABLE[k] && st !== "connected" && (s.composio || {}).loggedIn && edit;
+        return h("div", { class: "st-ci" }, h("span", { class: `dot ${st}` }), h("b", {}, n),
+          h("span", {}, st === "connected" ? (conn[k] || {}).name || "connected" : st === "pending" ? (conn[k] || {}).name || "waiting" : "not connected"),
+          canLink ? h("button", { class: "st-btn", onclick: (e) => connect(k, e.target) }, "Connect") : st === "connected" && CONNECTABLE[k] ? h("span", { class: "st-ok" }, "✓") : "");
+      })),
+      h("div", { class: "st-desc" }, "Classic Outlook works directly on this PC – just be signed in to classic Outlook. WhatsApp Business comes with the team keys (tia-team.env)."));
     const biz = h("div", { class: "st-card" },
       h("div", { class: "st-h" }, "Business"),
       h("div", { class: "st-kv" }, h("span", {}, "Business"), h("b", {}, s.business.name), h("span", {}, "Owner"), h("b", {}, s.business.owner), h("span", {}, "Vault"), h("b", {}, s.business.vault), h("span", {}, "Phone address"), h("b", {}, s.publicUrl || "this network only")));
@@ -131,6 +138,29 @@
           keysBox),
         h("div", {}, biz, connBox)));
     return root;
+  }
+  const CONNECTABLE = { calendar: 1, gmail: 1, slack: 1, instagram: 1, linkedin: 1, ads: 1 };
+  async function connect(app, btn) {
+    btn.disabled = true;
+    btn.textContent = "Opening…";
+    try {
+      const r = await T().livePost("link", { app });
+      if (r.error || !r.url) throw new Error(r.error || "no link");
+      window.open(r.url, "_blank", "noopener");
+      btn.textContent = "Sign in there, then ↻";
+      btn.disabled = false;
+      btn.onclick = () => load();
+    } catch (e) {
+      btn.textContent = `Failed: ${e.message || e}`;
+    }
+  }
+  function composioBox(h, c, edit) {
+    if (c.loggedIn) return h("div", { class: "st-desc" }, `App connections by Composio · signed in as ${c.email}. Press Connect next to an app and allow it in the browser.`);
+    if (!c.installed) return h("div", { class: "st-desc warn" }, "Composio (connects Gmail, Calendar, Slack, Instagram, LinkedIn, Meta Ads) isn't installed – run “Update Tia” on the desktop, then come back.");
+    return h("div", { class: "st-cbox" },
+      h("div", {}, h("b", {}, "Step 1 · Sign in to Composio (free)"), h("div", { class: "st-desc" }, "It connects your apps safely – Tia never sees your passwords. A browser opens: sign in with Google, then come back and press ↻.")),
+      edit ? h("button", { class: "st-save", onclick: async (e) => { e.target.textContent = "Browser opened – sign in, then ↻"; await T().composioLogin(); } }, "Sign in to Composio") : "",
+      h("button", { class: "st-btn", onclick: () => load() }, "↻"));
   }
   window.TiaSettings = { view, setRerender: (fn) => (rerender = fn), reload: load };
 })();

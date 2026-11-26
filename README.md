@@ -6,6 +6,8 @@ The owner can also **talk to Tia** – on the big screen or from the **Tia phone
 
 The demo business **Oakline Studio** and all its people are fictional.
 
+> **Teammates: start with [TEAM SETUP.md](TEAM%20SETUP.md)** – install in one click, connect your apps in Settings, phone by QR.
+
 ## For teammates – get Tia on your PC
 
 Windows 10/11. Tia runs the fictional demo business, so you need none of Rinalds' files or accounts.

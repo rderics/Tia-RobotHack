@@ -679,3 +679,7 @@ body.tab-calendar .tia-pip .pipbox { height: 128px; }
 .st-ci { display: grid; grid-template-columns: 12px 190px 1fr; gap: 8px; align-items: center; font-size: 13.5px; } .st-ci span:last-child { color: #9C97A6; }
 .st-ci .dot { width: 8px; height: 8px; border-radius: 50%; background: #8C8796; }
 @media (max-width: 1200px) { .st-cols { grid-template-columns: 1fr; } }
+.st-ci { grid-template-columns: 12px 190px 1fr auto; }
+.st-ok { color: #9FE3BF; font-weight: 700; }
+.st-desc.warn { color: #F2D49B; }
+.st-cbox { display: flex; align-items: center; gap: 12px; background: #221E30; border: 1px solid #3A3450; border-radius: 12px; padding: 12px; margin: 6px 0 12px; } .st-cbox > div { flex: 1; }

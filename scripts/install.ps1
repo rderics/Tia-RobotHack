@@ -62,6 +62,11 @@ if ($teamFile) {
 Say "3/6 Tools (Node, Python, ffmpeg, cloudflared, Obsidian)"
 if (-not $testRun) {
 if (-not (Has "cloudflared") -and -not (Test-Path "C:\Program Files (x86)\cloudflared\cloudflared.exe")) { Winget "Cloudflare.cloudflared" "cloudflared (public address for the phone + WhatsApp)" }
+# Composio CLI: connects Gmail, Google Calendar, Slack, Instagram, LinkedIn, Meta Ads (each teammate signs in to their own free account in Tia → Settings)
+if (-not (Test-Path (Join-Path $env:USERPROFILE ".composio\composio.exe"))) {
+  Write-Host "Installing Composio (app connections)..."
+  try { powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ComposioHQ/composio/next/install.ps1 | iex" } catch { Write-Host "Composio install failed - app connections can be added later with Update Tia." -ForegroundColor Yellow }
+}
 $obsidianExe = Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"
 if (-not (Test-Path $obsidianExe)) { Winget "Obsidian.Obsidian" "Obsidian (to show the business vault)" }
 }

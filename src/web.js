@@ -320,7 +320,7 @@ async function localApi(req, res, route, url) {
         }
         if (app === "whatsapp/draft") return sendJson(res, 200, await require("./connectors/whatsapp").draftFor(cfg, String(body.waId || "")));
         if (app === "whatsapp/read") return sendJson(res, 200, (require("./connectors/whatsapp").markRead(cfg, String(body.waId || "")), { ok: true }));
-        if (app === "link") return sendJson(res, 200, await require("./connectors/composio").link(body.app === "ads" ? "metaads" : body.app));
+        if (app === "link") return sendJson(res, 200, await require("./connectors/composio").link({ ads: "metaads", calendar: "googlecalendar" }[body.app] || body.app));
         if (app === "suggest") return sendJson(res, 200, await L.suggest(cfg, body));
         if (app === "linkedin/write") return sendJson(res, 200, await L.linkedinPost(cfg, body));
         if (app === "ads/review") return sendJson(res, 200, await L.reviewAd(cfg, body));
@@ -349,9 +349,14 @@ async function localApi(req, res, route, url) {
         keys,
         custom: { baseUrl: process.env.TIA_AI_BASE_URL || "", model: process.env.TIA_AI_MODEL || "" },
         business: { name: cfg.business, owner: cfg.owner, profile: cfg.profile, vault: path.basename(cfg.vaultDir) },
-        connections: { ...live, whatsappBusiness: { state: W.canSend ? "connected" : W.relay ? "pending" : "missing", name: W.canSend ? "sending ready" : W.relay ? "receiving only" : "" } },
+        composio: await require("./connectors/composio").whoami(),
+        connections: { ...live, whatsappBusiness: { state: W.canSend ? "connected" : W.relay ? "pending" : "missing", name: W.relay ? "messages arrive via the team relay" : "" } },
         publicUrl: publicUrl(),
       });
+    }
+    if (req.method === "POST" && route === "/api/settings/composio-login") {
+      if (!isLocal(req)) return sendJson(res, 403, { error: "Sign in on the PC Tia runs on." });
+      return sendJson(res, 200, require("./connectors/composio").login());
     }
     if (req.method === "POST" && route === "/api/settings/test") {
       const body = await readJson(req);
