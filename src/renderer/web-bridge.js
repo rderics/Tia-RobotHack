@@ -99,6 +99,12 @@
     // The owner's real accounts (Composio): read + drafts only
     live: (what, fresh) => get(`api/live/${what}${fresh ? "?refresh=1" : ""}`),
     livePost: (what, body) => post(`api/live/${what}`, body),
+    // Documents tab
+    docs: () => get("api/docs"),
+    docFile: (name) => withToken(`api/docs/file?name=${encodeURIComponent(name)}`),
+    docPrint: (name) => post("api/docs/print", { name }),
+    docEmail: (name, to, text) => post("api/docs/email", { name, to, text }),
+    docOpen: (name) => post("api/docs/open", { name }),
     liveImg: (u) => (u ? withToken(`api/live/img?u=${encodeURIComponent(u)}`) : ""),
     voice: (blob) => fetch("api/voice", { method: "POST", headers: headers({ "content-type": blob.type || "audio/webm" }), body: blob }).then(check),
     pair: (ip) => get(`api/pair${ip ? `?ip=${encodeURIComponent(ip)}` : ""}`),

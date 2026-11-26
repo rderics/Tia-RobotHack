@@ -27,6 +27,7 @@
     leads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
     linkedin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg>',
     ads: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M21 19H3"/></svg>',
+    docs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>',
     vault: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="17" r="2.6"/><path d="M8 8l2.6 7M16.3 7.6l-3 7.2M8.2 6.8l7.6-.6"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>',
   };
@@ -38,6 +39,7 @@
     ["slack", "Slack"],
     ["linkedin", "LinkedIn"],
     ["ads", "Ads"],
+    ["docs", "Docs"],
     ["leads", "Leads"],
     ["vault", "Vault"],
   ];
@@ -177,6 +179,7 @@
     if (tab === "tia") return;
     view.innerHTML = "";
     if (tab === "leads") return view.append(leadsView());
+    if (tab === "docs") return window.TiaDocs ? view.append(window.TiaDocs.view(baseCtx())) : null;
     if (tab === "vault") return window.TiaVault ? view.append(window.TiaVault.el()) : view.append(h("div", { class: "ch-empty" }, "Vault view not loaded."));
     const L = window.TiaLive;
     const LABEL = { email: "Gmail", slack: "Slack", instagram: "Instagram", whatsapp: "WhatsApp", linkedin: "LinkedIn", ads: "Meta Ads" };
@@ -366,6 +369,7 @@
     });
 
   build();
+  if (window.TiaDocs) window.TiaDocs.setRerender(() => (tab === "docs" ? render() : null));
   if (window.TiaLive) window.TiaLive.setRerender(() => (tab !== "tia" ? render() : null));
   S.load().then(render);
   window.TiaChannels.showTab = showTab;

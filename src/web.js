@@ -327,6 +327,58 @@ async function localApi(req, res, route, url) {
       return sendJson(res, 502, { error: String(e.message || e).slice(0, 300) });
     }
   }
+  // ---------- Documents tab: contracts / offers Tia made → preview, print, email as draft ----------
+  if (route.startsWith("/api/docs")) {
+    const A = require("./actions");
+    const cfg = loadConfig();
+    const dir = A.docsDir(cfg);
+    const safe = (n) => {
+      const f = path.join(dir, path.basename(String(n || "")));
+      if (!f.toLowerCase().endsWith(".pdf") || !fs.existsSync(f)) throw new Error("no such document");
+      return f;
+    };
+    try {
+      if (req.method === "GET" && route === "/api/docs") {
+        const files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".pdf")).map((f) => ({ name: f, at: fs.statSync(path.join(dir, f)).mtimeMs, kb: Math.round(fs.statSync(path.join(dir, f)).size / 1024) }));
+        let clients = [];
+        try {
+          clients = fs.readdirSync(path.join(cfg.vaultDir, "Projects")).filter((f) => f.endsWith(".md")).map((f) => f.replace(/\.md$/, "")).slice(0, 40);
+        } catch {}
+        let templates = [];
+        try {
+          templates = fs.readdirSync(path.join(cfg.vaultDir, "Templates")).filter((f) => f.endsWith(".md")).map((f) => f.replace(/\.md$/, ""));
+        } catch {}
+        return sendJson(res, 200, { files: files.sort((a, b) => b.at - a.at), projects: clients, templates });
+      }
+      if (req.method === "GET" && route === "/api/docs/file") {
+        const f = safe(url.searchParams.get("name"));
+        res.writeHead(200, { "content-type": "application/pdf", "content-disposition": "inline", "cache-control": "no-store" });
+        return fs.createReadStream(f).pipe(res);
+      }
+      if (req.method === "POST" && route === "/api/docs/print") {
+        const body = await readJson(req);
+        const f = safe(body.name);
+        const steps = [];
+        await A.print(cfg, f, (s) => steps.push(s));
+        return sendJson(res, 200, { ok: true, steps });
+      }
+      if (req.method === "POST" && route === "/api/docs/email") {
+        const body = await readJson(req);
+        const f = safe(body.name);
+        const info = engine.info();
+        const steps = [];
+        await A.outlook(cfg, { to: String(body.to || ""), subject: `${path.basename(f, ".pdf")} – ${info.business}`, text: String(body.text || `Hello,\n\nplease find the document attached.\n\nBest regards,\n${info.owner}`), attach: [f] }, (s) => steps.push(s));
+        return sendJson(res, 200, { ok: true, steps });
+      }
+      if (req.method === "POST" && route === "/api/docs/open") {
+        const body = await readJson(req);
+        A.open(safe(body.name));
+        return sendJson(res, 200, { ok: true });
+      }
+    } catch (e) {
+      return sendJson(res, 400, { error: String(e.message || e) });
+    }
+  }
   // ---------- Business vault (tab on the screen) ----------
   if (route.startsWith("/api/vault/")) {
     const V = require("./vault-api");
