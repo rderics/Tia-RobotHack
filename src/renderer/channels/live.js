@@ -70,7 +70,8 @@
   function switcher(h, tab, label) {
     const st = canLive() ? load("status") : {};
     const appKey = tab === "email" ? "gmail" : tab;
-    const s = st.data && st.data[appKey];
+    const wa = tab === "whatsapp" && canLive() ? load("whatsapp").data : null; // WhatsApp comes by Meta webhook, not Composio
+    const s = wa ? { state: wa.lastEvent ? "connected" : "pending", name: "Meta webhook" } : st.data && st.data[appKey];
     const live = isLive(tab);
     const set = (m) => {
       mode[tab] = m;
@@ -128,6 +129,7 @@
       const s = store.slack && store.slack.data;
       return { live: true, ws: (s && s.workspace) || "Your Slack", initials: "ME", channels: s ? s.channels : [], banner: "Write here or let Tia write it. Saved messages wait in Tia – you post them in Slack. Tia never posts by herself." };
     }
+    if (tab === "whatsapp") return { live: true, banner: "Tia drafted this the moment the message came in – edit it, then ✈ saves it and copies it for you to send. Tia never sends by herself." };
     return null;
   }
   // actions for live items (views.js calls these instead of the desk's decide/reject)
@@ -142,6 +144,12 @@
           Object.assign(body, { team: s.team, channelId: x.channelId, to: x.address });
         }
         if (!String(body.text || "").trim()) return alert("Write something first – or press “Let Tia write”.");
+        if (x.live === "whatsapp") {
+          body.to = x.address;
+          try {
+            await navigator.clipboard.writeText(body.text);
+          } catch {}
+        }
         x.actions = [{ step: "draft", status: "run", detail: x.live === "gmail" ? "Saving the draft in Gmail…" : "Saving the draft…" }];
         base.render();
         try {
@@ -154,6 +162,21 @@
       },
       reject: (x) => ((skipped[x.id] = true), rerender()),
       typeDraft: (x, ta, done) => {
+        if (x.live === "whatsapp") {
+          // the server keeps the chat's draft; ask for a fresh one
+          ta.value = "";
+          ta.placeholder = "Tia is writing…";
+          return T()
+            .livePost("whatsapp/draft", { waId: x.waId })
+            .then((chat) => {
+              if (!chat || chat.error) throw new Error((chat && chat.error) || "chat not found");
+              if (chat.skip && !chat.suggestion) return (ta.placeholder = `Tia: no reply needed – ${chat.skip}`);
+              x.draft = chat.suggestion;
+              delete base.userEdited[x.id];
+              base.typeDraft(x, ta, () => load("whatsapp", true));
+            })
+            .catch((e) => (ta.placeholder = `Tia couldn't write it: ${e.message || e}`));
+        }
         if (suggestions[x.id]) return base.typeDraft(x, ta, done);
         ta.value = "";
         ta.placeholder = "Tia is writing…";
@@ -477,36 +500,63 @@
     return h("div", { class: "ig igp-wrap" }, nav, main, side);
   }
 
-  // ============================ WHATSAPP (live: how to connect) ============================
+  // ============================ WHATSAPP (live: Business number by Meta webhook) ============================
+  let waSel = null;
+  function waItems() {
+    const s = store.whatsapp && store.whatsapp.data;
+    return ((s && s.chats) || []).map((ch) => {
+      const id = `wa_${ch.waId}`;
+      const last = ch.messages[ch.messages.length - 1] || {};
+      const lastIn = [...ch.messages].reverse().find((m) => m.dir === "in") || last;
+      const d = draftOf(id);
+      const saved = d && Date.parse(d.savedAt) > Date.parse(lastIn.at || 0); // a draft newer than their last message
+      return {
+        id, waId: ch.waId, live: "whatsapp", channel: "whatsapp", from: ch.name || `+${ch.waId}`, address: `+${ch.waId}`,
+        text: last.text || "", time: last.at ? new Date(last.at).toTimeString().slice(0, 5) : "", received: last.at, thread: ch.messages,
+        draft: (saved && d.text) || ch.suggestion || "", state: saved ? "edited" : "open", unread: ch.unread || 0, reason: "",
+        actions: saved ? [{ step: "draft", status: "done", detail: `Saved ${new Date(d.savedAt).toTimeString().slice(0, 5)} and copied – paste it to the customer. Tia never sends.` }] : ch.skip && !ch.suggestion ? [{ step: "draft", status: "done", detail: `Tia: no reply needed – ${ch.skip}` }] : [],
+      };
+    });
+  }
   function whatsappLive(c) {
     const { h } = c;
-    const st = load("status");
-    const s = st.data && st.data.whatsapp;
+    const s = load("whatsapp");
+    const data = s.data || {};
+    const items = waItems();
+    if (items.length && window.TiaApps) {
+      if (!waSel || !items.find((x) => x.id === waSel)) waSel = items[0].id;
+      const x = items.find((i) => i.id === waSel);
+      if (x.unread) T().livePost("whatsapp/read", { waId: x.waId }).catch(() => {});
+      const ctx = ctxFor("whatsapp", { ...c, select: (id) => ((waSel = id), rerender()) });
+      return window.TiaApps.wa(ctx, items, x);
+    }
+    const num = Object.values(data.numbers || {})[0];
     const steps = [
-      ["Check if you already have a WhatsApp Business Account", "Open business.facebook.com/settings → Accounts → WhatsApp accounts (use the business portfolio your ad accounts are in). If one is listed, click it and copy the “WhatsApp Business Account ID” – a 15–16 digit number. Skip to step 3."],
-      ["No account yet? Make one (free, ~2 min)", "developers.facebook.com → My Apps → Create app → use case “Connect with customers through WhatsApp” → choose the same business portfolio. Meta creates the WhatsApp Business Account and a free test number. The ID is shown under WhatsApp → API Setup. (A real business number can be added there later – it can't be in the WhatsApp phone app at the same time.)"],
-      ["Paste the ID into Composio", "Press “Open the Composio link” below, paste the ID into “WABA ID”, press Connect Account and allow it in the Meta window. Then press ↻ here – the dot turns green."],
-      ["What Tia can do then", "Messages sent to that business number reach Tia; she drafts the replies and you send them. Your personal WhatsApp chats can't be read by any app – Meta only opens business numbers."],
+      ["Tia's receiving address is ready", "https://tia.rderics.id.lv/webhooks/whatsapp – Meta calls it whenever someone writes to the business number. It runs on this PC through the Tia tunnel."],
+      ["Meta app → WhatsApp → Configuration → Webhook", "Callback URL = the address above, Verify token = WHATSAPP_VERIFY_TOKEN from Tia's .env file. Press “Verify and save”, then subscribe to the “messages” field."],
+      ["Write to the business number", `Send a WhatsApp message to ${num && num.display ? `+${num.display}` : "the test number (+1 555 175 1540)"} from your phone. It appears here within a second and Tia drafts the reply.`],
     ];
-    const linkBtn = h("button", { class: "am-primary", disabled: !T().livePost, onclick: async (e) => {
-      e.target.disabled = true;
-      e.target.textContent = "Opening…";
-      try {
-        const r = await T().livePost("link", { app: "whatsapp" });
-        if (r.error || !r.url) throw new Error(r.error || "Composio gave no link");
-        window.open(r.url, "_blank", "noopener");
-        e.target.textContent = "Link opened – paste the WABA ID there";
-      } catch (err) {
-        e.target.textContent = `Couldn't open it: ${err.message || err}`;
-      }
-    } }, "Open the Composio link");
     return h("div", { class: "wa wa-conn" }, h("div", { class: "wa-card" },
-      h("div", { class: "wa-ttl" }, I("lock_closed"), "Connect WhatsApp Business"),
-      h("div", { class: "wa-state" }, h("span", { class: `dot ${s ? s.state : ""}` }), s ? (s.state === "connected" ? "Connected – Tia can read the business number." : s.state === "pending" ? "Started in Composio – waiting for the WABA ID." : s.state === "expired" ? "Not connected – the last Composio link expired before a WABA ID was entered." : "Not connected yet.") : "Checking…"),
+      h("div", { class: "wa-ttl" }, I("lock_closed"), "WhatsApp Business → Tia"),
+      h("div", { class: "wa-state" }, h("span", { class: `dot ${data.lastEvent ? "connected" : data.configured ? "pending" : ""}` }),
+        data.lastEvent ? `Connected – last call from Meta ${new Date(data.lastEvent).toLocaleString("en-GB")}. No messages yet.` : data.configured ? "Ready – waiting for the first call from Meta." : s.loading ? "Checking…" : "Not set up yet."),
       h("ol", {}, steps.map(([t, d]) => h("li", {}, h("b", {}, t), h("div", {}, d)))),
-      h("div", { class: "am-row" }, linkBtn, h("a", { class: "am-btn", href: "https://business.facebook.com/settings/whatsapp-business-accounts", target: "_blank", rel: "noopener" }, "Open Meta Business settings")),
-      h("div", { class: "wa-foot" }, "Until it's connected, the WhatsApp tab shows the Oakline Studio demo, and approving a WhatsApp reply opens wa.me with the text typed – you press send.")));
+      h("div", { class: "wa-foot" }, "Only messages to the business number reach Tia – Meta doesn't let any app read personal WhatsApp chats. Tia drafts the replies; she never sends.")));
   }
+  // live: a message to the business number → refresh, and with "Follow Tia" on, open the WhatsApp tab
+  if (T().onEvent)
+    T().onEvent((ev) => {
+      if (ev.type !== "whatsapp-in" && ev.type !== "whatsapp-draft") return;
+      load("whatsapp", true);
+      if (ev.type === "whatsapp-in") {
+        waSel = `wa_${ev.chat}`;
+        const followOn = document.querySelector(".apprail .follow.on");
+        if (followOn && window.TiaChannels && window.TiaChannels.showTab) {
+          mode.whatsapp = "live";
+          window.TiaChannels.showTab("whatsapp");
+        }
+      }
+    });
 
   window.TiaLive = {
     LIVE_TABS, canLive, isLive, switcher, items, ctxFor,

@@ -188,7 +188,7 @@ async function saveDraft(cfg, b) {
 const brain = () => require("../brain/providers");
 async function suggest(cfg, b) {
   const who = cfg.owner || "the owner";
-  const where = { gmail: "an email", slack: "a Slack message", instagram: "an Instagram message" }[b.app] || "a message";
+  const where = { gmail: "an email", slack: "a Slack message", instagram: "an Instagram message", whatsapp: "a WhatsApp message from a customer" }[b.app] || "a message";
   if (b.mode === "caption") {
     const r = await brain().chat(cfg, {
       system: "You are Tia, a social media assistant. Rewrite this Instagram caption so the first line stops the scroll, keep the same language, voice and topic, add one call to action and 3-5 relevant hashtags at the end. Max 600 characters. Return only the caption.",
@@ -197,8 +197,15 @@ Numbers: ${b.stats || "-"}`,
     });
     return { text: String(r.text || "").trim(), via: r.via };
   }
+  // Messages to the business itself (WhatsApp Business number) are answered from the business vault – the notes Tia
+  // reads light up live in the Vault tab. The owner's private inbox apps get no vault context.
+  let facts = "";
+  if (b.vault) {
+    const ctx = require("../brain/vault").contextFor(cfg, String(b.text || ""));
+    facts = `\n\nWhat you know about the business (use these facts; anything not here – don't promise it, offer to check):\n${ctx.text.slice(0, 9000)}`;
+  }
   const r = await brain().chat(cfg, {
-    system: `You are Tia, the assistant of ${who}. Write a short, friendly, ready-to-send reply to ${where}. Same language as the message. No subject line, no placeholders like [Name] – if a fact is missing, write the reply so it asks for it. Never promise or invent dates, prices or facts that are not in the message. If nobody should answer it (no-reply sender, automatic notification, security alert, newsletter, receipt), return exactly: NO_REPLY: <one short sentence what it is and what the owner should do, if anything>. Otherwise return only the reply text.`,
+    system: `You are Tia, the assistant of ${who}${b.vault && cfg.business ? ` at ${cfg.business}` : ""}. Write a short, friendly, ready-to-send reply to ${where}. Same language as the message. No subject line, no placeholders like [Name] – if a fact is missing, write the reply so it asks for it. Never promise or invent dates, prices or facts that are not in the message${b.vault ? " or the business facts below" : ""}.${facts} If nobody should answer it (no-reply sender, automatic notification, security alert, newsletter, receipt), return exactly: NO_REPLY: <one short sentence what it is and what the owner should do, if anything>. Otherwise return only the reply text.`,
     prompt: `From: ${b.from || ""} <${b.address || ""}>\nSubject: ${b.subject || ""}\n\n${String(b.text || "").slice(0, 3000)}`,
   });
   const text = String(r.text || "").trim();

@@ -437,4 +437,4 @@ function getItem(id) {
 
 const rawItem = (id) => desk.items.find((x) => x.id === id) || null;
 
-module.exports = { runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange };
+module.exports = { emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange };

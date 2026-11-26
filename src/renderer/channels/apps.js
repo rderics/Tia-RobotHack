@@ -115,19 +115,29 @@
           h("div", { class: "l2" }, h("span", {}, i.text), i.state === "open" ? h("span", { class: "cnt" }, "1") : null)))));
     const main = h("div", { class: "wa-main" });
     if (x) {
-      const open = x.state === "open";
+      const open = x.state === "open" || (x.live && x.state === "edited");
       const msgs = h("div", { class: "wa-msgs" },
-        h("div", { class: "wa-enc" }, "Messages are end-to-end encrypted. No one outside of this chat can read them."),
-        h("div", { class: "wa-day" }, "Today"),
-        h("div", { class: "wb in" }, x.text, h("span", { class: "t" }, x.time)));
+        h("div", { class: "wa-enc" }, "Messages are end-to-end encrypted. No one outside of this chat can read them."));
+      if (x.thread) {
+        // a real chat (WhatsApp Business webhook): the whole conversation, grouped by day
+        let day = "";
+        for (const m of x.thread) {
+          const d = new Date(m.at);
+          const label = d.toDateString() === new Date().toDateString() ? "Today" : d.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+          if (label !== day) msgs.append(h("div", { class: "wa-day" }, (day = label)));
+          msgs.append(h("div", { class: `wb ${m.dir === "in" ? "in" : "out"}` }, m.text, h("span", { class: "t" }, d.toTimeString().slice(0, 5))));
+        }
+      } else msgs.append(h("div", { class: "wa-day" }, "Today"), h("div", { class: "wb in" }, x.text, h("span", { class: "t" }, x.time)));
       if (!open && x.draft) msgs.append(h("div", { class: "wb out draft" }, h("span", { class: "lbl" }, x.state === "handled" ? "Tia · handled" : "Tia · draft"), x.draft, h("span", { class: "t" }, x.time)));
       main.append(
-        h("div", { class: "wa-chathead" }, c.avatar(x.from), h("div", {}, h("div", { class: "nm" }, x.from), h("div", { class: "s" }, "click here for contact info")), h("span", { class: "sp" }), h("div", { class: "ic" }, I("video"), I("search"), I("more_vertical"))),
+        h("div", { class: "wa-chathead" }, c.avatar(x.from), h("div", {}, h("div", { class: "nm" }, x.from), h("div", { class: "s" }, x.live ? x.address : "click here for contact info")), h("span", { class: "sp" }), h("div", { class: "ic" }, I("video"), I("search"), I("more_vertical"))),
         msgs);
       if (open) {
         const ta = c.textarea(x, "Type a message");
-        main.append(h("div", { class: "wa-tia" }, tiaBanner(c, x, "Tia's draft is in the message box – change it or press send: WhatsApp opens with the text, you press send."), c.steps(x)),
-          h("div", { class: "wa-compose" }, h("div", { class: "ic" }, I("add")), h("div", { class: "ic" }, I("emoji")), ta, h("button", { class: "wa-send", title: "Open in WhatsApp", onclick: () => c.decide(x, ta.value) }, I("send_filled"))));
+        main.append(h("div", { class: "wa-tia" }, tiaBanner(c, x, x.live ? (c.acct && c.acct.banner) || "" : "Tia's draft is in the message box – change it or press send: WhatsApp opens with the text, you press send."), c.steps(x)),
+          h("div", { class: "wa-compose" }, h("div", { class: "ic" }, I("add")), h("div", { class: "ic" }, I("emoji")), ta,
+            x.live ? h("button", { class: "wa-redo", title: "Let Tia write it again", onclick: () => c.typeDraft(x, ta) }, I("sparkle")) : "",
+            h("button", { class: "wa-send", title: x.live ? "Save the draft and copy it" : "Open in WhatsApp", onclick: () => c.decide(x, ta.value) }, I("send_filled"))));
       } else main.append(h("div", { class: "wa-tia" }, c.chip(x), c.steps(x)), h("div", { class: "wa-compose" }, h("div", { class: "ic" }, I("add")), h("div", { class: "ic" }, I("emoji")), h("textarea", { rows: 1, placeholder: "Type a message" }), h("div", { class: "ic" }, I("mic"))));
     } else main.append(h("div", { class: "ch-empty" }, "Send and receive messages without keeping your phone online."));
     return h("div", { class: "wa" },

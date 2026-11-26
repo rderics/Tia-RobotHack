@@ -296,12 +296,15 @@ async function localApi(req, res, route, url) {
     try {
       if (req.method === "GET") {
         if (app === "img") return L.image(url.searchParams.get("u") || "", res);
+        if (app === "whatsapp") return sendJson(res, 200, require("./connectors/whatsapp").data(cfg));
         if (app === "drafts") return sendJson(res, 200, L.drafts(cfg));
         if (["status", "gmail", "slack", "instagram", "linkedin", "ads"].includes(app)) return sendJson(res, 200, await L[app](cfg, fresh));
       }
       if (req.method === "POST") {
         const body = await readJson(req);
         if (app === "draft") return sendJson(res, 200, await L.saveDraft(cfg, body));
+        if (app === "whatsapp/draft") return sendJson(res, 200, await require("./connectors/whatsapp").draftFor(cfg, String(body.waId || "")));
+        if (app === "whatsapp/read") return sendJson(res, 200, (require("./connectors/whatsapp").markRead(cfg, String(body.waId || "")), { ok: true }));
         if (app === "link") return sendJson(res, 200, await require("./connectors/composio").link(body.app === "ads" ? "metaads" : body.app));
         if (app === "suggest") return sendJson(res, 200, await L.suggest(cfg, body));
         if (app === "linkedin/write") return sendJson(res, 200, await L.linkedinPost(cfg, body));
@@ -432,6 +435,22 @@ function start() {
     const allowed = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, pub && new URL(pub).origin].filter(Boolean);
     if (origin && !allowed.includes(origin)) return sendJson(res, 403, { error: "forbidden origin" });
     try {
+      // Meta calls this when someone messages the WhatsApp Business number (public; checked by verify token,
+      // the accepted phone-number IDs and – if set – Meta's signature). Server-to-server, so no Origin header.
+      if (route === "/webhooks/whatsapp") {
+        const W = require("./connectors/whatsapp");
+        if (req.method === "GET") return W.verify(url, res);
+        if (req.method !== "POST") return sendJson(res, 405, { error: "method not allowed" });
+        const cfg = loadConfig();
+        const fresh = await W.receive(cfg, req, res);
+        const chats = [...new Set(fresh.map((f) => f.chat))];
+        for (const f of fresh) hub.emit({ type: "whatsapp-in", chat: f.chat, text: f.message.text, at: Date.now() });
+        for (const id of chats)
+          W.draftFor(cfg, id)
+            .then((c) => c && hub.emit({ type: "whatsapp-draft", chat: id, at: Date.now() }))
+            .catch((e) => console.warn(`[whatsapp] draft failed: ${e.message || e}`));
+        return;
+      }
       if (route.startsWith("/api/")) {
         // This computer: no login. Anywhere else (the domain, the local network): the pairing code.
         if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "login", login: true });
