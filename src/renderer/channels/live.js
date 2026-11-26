@@ -548,7 +548,8 @@
     const s = load("whatsapp");
     const data = s.data || {};
     const items = waItems();
-    if (items.length && window.TiaApps) {
+    const linking = ["qr", "starting"].includes((linkInfo || data.link || {}).status); // a QR is waiting – show it first
+    if (items.length && window.TiaApps && !linking) {
       if (!waSel || !items.find((x) => x.id === waSel)) waSel = items[0].id;
       const x = items.find((i) => i.id === waSel);
       if (x.unread) T().livePost("whatsapp/read", { waId: x.waId }).catch(() => {});
