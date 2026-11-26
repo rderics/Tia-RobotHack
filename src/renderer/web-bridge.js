@@ -103,6 +103,7 @@
     settingsTest: (id) => post("api/settings/test", { id }),
     settingsSave: (body) => post("api/settings", body),
     composioLogin: () => post("api/settings/composio-login"),
+    joinTeam: (code) => post("api/settings/team", { code }),
     // demo business messages in the apps + real actions for answers
     demoInbox: () => get("api/demo/inbox"),
     demoAct: (body) => post("api/demo/act", body),

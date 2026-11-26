@@ -4,11 +4,10 @@ Everything is clicks. Windows 10/11. Do the steps in order.
 
 ---
 
-## Step 1 · Get the team key file (1 min)
-1. Rinalds sends you **`tia-team.env`** in a **Discord DM**.
-2. Save it to your **Downloads** folder (don't rename it).
-
-It holds the free AI key and the WhatsApp Business keys. **Never post it in a public channel or on GitHub.**
+## Step 1 · Get the team code (1 min)
+Rinalds sends you the **team code** in a Discord DM (it looks like `oakline-river-maple-1234`).
+The installer asks for it once – Tia then fetches the shared keys (free AI, WhatsApp Business) by herself and keeps
+them up to date. **Don't post the code in a public channel.**
 
 ---
 
@@ -17,7 +16,8 @@ It holds the free AI key and the WhatsApp Business keys. **Never post it in a pu
 2. Click **Download the installer** and open **Install-Tia.cmd**.
    Windows warns you → click **More info → Run anyway**.
 3. A blue window installs everything by itself (Node.js, Python, ffmpeg, Obsidian, Cloudflare, Composio).
-   If it asks for a Groq key, just press **Enter** – the team file already has one.
+   When it asks **"Team code from Rinalds"** → paste the code → Enter.
+   (If it then asks for a Groq key, just press **Enter**.)
 4. Wait for **"Done!"** and close the window.
 
 On your desktop you now have:
@@ -35,7 +35,9 @@ On your desktop you now have:
 2. Press **Check inbox** (top right). In about a minute Tia sorts the 12 demo messages:
    routine ones go to **Done**, decisions go to **Needs you**.
 3. Left rail → **Settings** (gear at the bottom) → **Tia's brain** → press **Test** next to **Groq**.
-   It should say **"Works"**. If it doesn't: Step 1 wasn't done → put the file in Downloads → run **Update Tia**.
+   It should say **"Works"**. If not: **Settings → Join the team** → paste the team code → **Join**.
+4. **Better free AI (optional, 1 min):** Settings → **Best free brain: Google Gemini** → **Get a free key** → sign in with
+   Google → **Create API key** → paste it → **Save & use Gemini first**. (Or, if you use Google Antigravity, add it as a backup.)
 
 ---
 
@@ -60,7 +62,7 @@ Tia types reply drafts into it in front of you; you press Send.
    - **✦** = Tia writes a reply · **➤** = send it from your number (only when *you* tap).
    - Remove it any time: phone → Linked devices → Tia → Log out, or **Unlink** in Tia.
 
-The **WhatsApp Business** test number of the team works through the team key file (no setup needed).
+The team's **WhatsApp Business** number works through the team code (no setup needed).
 
 ---
 

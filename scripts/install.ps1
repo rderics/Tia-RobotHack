@@ -42,22 +42,34 @@ if (Test-Path (Join-Path $dest ".git")) {
 Write-Host "Tia is in $dest"
 Set-Location $dest
 
-Say "2/6 Team keys (tia-team.env)"
-# Rinalds shares tia-team.env privately (Discord). Put it in Downloads or on the Desktop before running this.
-$teamFile = @((Join-Path $env:USERPROFILE "Downloads\tia-team.env"), (Join-Path $env:USERPROFILE "Desktop\tia-team.env"), (Join-Path $dest "tia-team.env")) | Where-Object { Test-Path $_ } | Select-Object -First 1
+Say "2/6 Team keys"
+# The shared keys (free AI, WhatsApp Business) come from the TEAM CODE (Rinalds shares it in Discord) – no file needed.
+# Tia refreshes them at every start. (An old tia-team.env in Downloads still works too.)
 $envFile = Join-Path $dest ".env"
-if ($teamFile) {
-  $have = @{}
-  if (Test-Path $envFile) { Get-Content $envFile | ForEach-Object { if ($_ -match "^\s*([A-Z0-9_]+)=") { $have[$Matches[1]] = $true } } }
-  $added = 0
-  Get-Content $teamFile | ForEach-Object {
-    if ($_ -match "^\s*([A-Z0-9_]+)=(.+)$" -and -not $have[$Matches[1]]) { Add-Content -Path $envFile -Value "$($Matches[1])=$($Matches[2].Trim())" -Encoding ascii; $added++ }
-  }
-  Write-Host "Team keys from $teamFile ($added new) - AI, WhatsApp and the relay work on this PC." -ForegroundColor Green
-} else {
-  Write-Host "No tia-team.env found. Ask Rinalds for it (Discord), save it to Downloads and run this installer again." -ForegroundColor Yellow
-  Write-Host "Without it Tia still runs the demo; setup will ask for a free Groq key instead."
+$haveCode = (Test-Path $envFile) -and ((Get-Content $envFile -Raw) -match "(?m)^TIA_TEAM_CODE=\S+")
+$teamFile = @((Join-Path $env:USERPROFILE "Downloads\tia-team.env"), (Join-Path $env:USERPROFILE "Desktop\tia-team.env")) | Where-Object { Test-Path $_ } | Select-Object -First 1
+function Save-Env($pairs) {
+  $lines = @(); if (Test-Path $envFile) { $lines = @(Get-Content $envFile) }
+  foreach ($k in $pairs.Keys) { $lines = @($lines | Where-Object { $_ -notmatch "^$k=" }); $lines += "$k=$($pairs[$k])" }
+  Set-Content -Path $envFile -Value $lines -Encoding ascii
 }
+if (-not $haveCode -and -not $teamFile -and -not $testRun) {
+  $code = (Read-Host "Team code from Rinalds (press Enter to skip)").Trim()
+  if ($code) {
+    try {
+      $r = Invoke-RestMethod -Method Post -Uri "https://rderics.id.lv/tia-team" -ContentType "application/json" -Body (@{ code = $code } | ConvertTo-Json)
+      $pairs = @{ TIA_TEAM_CODE = $code }
+      foreach ($l in ($r.env -split "`r?`n")) { if ($l -match "^([A-Z0-9_]+)=(.+)$") { $pairs[$Matches[1]] = $Matches[2].Trim() } }
+      Save-Env $pairs
+      Write-Host "Joined the team - $($pairs.Count - 1) keys saved on this PC. Tia keeps them up to date." -ForegroundColor Green
+    } catch { Write-Host "That code didn't work ($($_.Exception.Message)). You can type it later in Tia -> Settings -> Join the team." -ForegroundColor Yellow }
+  } else { Write-Host "Skipped - type the team code later in Tia -> Settings -> Join the team." -ForegroundColor Yellow }
+} elseif ($teamFile) {
+  $pairs = @{}
+  Get-Content $teamFile | ForEach-Object { if ($_ -match "^\s*([A-Z0-9_]+)=(.+)$") { $pairs[$Matches[1]] = $Matches[2].Trim() } }
+  Save-Env $pairs
+  Write-Host "Team keys from $teamFile." -ForegroundColor Green
+} else { Write-Host "Team keys already set up." -ForegroundColor Green }
 
 Say "3/6 Tools (Node, Python, ffmpeg, cloudflared, Obsidian)"
 if (-not $testRun) {

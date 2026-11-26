@@ -247,22 +247,24 @@ const LABELS = {
   "claude-code": "Claude (Claude subscription on this PC)",
   api: "Claude API (Anthropic key)",
   codex: "OpenAI Codex (ChatGPT login)",
+  antigravity: "Google Antigravity (Gemini 4 – your Google login, free, slower)",
   groq: "Groq – free",
   gemini: "Google Gemini – free",
   openrouter: "OpenRouter – free models",
   custom: "Any OpenAI-compatible API",
   hermes: "Hermes Agent (this PC)",
 };
-const SHORT = { "claude-code": "Claude", api: "Claude API", codex: "Codex", groq: "Groq", gemini: "Gemini", openrouter: "OpenRouter", custom: "Custom AI", hermes: "Hermes" };
+const SHORT = { "claude-code": "Claude", api: "Claude API", codex: "Codex", antigravity: "Antigravity", groq: "Groq", gemini: "Gemini", openrouter: "OpenRouter", custom: "Custom AI", hermes: "Hermes" };
 function modelOf(cfg, name) {
   if (name === "claude-code" || name === "api") return cfg.model;
   if (name === "codex") return cfg.codexModel || "codex default";
+  if (name === "antigravity") return cfg.antigravityModel || "gemini-3.8-flash-low";
   const p = presetFor(cfg, name);
   return (p.models || [])[0] || "";
 }
 function aiStatus(cfg) {
   const chain = providerChain(cfg, "inbox");
-  const all = ["claude-code", "api", "codex", ...OPENAI_STYLE];
+  const all = ["claude-code", "api", "codex", "antigravity", ...OPENAI_STYLE];
   return {
     chain,
     lastVia,
@@ -270,7 +272,7 @@ function aiStatus(cfg) {
     label: (n) => `${SHORT[n] || n} · ${modelOf(cfg, n)}`,
     providers: all.map((n) => ({
       id: n, label: LABELS[n] || n, short: SHORT[n] || n, model: modelOf(cfg, n), inChain: chain.includes(n),
-      configured: n === "claude-code" ? true : n === "codex" ? cfg.fallbackProvider === "codex" || (cfg.providers || []).includes("codex") : n === "api" ? !!process.env.ANTHROPIC_API_KEY : isConfigured(cfg, n, cfg.providers || [n]),
+      configured: n === "claude-code" ? true : n === "antigravity" ? hasAntigravity() : n === "codex" ? cfg.fallbackProvider === "codex" || (cfg.providers || []).includes("codex") : n === "api" ? !!process.env.ANTHROPIC_API_KEY : isConfigured(cfg, n, cfg.providers || [n]),
       keyEnv: n === "api" ? "ANTHROPIC_API_KEY" : (PRESETS[n] || {}).keyEnv || "",
       blocked: blockedUntil[n] > Date.now(),
     })),
@@ -281,7 +283,8 @@ async function testProvider(cfg, name) {
   const t0 = Date.now();
   const sys = "Reply with exactly: OK";
   let r;
-  if (name === "claude-code") r = await viaClaudeText(cfg, "Say OK", sys);
+  if (name === "antigravity") r = await viaAntigravity(cfg, "Say OK", sys, null);
+  else if (name === "claude-code") r = await viaClaudeText(cfg, "Say OK", sys);
   else if (name === "codex") r = await viaCodex(cfg, "Say OK", sys, null);
   else if (name === "api") r = await viaApi(cfg, "Say OK", sys, { type: "object", additionalProperties: false, properties: { text: { type: "string" } }, required: ["text"] });
   else r = await viaOpenAI(cfg, name, "Say OK", sys, null);
@@ -308,7 +311,56 @@ async function tryChain(cfg, run, kind = "inbox") {
   throw lastErr || new Error("No AI provider is set up – see README (free Groq key).");
 }
 
+// Google Antigravity CLI (agy) – signs in with the owner's Google account, free daily quota, Gemini 4 / 3.8 Flash.
+// It is a full agent, so it is slower (~25-45 s a call): good as a high-quality backup, not as the first choice.
+function agyExe() {
+  const known = [path.join(process.env.LOCALAPPDATA || "", "agy", "bin", "agy.exe"), path.join(os.homedir(), ".local", "bin", "agy.exe")];
+  return known.find((p) => fs.existsSync(p)) || "";
+}
+const hasAntigravity = () => !!agyExe();
+function viaAntigravity(cfg, prompt, system, schema) {
+  const exe = agyExe();
+  if (!exe) return Promise.reject(new Error("Antigravity CLI (agy) isn't installed on this PC"));
+  const dir = path.join(os.tmpdir(), "tia-agy");
+  fs.mkdirSync(dir, { recursive: true });
+  // Windows command lines stop at ~32 000 characters – keep the end of the prompt (the actual message) if it is longer
+  let text = `${system || ""}
+
+Do not use any tools, files or the web – answer from this text only.
+
+${prompt}`;
+  if (text.length > 26000) text = `${text.slice(0, 9000)}
+…
+${text.slice(-16000)}`;
+  const args = ["--model", cfg.antigravityModel || "gemini-3.8-flash-low", "--output-format", "json", "--disable-slash-commands", "--print-timeout", "150s"];
+  if (schema) args.push("--json-schema", JSON.stringify(schema));
+  args.push(`-p=${text}`);
+  return new Promise((resolve, reject) => {
+    const child = spawn(exe, args, { cwd: dir, windowsHide: true });
+    let out = "";
+    let err = "";
+    const t = setTimeout(() => (child.kill(), reject(new Error("Antigravity took too long"))), 170000);
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err += d));
+    child.on("error", (e) => (clearTimeout(t), reject(e)));
+    child.on("close", () => {
+      clearTimeout(t);
+      let j = null;
+      try {
+        j = JSON.parse(out.slice(out.indexOf("{")));
+      } catch {}
+      if (!j || j.status !== "SUCCESS") return reject(new Error(`Antigravity: ${(j && (j.error || j.status)) || (err || out).trim().slice(-200) || "no answer"}`));
+      if (!schema) return resolve({ proposal: String(j.response || "").trim(), costUsd: 0 });
+      const so = j.structured_output;
+      const parsed = so && typeof so === "object" ? so : firstJson(typeof so === "string" ? so : j.response);
+      if (!parsed) return reject(new Error("Antigravity didn't return the structured answer"));
+      resolve({ proposal: parsed, costUsd: 0 });
+    });
+  });
+}
+
 function structured(cfg, name, prompt, system, schema) {
+  if (name === "antigravity") return viaAntigravity(cfg, prompt, system, schema);
   if (name === "claude-code") return viaClaudeCode(cfg, prompt, system, schema);
   if (name === "api") return viaApi(cfg, prompt, system, schema);
   if (name === "codex") return viaCodex(cfg, prompt, system, schema);
@@ -331,6 +383,7 @@ async function chat(cfg, { system, prompt }) {
   const r = await tryChain(cfg, (name) => {
     if (name === "claude-code") return viaClaudeText(cfg, prompt, system);
     if (name === "api") return viaApi(cfg, prompt, system, { type: "object", properties: { text: { type: "string" } }, required: ["text"] }).then((x) => ({ ...x, proposal: x.proposal.text }));
+    if (name === "antigravity") return viaAntigravity(cfg, prompt, system, null);
     if (name === "codex") return viaCodex(cfg, prompt, system, null);
     return viaOpenAI(cfg, name, prompt, system, null);
   }, "talk");

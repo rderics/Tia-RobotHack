@@ -123,7 +123,7 @@
           h("span", {}, st === "connected" ? (conn[k] || {}).name || "connected" : st === "pending" ? (conn[k] || {}).name || "waiting" : "not connected"),
           canLink ? h("button", { class: "st-btn", onclick: (e) => connect(k, e.target) }, "Connect") : st === "connected" && CONNECTABLE[k] ? h("span", { class: "st-ok" }, "✓") : "");
       })),
-      h("div", { class: "st-desc" }, "Classic Outlook works directly on this PC – just be signed in to classic Outlook. WhatsApp Business comes with the team keys (tia-team.env)."));
+      h("div", { class: "st-desc" }, "Classic Outlook works directly on this PC – just be signed in to classic Outlook. WhatsApp Business and the free AI come with the team code."));
     const biz = h("div", { class: "st-card" },
       h("div", { class: "st-h" }, "Business"),
       h("div", { class: "st-kv" }, h("span", {}, "Business"), h("b", {}, s.business.name), h("span", {}, "Owner"), h("b", {}, s.business.owner), h("span", {}, "Vault"), h("b", {}, s.business.vault), h("span", {}, "Phone address"), h("b", {}, s.publicUrl || "this network only")));
@@ -131,6 +131,8 @@
       h("div", { class: "st-top" }, h("div", { class: "st-title" }, "Settings"), h("span", { class: "sp" }), edit ? h("button", { class: "st-save", onclick: save }, "Save") : h("span", { class: "st-desc" }, "View only – change settings on the PC Tia runs on"), saved ? h("span", { class: "st-saved" }, saved) : ""),
       h("div", { class: "st-cols" },
         h("div", {},
+          teamCard(h, edit),
+          geminiCard(h, P, edit),
           h("div", { class: "st-card" },
             h("div", { class: "st-h" }, "Tia's brain"),
             h("div", { class: "st-desc" }, "Tia asks the first AI; if it is busy, out of credit or fails, she moves to the next one by herself. Change the order, the model, or add a free one."),
@@ -138,6 +140,48 @@
           keysBox),
         h("div", {}, biz, connBox)));
     return root;
+  }
+  // Team code: the shared keys (free AI, WhatsApp Business) come from Cloudflare – no files to pass around
+  let teamMsg = "";
+  function teamCard(h, edit) {
+    const t = s.team || {};
+    if (t.joined && !t.error) return h("div", { class: "st-card st-team ok" }, h("div", { class: "st-h" }, "✓ Team keys"), h("div", { class: "st-desc" }, `Joined the Tia team – shared keys${t.at ? ` synced ${new Date(t.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : " sync at every start"}.`));
+    const inp = h("input", { class: "st-in", placeholder: "team code from Rinalds, e.g. oakline-river-maple-1234", disabled: !edit });
+    return h("div", { class: "st-card st-team" },
+      h("div", { class: "st-h" }, "Join the team"),
+      h("div", { class: "st-desc" }, "Type the team code once – Tia gets the shared keys (free AI, WhatsApp Business) and keeps them up to date by herself."),
+      h("div", { class: "st-grow" }, inp, edit ? h("button", { class: "st-save", onclick: async () => {
+        teamMsg = "Joining…";
+        rerender();
+        const r = await T().joinTeam(inp.value);
+        teamMsg = r.ok ? `✓ Joined – ${r.keys} keys` : `⚠ ${r.error}`;
+        await load();
+      } }, "Join") : ""),
+      teamMsg || t.error ? h("div", { class: `st-test ${String(teamMsg).startsWith("✓") ? "ok" : "bad"}` }, teamMsg || t.error) : "");
+  }
+  // The best free brain: Google Gemini – a free API key (fast) or the Antigravity login (no key, slower)
+  function geminiCard(h, P, edit) {
+    const g = P.gemini || {};
+    const a = P.antigravity || {};
+    const geminiFirst = order[0] === "gemini";
+    const key = h("input", { class: "st-in", type: "password", placeholder: s.keys.GEMINI_API_KEY ? `saved ${s.keys.GEMINI_API_KEY}` : "paste the key (AIza…)", disabled: !edit, oninput: (e) => (keys.GEMINI_API_KEY = e.target.value) });
+    key.value = keys.GEMINI_API_KEY || "";
+    const useFirst = (id) => ((order = [id, ...order.filter((x) => x !== id)]), save());
+    return h("div", { class: "st-card st-gem" },
+      h("div", { class: "st-h" }, "✦ Best free brain: Google Gemini"),
+      h("div", { class: "st-desc" }, "Better answers than Groq, free, and no waiting for Claude limits."),
+      h("div", { class: "st-gopt" },
+        h("div", {}, h("b", {}, "1 · Gemini key (recommended – fast)"),
+          h("div", { class: "st-desc" }, "Takes 1 minute: open the link, sign in with Google, press “Create API key”, copy it, paste it here.")),
+        h("div", { class: "st-grow" },
+          h("a", { class: "st-btn", href: "https://aistudio.google.com/apikey", target: "_blank", rel: "noopener" }, "Get a free key ↗"),
+          key,
+          edit ? h("button", { class: "st-save", onclick: () => useFirst("gemini") }, geminiFirst ? "Save" : "Save & use Gemini first") : ""),
+        g.configured ? h("div", { class: "st-test ok" }, `Key saved · model ${g.model}${geminiFirst ? " · Tia's first choice" : ""}`) : ""),
+      h("div", { class: "st-gopt" },
+        h("div", {}, h("b", {}, "2 · Antigravity (your Google login – no key)"),
+          h("div", { class: "st-desc" }, a.configured ? "Antigravity is installed and signed in on this PC. Gemini 4 quality, but each answer takes ~30 s – best as a backup after a fast one." : "Needs the Antigravity app installed and signed in (antigravity.google). Then it appears here.")),
+        a.configured && edit && !order.includes("antigravity") ? h("div", { class: "st-grow" }, h("button", { class: "st-btn", onclick: () => ((order = [...order, "antigravity"]), save()) }, "+ Add as backup"), h("button", { class: "st-btn", onclick: () => useFirst("antigravity") }, "Use it first")) : a.configured && order.includes("antigravity") ? h("div", { class: "st-test ok" }, "In Tia's list ✓") : ""));
   }
   const CONNECTABLE = { calendar: 1, gmail: 1, slack: 1, instagram: 1, linkedin: 1, ads: 1 };
   async function connect(app, btn) {

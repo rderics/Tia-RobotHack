@@ -8,7 +8,7 @@ Rinalds' PC is **not** at the hackathon. The pitch runs on a teammate's Windows 
 that one install is enough.
 
 ## 1 · Install (once, ~10 min)
-1. Get **tia-team.env** from Rinalds (Discord DM – it holds the free AI key and the WhatsApp keys). Save it to **Downloads**.
+1. Get the **team code** from Rinalds (Discord DM). The installer asks for it; Tia fetches the shared keys (free AI, WhatsApp) by herself.
 2. Open **rderics.id.lv/tia-get** → *Download the installer* → double-click *Install-Tia.cmd* (Windows warning: *More info → Run anyway*).
    Or PowerShell: `irm https://raw.githubusercontent.com/rderics/Tia-RobotHack/main/scripts/install.ps1 | iex`
 3. Desktop now has **Tia**, **Tia – Business vault** (Obsidian) and **Update Tia**.
@@ -24,7 +24,7 @@ that one install is enough.
 ## 3 · What works — and what doesn't (26.11)
 | Feature | On a teammate's PC | Why / what it needs |
 |---|---|---|
-| Stand demo: inbox, talking, approvals, cards, Needs you | ✅ | free Groq key from tia-team.env; without it the recorded run plays |
+| Stand demo: inbox, talking, approvals, cards, Needs you | ✅ | free Groq key from the team code; without it the recorded run plays |
 | Tia talks (voice) + hold-to-talk | ✅ | voice needs internet (Microsoft voices); speech-to-text runs on the PC |
 | 3D avatar | ✅ | teammate's new avatar replaces `src/renderer/assets/avatars/tia.vrm` (must be **VRM**; a GLB/FBX needs converting – VRoid or Blender VRM add-on) |
 | Contract → PDF → printer | ✅ | Edge (built into Windows); printing needs a default printer, else the PDF just opens |

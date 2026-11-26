@@ -361,9 +361,17 @@ async function localApi(req, res, route, url) {
         custom: { baseUrl: process.env.TIA_AI_BASE_URL || "", model: process.env.TIA_AI_MODEL || "" },
         business: { name: cfg.business, owner: cfg.owner, profile: cfg.profile, vault: path.basename(cfg.vaultDir) },
         composio: await require("./connectors/composio").whoami(),
+        team: require("./team").status(),
         connections: { ...live, whatsappBusiness: { state: W.canSend ? "connected" : W.relay ? "pending" : "missing", name: W.relay ? "messages arrive via the team relay" : "" } },
         publicUrl: publicUrl(),
       });
+    }
+    if (req.method === "POST" && route === "/api/settings/team") {
+      if (!isLocal(req)) return sendJson(res, 403, { error: "Join the team on the PC Tia runs on." });
+      const body = await readJson(req);
+      const r = await require("./team").sync(String(body.code || "").trim());
+      if (r.ok) require("./connectors/whatsapp").registerWithRelay(publicUrl(), os.hostname()).catch(() => {});
+      return sendJson(res, 200, r);
     }
     if (req.method === "POST" && route === "/api/settings/composio-login") {
       if (!isLocal(req)) return sendJson(res, 403, { error: "Sign in on the PC Tia runs on." });
@@ -403,6 +411,7 @@ async function localApi(req, res, route, url) {
         if (!m) continue;
         if (id === "claude-code" || id === "api") user.model = m;
         else if (id === "codex") user.codexModel = m;
+        else if (id === "antigravity") user.antigravityModel = m;
         else if (P.PRESETS[id]) user.aiProviders = { ...(user.aiProviders || {}), [id]: { ...((user.aiProviders || {})[id] || {}), models: [m] } };
       }
       if (body.order && body.order[0] === "api") user.provider = "api";
@@ -643,7 +652,7 @@ function start() {
       console.log(`Tia is running: http://localhost:${PORT}  (Ctrl+C to stop)`);
       if (first) console.log(`Phone: scan the QR code on Tia's screen (phone connects to ${first.url})`);
       if (loadConfig().stt !== false) stt.start(loadConfig()); // warm up speech-to-text in the background
-      startOnline();
+      startOnline().catch((e) => console.warn(`[online] ${e.message || e}`));
       resolve(server);
     });
   });
@@ -655,8 +664,11 @@ const linkedMessages = (fresh) => {
 };
 // Public address + WhatsApp: on a PC without config.publicUrl, open a quick tunnel; then tell the WhatsApp relay
 // "send messages here" and fetch anything it kept while this PC was off. The Tia that starts last receives WhatsApp.
-function startOnline() {
+async function startOnline() {
   const cfg = loadConfig();
+  // team keys (free AI, WhatsApp Business) from the team code – refreshed at every start
+  const team = await require("./team").sync().catch(() => null);
+  if (team && team.ok) console.log(`Team keys synced (${team.keys})`);
   const W = require("./connectors/whatsapp");
   const tunnel = require("./tunnel");
   const onMessages = (fresh) => {
