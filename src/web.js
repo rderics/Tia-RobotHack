@@ -72,6 +72,43 @@ function appLink(url, token) {
   }
 }
 
+// ---------- /connect: where the QR on Tia's screen leads (any phone camera) ----------
+function connectPage(req, res, url) {
+  const token = String(url.searchParams.get("t") || "").replace(/[^\w-]/g, "");
+  const pub = (loadConfig().publicUrl || "").replace(/\/$/, "");
+  const base = viaInternet(req) && pub ? pub : `http://${String(req.headers.host || "").replace(/[^\w.:-]/g, "")}`;
+  const app = token ? appLink(base, token) : "";
+  let links = {};
+  try {
+    links = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "mobile", "app-links.json"), "utf8"));
+  } catch {}
+  const esc = (v) => String(v || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const info = engine.info();
+  const own = [links.tiaAppStore && `<a class="b" href="${esc(links.tiaAppStore)}">Tia for iPhone</a>`, links.tiaPlayStore && `<a class="b" href="${esc(links.tiaPlayStore)}">Tia for Android</a>`, links.tiaAndroidApk && `<a class="b ghost" href="${esc(links.tiaAndroidApk)}">Android app (test build)</a>`].filter(Boolean).join("");
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect your phone – Tia</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0E0D13;color:#ECEAF2;font:16px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;display:flex;justify-content:center}
+main{width:100%;max-width:420px;padding:36px 22px 40px}h1{font-size:26px;margin:14px 0 4px}p{color:#B5B0BF;margin:0 0 18px}
+.logo{width:54px;height:54px;border-radius:16px;background:#221E30;display:flex;align-items:center;justify-content:center;color:#B9A3F2;font-weight:800;font-size:20px}
+.step{background:#17151F;border:1px solid #26232F;border-radius:16px;padding:16px;margin-bottom:12px}.step h2{font-size:15px;margin:0 0 4px}.step p{font-size:14px;margin:0 0 12px}
+.b{display:block;text-align:center;text-decoration:none;font-weight:700;border-radius:12px;padding:13px;margin-top:8px;background:#B9A3F2;color:#16131F}
+.b.ghost{background:transparent;color:#B9A3F2;border:1px solid #3A3450}.row{display:flex;gap:8px}.row .b{flex:1}
+.small{font-size:12.5px;color:#8C8796;margin-top:18px}.bad{color:#F2A3A3}
+</style></head><body><main>
+<div class="logo">T</div><h1>Connect your phone to Tia</h1><p>${esc(info.business)} · ${esc(info.owner)}</p>
+${token ? `
+<div class="step"><h2>1 · Open the Tia app</h2><p>Opens Tia on your phone and connects it to this desk – no typing.</p>
+<a class="b" href="${esc(app)}">Open in the Tia app</a></div>
+<div class="step"><h2>No app yet?</h2><p>Tia runs inside the free <b>Expo Go</b> app for now. Install it, then come back to this page and tap <b>Open in the Tia app</b>.</p>
+<div class="row"><a class="b ghost" href="${esc(links.expoGoIos)}">iPhone</a><a class="b ghost" href="${esc(links.expoGoAndroid)}">Android</a></div>${own}</div>
+<div class="step"><h2>Or use the browser</h2><p>The same desk in your phone's browser.</p><a class="b ghost" href="${esc(base)}/#t=${esc(token)}">Open Tia in the browser</a></div>
+<p class="small">This link holds your Tia code – don't share it. Scan the QR on Tia's screen again for a fresh one.</p>`
+  : `<p class="bad">This link has no Tia code. Open Tia on the computer → <b>Connect phone</b> → scan the QR code.</p>`}
+</main></body></html>`;
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" });
+  return res.end(html);
+}
+
 // ---------- helpers ----------
 // A request through the Cloudflare tunnel also comes from 127.0.0.1 – Cloudflare's own headers tell them apart.
 const viaInternet = (req) => !!(req.headers["cf-ray"] || req.headers["cf-connecting-ip"] || req.headers["cf-visitor"]);
@@ -241,11 +278,14 @@ async function localApi(req, res, route, url) {
     const qr = (text) => QRCode.toString(text, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#111013", light: "#ffffff" } });
     const svg = await qr(code);
     const open = appLink(pick.url, pairToken());
-    const appSvg = open ? await qr(open) : "";
+    // The QR opens a normal web page (works with any phone camera); that page opens the app, offers to install it,
+    // or continues in the browser. The same QR will lead to our own store app later.
+    const connect = `${pick.url.replace(/\/$/, "")}/connect?t=${pairToken()}`;
+    const appSvg = await qr(connect);
     const pub = loadConfig().publicUrl;
     // Through the website only the public address makes sense – the home network addresses are hidden there.
     const shown = isLocal(req) ? list : list.filter((a) => a.url === (pub || "").replace(/\/$/, ""));
-    return sendJson(res, 200, { addresses: shown, selected: pick, svg, appSvg, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
+    return sendJson(res, 200, { addresses: shown, selected: pick, svg, appSvg, connect, appLink: open, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
   }
   if (req.method === "GET" && route === "/api/events") {
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
@@ -359,6 +399,7 @@ function start() {
         if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "login", login: true });
         return await localApi(req, res, route, url);
       }
+      if (route === "/connect") return connectPage(req, res, url); // public: holds no secrets, the code comes in the link
       if (!isLocal(req) && !viaInternet(req)) return sendJson(res, 403, { error: "Use the phone app or the Tia web address." });
       return serveStatic(req, res, route, url);
     } catch (e) {
