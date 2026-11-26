@@ -301,6 +301,10 @@ async function localApi(req, res, route, url) {
     try {
       if (req.method === "GET") {
         if (app === "img") return L.image(url.searchParams.get("u") || "", res);
+        if (app === "whatsapp/link") {
+          const st = require("./connectors/wa-link").status();
+          return sendJson(res, 200, { ...st, qrSvg: st.qr ? await QRCode.toString(st.qr, { type: "svg", margin: 1, color: { dark: "#111B21", light: "#FFFFFF" } }) : "" });
+        }
         if (app === "whatsapp") return sendJson(res, 200, require("./connectors/whatsapp").data(cfg));
         if (app === "calendar") return sendJson(res, 200, await L.calendar(cfg, url.searchParams.get("week")));
         if (app === "drafts") return sendJson(res, 200, L.drafts(cfg));
@@ -317,6 +321,13 @@ async function localApi(req, res, route, url) {
           const r = await W.send(cfg, String(body.waId || ""), String(body.text || ""));
           hub.emit({ type: "whatsapp-sent", chat: String(body.waId || ""), at: Date.now() });
           return sendJson(res, 200, r);
+        }
+        if (app === "whatsapp/link" || app === "whatsapp/unlink") {
+          if (!isLocal(req)) return sendJson(res, 403, { error: "Link WhatsApp on the PC Tia runs on." });
+          const WL = require("./connectors/wa-link");
+          if (app === "whatsapp/unlink") return sendJson(res, 200, await WL.unlink(cfg));
+          await WL.start(cfg, linkedMessages);
+          return sendJson(res, 200, WL.status());
         }
         if (app === "whatsapp/draft") return sendJson(res, 200, await require("./connectors/whatsapp").draftFor(cfg, String(body.waId || "")));
         if (app === "whatsapp/read") return sendJson(res, 200, (require("./connectors/whatsapp").markRead(cfg, String(body.waId || "")), { ok: true }));
@@ -638,6 +649,10 @@ function start() {
   });
 }
 
+// New messages from the owner's linked WhatsApp: show them live (no AI draft unless the owner asks – private chats)
+const linkedMessages = (fresh) => {
+  for (const f of fresh) hub.emit({ type: "whatsapp-in", chat: f.chat, text: f.message.text, at: Date.now() });
+};
 // Public address + WhatsApp: on a PC without config.publicUrl, open a quick tunnel; then tell the WhatsApp relay
 // "send messages here" and fetch anything it kept while this PC was off. The Tia that starts last receives WhatsApp.
 function startOnline() {
@@ -658,6 +673,9 @@ function startOnline() {
     tunnel.start(PORT);
     tunnel.onUrl(register);
   }
+  // the owner's WhatsApp linked before → reconnect by itself
+  const WL = require("./connectors/wa-link");
+  if (WL.linkedBefore(cfg)) WL.start(cfg, linkedMessages).catch((e) => console.warn(`[whatsapp link] ${e.message || e}`));
   const pull = () => W.pullFromRelay(loadConfig(), onMessages).catch(() => {});
   pull();
   setInterval(pull, 20000).unref(); // backup in case a forward was missed

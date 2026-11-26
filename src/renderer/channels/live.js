@@ -536,7 +536,7 @@
       const d = draftOf(id);
       const saved = d && Date.parse(d.savedAt) > Date.parse(lastIn.at || 0); // a draft newer than their last message
       return {
-        id, waId: ch.waId, live: "whatsapp", channel: "whatsapp", from: ch.name || `+${ch.waId}`, address: `+${ch.waId}`,
+        id, waId: ch.waId, live: "whatsapp", channel: "whatsapp", from: ch.name || (/@lid$/.test(ch.jid || "") ? "WhatsApp contact" : `+${ch.waId}`), address: /@lid$/.test(ch.jid || "") ? "" : `+${ch.waId}`,
         text: last.text || "", time: last.at ? new Date(last.at).toTimeString().slice(0, 5) : "", received: last.at, thread: ch.messages,
         draft: (saved && d.text) || ch.suggestion || "", state: saved ? "edited" : "open", unread: ch.unread || 0, reason: "",
         actions: saved ? [{ step: "draft", status: "done", detail: `Saved ${new Date(d.savedAt).toTimeString().slice(0, 5)} and copied – paste it to the customer. Tia never sends.` }] : ch.skip && !ch.suggestion ? [{ step: "draft", status: "done", detail: `Tia: no reply needed – ${ch.skip}` }] : [],
@@ -555,18 +555,60 @@
       const ctx = ctxFor("whatsapp", { ...c, select: (id) => ((waSel = id), rerender()) });
       return window.TiaApps.wa(ctx, items, x);
     }
-    const num = Object.values(data.numbers || {})[0];
+    // not linked yet: link the owner's own WhatsApp like WhatsApp Web (QR → Linked devices)
+    const L = linkInfo || data.link || { status: "off" };
+    if (["qr", "starting", "reconnecting"].includes(L.status) || linkPolling) pollLink();
+    const qr = h("div", { class: "wa-qr" });
+    if (L.qrSvg) qr.innerHTML = L.qrSvg; // our own server's QR (SVG made by the qrcode package)
+    else if (L.status === "starting" || L.status === "reconnecting") qr.append(h("div", { class: "spin" }));
     const steps = [
-      ["Tia's receiving address is ready", "https://tia.rderics.id.lv/webhooks/whatsapp – Meta calls it whenever someone writes to the business number. It runs on this PC through the Tia tunnel."],
-      ["Meta app → WhatsApp → Configuration → Webhook", "Callback URL = the address above, Verify token = WHATSAPP_VERIFY_TOKEN from Tia's .env file. Press “Verify and save”, then subscribe to the “messages” field."],
-      ["Write to the business number", `Send a WhatsApp message to ${num && num.display ? `+${num.display}` : "the test number (+1 555 175 1540)"} from your phone. It appears here within a second and Tia drafts the reply.`],
+      ["Open WhatsApp on your phone", "WhatsApp Business or WhatsApp – the one with the number you want in Tia."],
+      ["Settings → Linked devices → Link a device", "On iPhone: Settings → Linked devices. On Android: ⋮ → Linked devices."],
+      ["Point the phone at the QR code", "Your chats appear here in a few seconds. The phone keeps working as usual."],
     ];
-    return h("div", { class: "wa wa-conn" }, h("div", { class: "wa-card" },
-      h("div", { class: "wa-ttl" }, I("lock_closed"), "WhatsApp Business → Tia"),
-      h("div", { class: "wa-state" }, h("span", { class: `dot ${data.lastEvent ? "connected" : data.configured ? "pending" : ""}` }),
-        data.lastEvent ? `Connected – last call from Meta ${new Date(data.lastEvent).toLocaleString("en-GB")}. No messages yet.` : data.configured ? "Ready – waiting for the first call from Meta." : s.loading ? "Checking…" : "Not set up yet."),
-      h("ol", {}, steps.map(([t, d]) => h("li", {}, h("b", {}, t), h("div", {}, d)))),
-      h("div", { class: "wa-foot" }, "Only messages to the business number reach Tia – Meta doesn't let any app read personal WhatsApp chats. Tia drafts the replies; she never sends.")));
+    return h("div", { class: "wa wa-conn" }, h("div", { class: "wa-card wa-linkcard" },
+      h("div", { class: "wa-ttl" }, I("lock_closed"), "Use WhatsApp in Tia"),
+      h("div", { class: "wa-state" }, h("span", { class: `dot ${L.status === "connected" ? "connected" : L.status === "qr" ? "pending" : ""}` }),
+        L.status === "connected" ? `Linked${L.me ? ` as ${L.me}` : ""} – waiting for chats…` : L.status === "qr" ? "Scan the QR code with your phone" : L.status === "starting" || L.status === "reconnecting" ? "Starting…" : "Not linked"),
+      h("div", { class: "wa-linkrow" },
+        h("ol", {}, steps.map(([t, d]) => h("li", {}, h("b", {}, t), h("div", {}, d)))),
+        L.status === "qr" || L.status === "starting" || L.status === "reconnecting" ? qr : ""),
+      h("div", { class: "am-row" },
+        L.status === "off" || !L.status ? h("button", { class: "am-primary", onclick: async (e) => {
+          e.target.disabled = true;
+          e.target.textContent = "Starting…";
+          try {
+            const r = await T().livePost("whatsapp/link", {});
+            if (r.error) throw new Error(r.error);
+            linkInfo = r;
+            pollLink(true);
+          } catch (err) {
+            e.target.textContent = err.message || String(err);
+          }
+        } }, "Link my WhatsApp") : "",
+        L.status && L.status !== "off" ? h("button", { class: "am-btn", onclick: async () => ((linkInfo = await T().livePost("whatsapp/unlink", {})), (linkInfo.status = "off"), rerender()) }, "Unlink") : ""),
+      h("div", { class: "wa-foot" }, "Works like WhatsApp Web. Tia shows your chats and sends only when you tap send; nothing goes to the AI unless you press “Let Tia write”. To remove Tia: WhatsApp → Linked devices → Tia → Log out.")));
+  }
+  let linkInfo = null;
+  let linkPolling = false;
+  let linkTimer = null;
+  function pollLink(force) {
+    if (linkTimer && !force) return;
+    linkPolling = true;
+    clearTimeout(linkTimer);
+    linkTimer = setTimeout(async () => {
+      linkTimer = null;
+      try {
+        linkInfo = await T().live("whatsapp/link");
+      } catch {}
+      if (linkInfo && linkInfo.status === "connected") {
+        linkPolling = false;
+        load("whatsapp", true);
+        setTimeout(() => load("whatsapp", true), 4000); // history arrives a moment later
+        setTimeout(() => load("whatsapp", true), 12000);
+      } else if (linkInfo && linkInfo.status === "off") linkPolling = false;
+      rerender();
+    }, force ? 300 : 2000);
   }
   // live: a message to the business number → refresh, and with "Follow Tia" on, open the WhatsApp tab
   if (T().onEvent)

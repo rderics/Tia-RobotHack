@@ -132,7 +132,7 @@ async function draftFor(cfg, waId) {
   const chat = d.chats[waId];
   if (!chat) return null;
   const last = chat.messages.slice(-8).map((m) => `${m.dir === "in" ? chat.name || "Customer" : "Us"}: ${m.text}`).join("\n");
-  const r = await require("./live").suggest(cfg, { app: "whatsapp", vault: true, from: chat.name || `+${waId}`, address: `+${waId}`, subject: "", text: last });
+  const r = await require("./live").suggest(cfg, { app: "whatsapp", vault: chat.source !== "link", from: chat.name || `+${waId}`, address: `+${waId}`, subject: "", text: last });
   const d2 = read(cfg);
   if (!d2.chats[waId]) return null;
   d2.chats[waId].suggestion = r.text || "";
@@ -144,9 +144,26 @@ async function draftFor(cfg, waId) {
 // ---------- sending (only after the owner approves – called from the approve button / desk) ----------
 // .env: WHATSAPP_TOKEN (system-user token with whatsapp_business_messaging), WHATSAPP_PHONE_NUMBER_IDS (first = sender)
 const GRAPH = "https://graph.facebook.com/v21.0";
-const canSend = () => !!(process.env.WHATSAPP_TOKEN && allowedNumbers()[0]);
+const linkedOn = () => {
+  try {
+    return require("./wa-link").connected();
+  } catch {
+    return false;
+  }
+};
+const canSend = () => linkedOn() || !!(process.env.WHATSAPP_TOKEN && allowedNumbers()[0]);
 async function send(cfg, waId, text) {
-  if (!canSend()) throw new Error("WhatsApp sending isn't set up on this PC (WHATSAPP_TOKEN in .env)");
+  // a chat from the owner's linked WhatsApp goes out through that phone; others through the Business API
+  const known = read(cfg).chats[String(waId).replace(/^\+/, "")];
+  if (linkedOn() && (!known || known.source === "link" || !process.env.WHATSAPP_TOKEN)) {
+    const jid = (known && known.jid) || `${String(waId).replace(/[^\d]/g, "")}@s.whatsapp.net`;
+    const body = String(text || "").trim();
+    if (!body) throw new Error("nothing to send");
+    const r = await require("./wa-link").send(jid, body);
+    addMessage(cfg, { waId: jid.split("@")[0], jid, id: r.id || `out-${Date.now()}`, dir: "out", text: body, at: new Date().toISOString(), source: "link" });
+    return r;
+  }
+  if (!process.env.WHATSAPP_TOKEN) throw new Error("WhatsApp sending isn't set up on this PC – link your WhatsApp in the WhatsApp tab");
   const to = String(waId).replace(/[^\d]/g, "");
   const body = String(text || "").trim();
   if (!to || !body) throw new Error("nothing to send");
@@ -215,13 +232,41 @@ async function pullFromRelay(cfg, onFresh) {
   return n;
 }
 
+// ---------- messages from the owner's linked WhatsApp (connectors/wa-link.js) ----------
+function addMessage(cfg, m) {
+  const d = read(cfg);
+  const chat = (d.chats[m.waId] = d.chats[m.waId] || { waId: m.waId, name: "", number: "", messages: [] });
+  if (m.jid) chat.jid = m.jid;
+  if (m.source) chat.source = m.source;
+  if (m.name && !chat.name) chat.name = m.name;
+  if (chat.messages.some((x) => x.id === m.id)) return false;
+  chat.messages.push({ id: m.id, dir: m.dir, text: m.text, at: m.at });
+  chat.messages.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  chat.messages = chat.messages.slice(-40);
+  if (m.unread) chat.unread = (chat.unread || 0) + 1;
+  if (m.dir === "in") chat.suggestion = "";
+  // keep the newest 60 chats
+  const ids = Object.keys(d.chats).sort((a, b) => String(d.chats[b].messages.at(-1)?.at).localeCompare(String(d.chats[a].messages.at(-1)?.at)));
+  for (const id of ids.slice(60)) delete d.chats[id];
+  write(cfg, d);
+  return true;
+}
+function setName(cfg, waId, name) {
+  const d = read(cfg);
+  if (d.chats[waId] && !d.chats[waId].name) (d.chats[waId].name = name), write(cfg, d);
+}
+
 function data(cfg) {
   const d = read(cfg);
-  return { configured: !!process.env.WHATSAPP_VERIFY_TOKEN, canSend: canSend(), relay: !!relay(), numbers: d.numbers, lastEvent: d.lastEvent, chats: Object.values(d.chats).sort((a, b) => String(b.messages.at(-1)?.at).localeCompare(String(a.messages.at(-1)?.at))) };
+  let link = { status: "off" };
+  try {
+    link = require("./wa-link").status();
+  } catch {}
+  return { link: { status: link.status, me: link.me }, configured: !!process.env.WHATSAPP_VERIFY_TOKEN, canSend: canSend(), relay: !!relay(), numbers: d.numbers, lastEvent: d.lastEvent, chats: Object.values(d.chats).sort((a, b) => String(b.messages.at(-1)?.at).localeCompare(String(a.messages.at(-1)?.at))) };
 }
 function markRead(cfg, waId) {
   const d = read(cfg);
   if (d.chats[waId]) (d.chats[waId].unread = 0), write(cfg, d);
 }
 
-module.exports = { verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay };
+module.exports = { verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay, addMessage, setName };
