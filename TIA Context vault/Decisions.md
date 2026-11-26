@@ -2,6 +2,7 @@
 
 Add a line at the top when the team decides something: `date · who · decision · replaces`.
 
+- **26.11 · Rinalds** · **The pitch runs on a teammate's PC** (Rinalds' PC not at the event) → one-step installer (rderics.id.lv/tia-get), quick tunnel for the phone, WhatsApp via an always-on relay (rderics.id.lv/wa → the Tia that started last). **WhatsApp replies are really sent after the owner's tap** ("send Ralfs a WhatsApp…" too); messages go out as the business, not labelled as AI. Replaces "Tia only drafts WhatsApp (wa.me)".
 - **26.11 · Rinalds** · **Composio = Rinalds' own accounts** (Gmail, Slack, Instagram, LinkedIn, Meta Ads), shown through a demo/live switch in each app tab; new **Ads** (Meta Ads Manager look-alike, Tia reviews + rewrites ads) and **LinkedIn** tabs; the live Tia now reads **Business vault TIA**, not Rinalds' own vault. Replaces 25.11 "demo accounts for Composio".
 - **26.11 · Rinalds** · **Business vault tab**: browse, search and edit the vault inside Tia, Obsidian-style graph, and live "Tia is reading" (the notes she uses light up). Owner's real vault read-only from Tia. QR now opens `/connect` (works with any phone camera; later our own app).
 - **25.11 · Rinalds** · Views must be **identical to the real apps** and connect to them: high-fidelity Outlook web /

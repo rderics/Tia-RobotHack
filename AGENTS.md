@@ -16,8 +16,9 @@ commit** as the change. A decision that lives only in a chat does not exist for 
 ## Hard rules
 - **Never commit secrets or personal data:** `.env`, `config.json`, `data/`, API keys, real email addresses,
   real phone numbers, anyone's private notes. Demo data is fictional and uses `.example` domains.
-- **Tia never sends, pays or signs by herself.** Every outward action (email, WhatsApp, order, contract) ends as a
-  draft or a document that a human approves. Keep it that way in code (`src/brain/guard.js`).
+- **Tia never sends, pays or signs by herself.** Every outward action (email, WhatsApp, order, contract) needs the
+  owner's tap first. Email stays a draft (the owner presses Send in Outlook/Gmail); WhatsApp goes out from the business
+  number only after the owner taps send / approves (26.11). Keep it that way in code (`src/brain/guard.js`, `hub.decide`).
 - `demo/Business vault TIA` (the fictional business **Oakline Studio**) is **generated** – change
   `scripts/make_demo_vault/*.py` and rebuild, except `demo/Business vault TIA/Templates/`, which is hand-edited.
 - `demo/replay.json` is the stage's safety recording – only re-record on purpose (`TIA_RECORD_REPLAY=1`).

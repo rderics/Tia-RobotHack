@@ -1,6 +1,6 @@
 ---
 type: home
-updated: 2026-11-25
+updated: 2026-11-26
 ---
 # Tia — project memory (shared by the whole team and its AI agents)
 
@@ -18,6 +18,8 @@ already drafted. Every approval teaches her. She talks (voice), has a 3D face, a
 - **Next:** link real demo accounts via Composio (Gmail, Slack), Explain view for judges, polish the Tia tab, Hermes (AKU), stand script + backup video.
 - **See it yourself:** README → "For teammates" → "See it in action".
 
+**Pitching without Rinalds' PC → [[Pitch PC guide]]** (install in one step, what works where, WhatsApp script).
+
 ## Map
 - [[Team and ownership]] – who does what, which files are whose
 - [[Architecture]] – Tia + Hermes + the vault, providers, folders, endpoints
@@ -25,5 +27,6 @@ already drafted. Every approval teaches her. She talks (voice), has a 3D face, a
 - [[Scope — in and out]] – what we build, what we cut
 - [[Features status]] – what works today
 - [[Stand script]] – the 3-minute demo
+- [[Pitch PC guide]] – install on a teammate's PC, what works / doesn't and why
 - [[Conventions — git and files]]
 - Research: [[Research/Hermes Agent|Hermes Agent]] · [[Research/Avatar and voice|Avatar and voice]] · [[Research/Free AI providers|Free AI providers]]
