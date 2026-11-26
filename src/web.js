@@ -50,7 +50,7 @@ function addresses() {
   if (process.env.TIA_HOST_IP) out.push({ ip: process.env.TIA_HOST_IP, name: "set by TIA_HOST_IP", score: -1 });
   const real = out.filter((a) => a.score < 3); // hide WSL / VMware / Hyper-V adapters unless nothing else exists
   const list = (real.length ? real : out).sort((a, b) => a.score - b.score).map(({ ip, name }) => ({ ip, name, url: `http://${ip}:${PORT}` }));
-  const pub = loadConfig().publicUrl;
+  const pub = publicUrl();
   if (pub) list.unshift({ ip: new URL(pub).host, name: "Internet (works anywhere)", url: pub.replace(/\/$/, "") });
   return list;
 }
@@ -75,7 +75,7 @@ function appLink(url, token) {
 // ---------- /connect: where the QR on Tia's screen leads (any phone camera) ----------
 function connectPage(req, res, url) {
   const token = String(url.searchParams.get("t") || "").replace(/[^\w-]/g, "");
-  const pub = (loadConfig().publicUrl || "").replace(/\/$/, "");
+  const pub = (publicUrl() || "").replace(/\/$/, "");
   const base = viaInternet(req) && pub ? pub : `http://${String(req.headers.host || "").replace(/[^\w.:-]/g, "")}`;
   const app = token ? appLink(base, token) : "";
   let links = {};
@@ -97,13 +97,16 @@ main{width:100%;max-width:420px;padding:36px 22px 40px}h1{font-size:26px;margin:
 </style></head><body><main>
 <div class="logo">T</div><h1>Connect your phone to Tia</h1><p>${esc(info.business)} · ${esc(info.owner)}</p>
 ${token ? `
-<div class="step"><h2>1 · Open the Tia app</h2><p>Opens Tia on your phone and connects it to this desk – no typing.</p>
-<a class="b" href="${esc(app)}">Open in the Tia app</a></div>
-<div class="step"><h2>No app yet?</h2><p>Tia runs inside the free <b>Expo Go</b> app for now. Install it, then come back to this page and tap <b>Open in the Tia app</b>.</p>
-<div class="row"><a class="b ghost" href="${esc(links.expoGoIos)}">iPhone</a><a class="b ghost" href="${esc(links.expoGoAndroid)}">Android</a></div>${own}</div>
+${links.tiaAndroidApk ? `<div class="step only-android"><h2>Android · 1 tap install</h2><p>Download the Tia app, open the file and tap <b>Install</b> (allow “install unknown apps” for your browser once). Then come back here and tap <b>Open Tia – connected</b>.</p>
+<a class="b" href="${esc(links.tiaAndroidApk)}">Download the Tia app (Android)</a>
+<a class="b ghost" href="${esc(`tia://connect?u=${encodeURIComponent(base)}&t=${token}`)}">Open Tia – connected</a></div>` : ""}
+<div class="step ${links.tiaAndroidApk ? "only-ios" : ""}"><h2>${links.tiaAndroidApk ? "iPhone · in Expo Go" : "1 · Open the Tia app"}</h2><p>Opens Tia on your phone and connects it to this desk – no typing. It runs inside the free <b>Expo Go</b> app: install it first if you don't have it, then come back and tap the button.</p>
+<a class="b" href="${esc(app)}">Open in the Tia app</a>
+<div class="row"><a class="b ghost" href="${esc(links.expoGoIos)}">Expo Go – iPhone</a><a class="b ghost" href="${esc(links.expoGoAndroid)}">Expo Go – Android</a></div></div>
 <div class="step"><h2>Or use the browser</h2><p>The same desk in your phone's browser.</p><a class="b ghost" href="${esc(base)}/#t=${esc(token)}">Open Tia in the browser</a></div>
 <p class="small">This link holds your Tia code – don't share it. Scan the QR on Tia's screen again for a fresh one.</p>`
   : `<p class="bad">This link has no Tia code. Open Tia on the computer → <b>Connect phone</b> → scan the QR code.</p>`}
+<script>var A=/android/i.test(navigator.userAgent),I=/iphone|ipad|ipod/i.test(navigator.userAgent);document.querySelectorAll(A?".only-ios":I?".only-android":"._none").forEach(function(e){e.remove()})</script>
 </main></body></html>`;
   res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" });
   return res.end(html);
@@ -111,6 +114,8 @@ ${token ? `
 
 // ---------- helpers ----------
 // A request through the Cloudflare tunnel also comes from 127.0.0.1 – Cloudflare's own headers tell them apart.
+// The address phones and the WhatsApp relay use: config.json publicUrl, else the quick tunnel (src/tunnel.js)
+const publicUrl = () => loadConfig().publicUrl || require("./tunnel").url() || "";
 const viaInternet = (req) => !!(req.headers["cf-ray"] || req.headers["cf-connecting-ip"] || req.headers["cf-visitor"]);
 const isLocal = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress) && !viaInternet(req);
 // The pairing code is the login for everything that is not this computer itself.
@@ -282,7 +287,7 @@ async function localApi(req, res, route, url) {
     // or continues in the browser. The same QR will lead to our own store app later.
     const connect = `${pick.url.replace(/\/$/, "")}/connect?t=${pairToken()}`;
     const appSvg = await qr(connect);
-    const pub = loadConfig().publicUrl;
+    const pub = publicUrl();
     // Through the website only the public address makes sense – the home network addresses are hidden there.
     const shown = isLocal(req) ? list : list.filter((a) => a.url === (pub || "").replace(/\/$/, ""));
     return sendJson(res, 200, { addresses: shown, selected: pick, svg, appSvg, connect, appLink: open, webLink: pub ? `${pub.replace(/\/$/, "")}/#t=${pairToken()}` : "" });
@@ -303,6 +308,13 @@ async function localApi(req, res, route, url) {
       if (req.method === "POST") {
         const body = await readJson(req);
         if (app === "draft") return sendJson(res, 200, await L.saveDraft(cfg, body));
+        if (app === "whatsapp/send") {
+          // the owner pressed Send on a reply (his approval) – Tia never calls this by herself
+          const W = require("./connectors/whatsapp");
+          const r = await W.send(cfg, String(body.waId || ""), String(body.text || ""));
+          hub.emit({ type: "whatsapp-sent", chat: String(body.waId || ""), at: Date.now() });
+          return sendJson(res, 200, r);
+        }
         if (app === "whatsapp/draft") return sendJson(res, 200, await require("./connectors/whatsapp").draftFor(cfg, String(body.waId || "")));
         if (app === "whatsapp/read") return sendJson(res, 200, (require("./connectors/whatsapp").markRead(cfg, String(body.waId || "")), { ok: true }));
         if (app === "link") return sendJson(res, 200, await require("./connectors/composio").link(body.app === "ads" ? "metaads" : body.app));
@@ -431,7 +443,7 @@ function start() {
       }
     }
     // Browsers send Origin: only Tia's own page may call the rest of the API (blocks other websites from driving Tia).
-    const pub = loadConfig().publicUrl;
+    const pub = publicUrl();
     const allowed = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, pub && new URL(pub).origin].filter(Boolean);
     if (origin && !allowed.includes(origin)) return sendJson(res, 403, { error: "forbidden origin" });
     try {
@@ -469,9 +481,35 @@ function start() {
       console.log(`Tia is running: http://localhost:${PORT}  (Ctrl+C to stop)`);
       if (first) console.log(`Phone: scan the QR code on Tia's screen (phone connects to ${first.url})`);
       if (loadConfig().stt !== false) stt.start(loadConfig()); // warm up speech-to-text in the background
+      startOnline();
       resolve(server);
     });
   });
+}
+
+// Public address + WhatsApp: on a PC without config.publicUrl, open a quick tunnel; then tell the WhatsApp relay
+// "send messages here" and fetch anything it kept while this PC was off. The Tia that starts last receives WhatsApp.
+function startOnline() {
+  const cfg = loadConfig();
+  const W = require("./connectors/whatsapp");
+  const tunnel = require("./tunnel");
+  const onMessages = (fresh) => {
+    const chats = [...new Set(fresh.map((f) => f.chat))];
+    for (const f of fresh) hub.emit({ type: "whatsapp-in", chat: f.chat, text: f.message.text, at: Date.now() });
+    for (const id of chats) W.draftFor(loadConfig(), id).then((c) => c && hub.emit({ type: "whatsapp-draft", chat: id, at: Date.now() })).catch(() => {});
+  };
+  const register = (url) =>
+    W.registerWithRelay(url, os.hostname())
+      .then((r) => r && r.ok && console.log(`WhatsApp relay: messages now come to ${url}`))
+      .catch((e) => console.warn(`[whatsapp] relay registration failed: ${e.message || e}`));
+  if (cfg.publicUrl) register(cfg.publicUrl.replace(/\/$/, ""));
+  else if (cfg.quickTunnel !== false && process.env.TIA_QUICK_TUNNEL !== "0") {
+    tunnel.start(PORT);
+    tunnel.onUrl(register);
+  }
+  const pull = () => W.pullFromRelay(loadConfig(), onMessages).catch(() => {});
+  pull();
+  setInterval(pull, 20000).unref(); // backup in case a forward was missed
 }
 
 if (require.main === module) start();

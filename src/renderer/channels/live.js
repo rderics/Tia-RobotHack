@@ -129,7 +129,10 @@
       const s = store.slack && store.slack.data;
       return { live: true, ws: (s && s.workspace) || "Your Slack", initials: "ME", channels: s ? s.channels : [], banner: "Write here or let Tia write it. Saved messages wait in Tia – you post them in Slack. Tia never posts by herself." };
     }
-    if (tab === "whatsapp") return { live: true, banner: "Tia drafted this the moment the message came in – edit it, then ✈ saves it and copies it for you to send. Tia never sends by herself." };
+    if (tab === "whatsapp") {
+      const can = store.whatsapp && store.whatsapp.data && store.whatsapp.data.canSend;
+      return { live: true, banner: can ? "Tia drafted this the moment the message came in – edit it if you like, then ✈ sends it from the business number. Nothing goes out without your tap." : "Tia drafted this the moment the message came in – edit it, then ✈ saves it and copies it for you to send." };
+    }
     return null;
   }
   // actions for live items (views.js calls these instead of the desk's decide/reject)
@@ -144,6 +147,22 @@
           Object.assign(body, { team: s.team, channelId: x.channelId, to: x.address });
         }
         if (!String(body.text || "").trim()) return alert("Write something first – or press “Let Tia write”.");
+        if (x.live === "whatsapp" && store.whatsapp && store.whatsapp.data && store.whatsapp.data.canSend) {
+          // the owner pressed send = his approval → it goes out from the business number
+          x.actions = [{ step: "whatsapp", status: "run", detail: "Sending on WhatsApp…" }];
+          base.render();
+          try {
+            const r = await T().livePost("whatsapp/send", { waId: x.waId, text: body.text });
+            if (r.error) throw new Error(r.error);
+            delete base.userEdited[x.id];
+            x.actions = [];
+          } catch (e) {
+            x.actions = [{ step: "whatsapp", status: "error", detail: e.message || String(e) }];
+            return base.render();
+          }
+          load("whatsapp", true);
+          return rerender();
+        }
         if (x.live === "whatsapp") {
           body.to = x.address;
           try {

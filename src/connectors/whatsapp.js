@@ -87,6 +87,11 @@ async function receive(cfg, req, res) {
   } catch {
     return [];
   }
+  return processPayload(cfg, body);
+}
+
+// One webhook payload (from Meta directly, from the relay, or fetched from the relay later) → stored chats
+function processPayload(cfg, body) {
   const allowed = allowedNumbers();
   const d = read(cfg);
   d.lastEvent = new Date().toISOString();
@@ -136,13 +141,87 @@ async function draftFor(cfg, waId) {
   return d2.chats[waId];
 }
 
+// ---------- sending (only after the owner approves – called from the approve button / desk) ----------
+// .env: WHATSAPP_TOKEN (system-user token with whatsapp_business_messaging), WHATSAPP_PHONE_NUMBER_IDS (first = sender)
+const GRAPH = "https://graph.facebook.com/v21.0";
+const canSend = () => !!(process.env.WHATSAPP_TOKEN && allowedNumbers()[0]);
+async function send(cfg, waId, text) {
+  if (!canSend()) throw new Error("WhatsApp sending isn't set up on this PC (WHATSAPP_TOKEN in .env)");
+  const to = String(waId).replace(/[^\d]/g, "");
+  const body = String(text || "").trim();
+  if (!to || !body) throw new Error("nothing to send");
+  const r = await fetch(`${GRAPH}/${allowedNumbers()[0]}/messages`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "content-type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { preview_url: false, body } }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const e = j.error || {};
+    // the most common one, in plain words
+    if (e.code === 131047 || /re-engagement|24 hours/i.test(e.message || "")) throw new Error("WhatsApp only allows a free reply within 24 h of the customer's last message – they need to write first");
+    if (e.code === 131030 || /not in allowed list/i.test(e.message || "")) throw new Error("This test number can only message numbers on its recipient list (Meta app → WhatsApp → API Setup → To → Manage phone number list)");
+    throw new Error(`WhatsApp: ${e.message || r.status}`);
+  }
+  const id = (j.messages && j.messages[0] && j.messages[0].id) || `out-${Date.now()}`;
+  const d = read(cfg);
+  const chat = (d.chats[to] = d.chats[to] || { waId: to, name: "", number: "", messages: [] });
+  chat.messages.push({ id, dir: "out", text: body, at: new Date().toISOString(), status: "sent" });
+  chat.suggestion = "";
+  chat.unread = 0;
+  write(cfg, d);
+  return { ok: true, id };
+}
+// find a chat by a name the owner says ("Ralfs") – for "send Ralfs a WhatsApp"
+function findChat(cfg, name) {
+  const n = String(name || "").toLowerCase().trim();
+  if (!n) return null;
+  const chats = Object.values(read(cfg).chats);
+  return chats.find((c) => (c.name || "").toLowerCase() === n) || chats.find((c) => (c.name || "").toLowerCase().split(/\s+/).includes(n)) || chats.find((c) => (c.name || "").toLowerCase().includes(n)) || null;
+}
+
+// ---------- the relay (rderics.id.lv/wa): Meta → relay → the Tia that registered last ----------
+const relay = () => (process.env.WA_RELAY_URL && process.env.WA_RELAY_TOKEN ? { url: process.env.WA_RELAY_URL.replace(/\/+$/, ""), token: process.env.WA_RELAY_TOKEN } : null);
+async function registerWithRelay(publicUrl, name) {
+  const R = relay();
+  if (!R || !publicUrl) return null;
+  const r = await fetch(`${R.url}/register`, { method: "POST", headers: { "content-type": "application/json", "x-relay-token": R.token }, body: JSON.stringify({ url: publicUrl, name }) });
+  return r.json();
+}
+// Catch up on anything the relay kept (PC was off / tunnel was down). Safe to repeat: message ids are de-duplicated.
+async function pullFromRelay(cfg, onFresh) {
+  const R = relay();
+  if (!R) return 0;
+  const d = read(cfg);
+  const since = d.relaySince || Date.now() - 24 * 3600e3;
+  const r = await fetch(`${R.url}/events?since=${since}`, { headers: { "x-relay-token": R.token } });
+  if (!r.ok) return 0;
+  const { events = [] } = await r.json();
+  let n = 0;
+  for (const e of events) {
+    let body;
+    try {
+      body = JSON.parse(e.body);
+    } catch {
+      continue;
+    }
+    const fresh = processPayload(cfg, body);
+    n += fresh.length;
+    if (fresh.length && onFresh) onFresh(fresh);
+  }
+  const d2 = read(cfg);
+  d2.relaySince = Math.max(since, ...events.map((e) => e.at));
+  write(cfg, d2);
+  return n;
+}
+
 function data(cfg) {
   const d = read(cfg);
-  return { configured: !!process.env.WHATSAPP_VERIFY_TOKEN, numbers: d.numbers, lastEvent: d.lastEvent, chats: Object.values(d.chats).sort((a, b) => String(b.messages.at(-1)?.at).localeCompare(String(a.messages.at(-1)?.at))) };
+  return { configured: !!process.env.WHATSAPP_VERIFY_TOKEN, canSend: canSend(), relay: !!relay(), numbers: d.numbers, lastEvent: d.lastEvent, chats: Object.values(d.chats).sort((a, b) => String(b.messages.at(-1)?.at).localeCompare(String(a.messages.at(-1)?.at))) };
 }
 function markRead(cfg, waId) {
   const d = read(cfg);
   if (d.chats[waId]) (d.chats[waId].unread = 0), write(cfg, d);
 }
 
-module.exports = { verify, verifyToken, receive, draftFor, data, markRead };
+module.exports = { verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay };

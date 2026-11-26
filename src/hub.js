@@ -130,6 +130,14 @@ async function decide({ id, verdict, editedText, via }) {
       act(item, async (step) => {
         await actions.outlook(loadConfig(), { to: r.message.address || r.message.from, subject: r.message.subject ? `Re: ${r.message.subject}` : "", text: reply, replyTo: r.message.entryId ? r.message : null, save: !!r.message.entryId }, step);
       });
+    } else if (r.message.channel === "whatsapp" && r.message.waId && require("./connectors/whatsapp").canSend()) {
+      // a real WhatsApp Business chat: approved = sent from the business number
+      line = `Sending my reply to ${r.message.from} on WhatsApp now.`;
+      act(item, async (step) => {
+        step({ step: "whatsapp", status: "start", detail: `Sending to ${r.message.from} on WhatsApp` });
+        await require("./connectors/whatsapp").send(loadConfig(), r.message.waId, reply);
+        step({ step: "whatsapp", status: "done", detail: `Sent on WhatsApp to ${r.message.from}` });
+      });
     } else if (r.message.channel === "whatsapp") {
       line = `I've opened WhatsApp with my reply to ${r.message.from} typed in – you press send.`;
       act(item, async (step) => actions.whatsapp(loadConfig(), { phone: r.message.address, text: reply }, step));
@@ -143,7 +151,26 @@ async function decide({ id, verdict, editedText, via }) {
     } else {
       if (verdict === "edit" && editedText) p.message_text = editedText;
       logActivity(cfg.notesDir, `Owner approved ${p.kind}: ${p.title}${p.total_eur ? ` (${p.total_eur} €)` : ""}`);
-      if (p.kind === "offer" || p.kind === "contract") {
+      if (p.kind === "whatsapp" && p.message_text) {
+        // the owner approved it → it goes out from the business WhatsApp number (or wa.me if this PC can't send)
+        const W = require("./connectors/whatsapp");
+        const digits = String(p.to || "").replace(/[^\d]/g, "");
+        const chat = digits.length >= 8 ? { waId: digits, name: p.to } : W.findChat(cfg, p.to);
+        if (W.canSend() && chat) {
+          line = `Sending it to ${p.to} on WhatsApp now.`;
+          act(item, async (step) => {
+            step({ step: "whatsapp", status: "start", detail: `Sending to ${chat.name || p.to} on WhatsApp` });
+            await W.send(cfg, chat.waId, p.message_text);
+            emit({ type: "whatsapp-sent", chat: chat.waId, at: Date.now() });
+            step({ step: "whatsapp", status: "done", detail: `Sent on WhatsApp to ${chat.name || p.to}` });
+          });
+        } else if (W.canSend()) {
+          line = `I don't have ${p.to}'s WhatsApp yet – they need to message the business number once, or tell me the number.`;
+        } else {
+          line = `I've opened WhatsApp with the message to ${p.to} typed in – you press send.`;
+          act(item, async (step) => actions.whatsapp(cfg, { phone: digits, text: p.message_text }, step));
+        }
+      } else if (p.kind === "offer" || p.kind === "contract") {
         line = `Making the ${p.kind} as a PDF now – then it goes to the printer and into an Outlook draft for ${p.to}. You press Send.`;
         act(item, (step) => documentFlow(cfg, item, step));
       } else {

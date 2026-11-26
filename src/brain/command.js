@@ -5,7 +5,7 @@
 const { ask } = require("./providers");
 const scripted = require("./scripted");
 
-const PROPOSAL_KINDS = ["none", "offer", "contract", "reply", "calendar", "order", "task", "find_leads"];
+const PROPOSAL_KINDS = ["none", "offer", "contract", "reply", "whatsapp", "calendar", "order", "task", "find_leads"];
 
 const COMMAND_SCHEMA = {
   type: "object",
@@ -56,6 +56,7 @@ Rules:
 - Offers: one line per priced item from the Price list, total = sum of lines, valid 14 days from today, a short warm cover note to the client signed the way the owner prefers.
 - Contracts (kind "contract"): for a client whose offer/project is in the vault (Projects/ note with a Scope table). "to" = the client's full name exactly as in the vault, lines = the Scope table lines with prices, total = their sum, message_text = a short cover email to the client saying the contract is attached for signing. If the scope still has an open choice (e.g. worktop not chosen), ask first.
 - Finding new clients or partners ("find architects who could send us clients", "look for real-estate agencies in Jūrmala"): set proposal.kind = "find_leads", title = what to search for (type of business + area), summary = one line. You start the search right away – it only reads public business data; nobody is contacted.
+- WhatsApp messages ("send Ralfs a WhatsApp that I'm 10 minutes late", "tell Ieva on WhatsApp the worktop arrived"): kind "whatsapp", to = the person's name as the owner said it (or a phone number), message_text = the message itself, written as the owner in first person, short and natural, no signature and no mention of Tia or AI. If the content is unclear, ask first.
 - Questions about today ("what's urgent?", "what's waiting?") are answered from the desk list; proposal.kind = "none".
 - The conversation history may contain your earlier question and the owner's answer – use it to finish the earlier task.
 
