@@ -92,7 +92,11 @@
     const grid = h("div", { class: "gc-grid" });
     grid.append(h("div", { class: "gc-corner" }), ...days.map((d) => h("div", { class: `gc-dh ${ymd(d) === ymd(today) ? "today" : ""}` }, h("span", {}, d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase()), h("b", {}, d.getDate()))));
     // all-day row
-    grid.append(h("div", { class: "gc-hr" }, ""), ...days.map((d) => h("div", { class: "gc-allday" }, evs.filter((e) => e.allDay && ymd(e.s) <= ymd(d) && ymd(d) < ymd(e.e)).map((e) => h("div", { class: `gc-chip ${sel === e.id ? "on" : ""}`, onclick: () => ((sel = e.id), (draft = null), rerender()) }, e.title)))));
+    grid.append(h("div", { class: "gc-hr" }, ""), ...days.map((d) => h("div", { class: "gc-allday" }, evs.filter((e) => e.allDay && ymd(e.s) <= ymd(d) && ymd(d) < ymd(e.e)).map((e) => {
+      const chip = h("div", { class: `gc-chip ${sel === e.id ? "on" : ""}`, onclick: () => ((sel = e.id), (draft = null), rerender()) }, e.title);
+      if (e.color) (chip.style.background = e.color), (chip.style.color = "#fff");
+      return chip;
+    }))));
     const hours = h("div", { class: "gc-hours" }, [...Array(H1 - H0)].map((_, i) => h("div", { class: "gc-h" }, `${pad(H0 + i)}:00`)));
     const cols = days.map((d) => {
       const col = h("div", { class: `gc-col ${ymd(d) === ymd(today) ? "today" : ""}` });
@@ -100,6 +104,7 @@
         const top = Math.max(0, (e.s.getHours() + e.s.getMinutes() / 60 - H0) * 48);
         const ht = Math.max(22, ((e.e - e.s) / 36e5) * 48 - 2);
         const b = h("div", { class: `gc-ev ${sel === e.id ? "on" : ""}`, title: e.title, onclick: () => ((sel = e.id), (draft = null), rerender()) }, h("b", {}, e.title), h("span", {}, `${e.s.toTimeString().slice(0, 5)} – ${e.e.toTimeString().slice(0, 5)}`));
+        if (e.color) b.style.background = e.color; // the event's own Google colour
         b.style.top = `${top}px`;
         b.style.height = `${ht}px`;
         col.append(b);

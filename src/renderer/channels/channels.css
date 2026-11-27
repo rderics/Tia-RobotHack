@@ -758,7 +758,7 @@ webview.real-web { display: flex; position: fixed; z-index: 42; left: -10000px; 
 webview.real-web.show { visibility: visible; }
 .real-slot { height: 100%; }
 body .chview:has(.igr.real) .src-sw { display: none; }
-body.tab-whatsapp .tia-pip, body.tab-slack .tia-pip, body.tab-calendar .tia-pip { left: auto !important; right: 396px !important; top: auto !important; bottom: 16px !important; }
+body.tab-whatsapp .tia-pip, body.tab-slack .tia-pip { left: auto !important; right: 396px !important; top: auto !important; bottom: 16px !important; }
 .rp-chat { display: flex; flex-direction: column; background: #F7F5FE; border-radius: 10px; padding: 8px 10px; } .rp-chat span { color: #737373; font-size: 12px; } .rp-chat b { font-size: 15px; }
 .rp-ev { display: flex; flex-direction: column; gap: 6px; background: #FAFAFA; border: 1px solid #EFEFEF; border-radius: 10px; padding: 10px; }
 .rp-f { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 8px; font-size: 13px; } .rp-f span { color: #737373; }

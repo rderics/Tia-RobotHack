@@ -358,6 +358,8 @@ function image(u, res) {
 }
 
 // ---------- Google Calendar: the week, add an event (the owner presses Add), Tia turns a sentence into an event ----------
+// Google Calendar's event colours (colorId 1–11, as the Calendar web app shows them); no colorId = the calendar's colour
+const GC_COLORS = { 1: "#7986CB", 2: "#33B679", 3: "#8E24AA", 4: "#E67C73", 5: "#F6BF26", 6: "#F4511E", 7: "#039BE5", 8: "#616161", 9: "#3F51B5", 10: "#0B8043", 11: "#D50000" };
 async function calendar(cfg, week) {
   const start = new Date(`${week || new Date().toISOString().slice(0, 10)}T00:00:00`);
   const end = new Date(start.getTime() + 7 * 864e5);
@@ -368,6 +370,7 @@ async function calendar(cfg, week) {
     events: items.map((e) => ({
       id: e.id, title: e.summary || "(no title)", location: e.location || "", description: String(e.description || "").slice(0, 400), link: e.htmlLink || "",
       allDay: !!(e.start && e.start.date), start: (e.start && (e.start.dateTime || e.start.date)) || "", end: (e.end && (e.end.dateTime || e.end.date)) || "",
+      color: GC_COLORS[e.colorId] || "#039BE5",
     })),
   };
 }

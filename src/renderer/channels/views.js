@@ -502,7 +502,7 @@
   build();
   if (window.TiaSettings) window.TiaSettings.setRerender(() => (tab === "settings" ? render() : null));
   if (window.TiaCalendar) window.TiaCalendar.setRerender(() => (tab === "calendar" ? render() : null));
-  if (window.TiaReal) window.TiaReal.setRerender(() => (["whatsapp", "slack", "calendar"].includes(tab) ? render() : null));
+  if (window.TiaReal) window.TiaReal.setRerender(() => (["whatsapp", "slack"].includes(tab) ? render() : null));
   if (window.TiaDocs) window.TiaDocs.setRerender(() => (tab === "docs" ? render() : null));
   if (window.TiaLive) window.TiaLive.setRerender(() => (tab !== "tia" ? render() : null));
   S.load().then(render);

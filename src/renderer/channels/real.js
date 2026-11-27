@@ -1,4 +1,5 @@
-// The REAL apps inside the desktop app (Electron <webview>): WhatsApp Web, Slack, Google Calendar.
+// The REAL apps inside the desktop app (Electron <webview>): WhatsApp Web, Slack. (Google Calendar can't be: Google blocks
+// its sign-in inside apps – the Calendar tab shows the owner's real events through Composio instead, channels/calendar.js.)
 // Each one has its own logged-in session ("persist:<app>") and lives on <body>, laid over the tab's slot, so switching
 // tabs never reloads it. Next to it, Tia's panel: she reads the open chat, writes a reply and puts it into the real
 // message box – the owner presses Enter. Calendar: one sentence → an event in Google Calendar → the page refreshes.
@@ -9,7 +10,6 @@
   const APPS = {
     whatsapp: { url: "https://web.whatsapp.com/", name: "WhatsApp" },
     slack: { url: "https://app.slack.com/client", name: "Slack" },
-    calendar: { url: "https://calendar.google.com/calendar/r/week", name: "Google Calendar" },
   };
   const webs = {};
   let rerender = () => {};

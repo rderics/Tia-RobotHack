@@ -23,7 +23,14 @@ async function createWindow() {
   });
   // The real apps shown inside Tia (Instagram) see a normal Chrome, not "Electron" – otherwise they refuse to log in.
   const chromeUA = session.defaultSession.getUserAgent().replace(/\s(Electron|tia)\/\S+/gi, "");
-  for (const p of ["instagram", "whatsapp", "slack", "calendar"]) session.fromPartition(`persist:${p}`).setUserAgent(chromeUA);
+  // Google's own sign-in is not possible inside an app (Google blocks embedded browsers) – Slack: sign in with email.
+  for (const p of ["instagram", "whatsapp", "slack"]) session.fromPartition(`persist:${p}`).setUserAgent(chromeUA);
+  // every real-app webview: no passkey / "insert your security key" pop-ups (webview-preload.js)
+  app.on("web-contents-created", (e, wc) => {
+    wc.on("will-attach-webview", (ev, prefs) => {
+      prefs.preload = path.join(__dirname, "webview-preload.js");
+    });
+  });
   app.on("web-contents-created", (e, wc) => {
     if (wc.getType() !== "webview") return;
     wc.setWindowOpenHandler(({ url }) => (wc.loadURL(url), { action: "deny" })); // links stay inside the tab
