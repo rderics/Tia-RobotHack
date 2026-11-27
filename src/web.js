@@ -308,7 +308,7 @@ async function localApi(req, res, route, url) {
         if (app === "whatsapp") return sendJson(res, 200, require("./connectors/whatsapp").data(cfg));
         if (app === "calendar") return sendJson(res, 200, await L.calendar(cfg, url.searchParams.get("week")));
         if (app === "drafts") return sendJson(res, 200, L.drafts(cfg));
-        if (["status", "gmail", "slack", "instagram", "linkedin", "ads"].includes(app)) return sendJson(res, 200, await L[app](cfg, fresh));
+        if (["status", "gmail", "outlook", "slack", "instagram", "linkedin", "ads"].includes(app)) return sendJson(res, 200, await L[app](cfg, fresh));
       }
       if (req.method === "POST") {
         const body = await readJson(req);
@@ -335,6 +335,7 @@ async function localApi(req, res, route, url) {
         if (app === "suggest") return sendJson(res, 200, await L.suggest(cfg, body));
         if (app === "linkedin/write") return sendJson(res, 200, await L.linkedinPost(cfg, body));
         if (app === "ads/review") return sendJson(res, 200, await L.reviewAd(cfg, body));
+        if (app === "instagram/review") return sendJson(res, 200, await L.instagramReview(cfg, !!body.fresh));
       }
       return sendJson(res, 404, { error: "unknown live route" });
     } catch (e) {
@@ -567,10 +568,12 @@ function crmPage() {
   .fit{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}.bar{width:70px;height:6px;border-radius:3px;background:#26232F;overflow:hidden}.bar i{display:block;height:100%;background:#B9A3F2}
   .st{font-size:11px;padding:3px 8px;border-radius:99px;background:#26232F;color:#8C8796;white-space:nowrap}.st.go{background:rgba(76,195,138,.16);color:#4CC38A}
   a{color:#B9A3F2;text-decoration:none}.why{color:#B5B0BF;max-width:46ch}.name{font-weight:600}.seg{color:#8C8796;font-size:12px}
-  footer{padding:14px 32px;color:#6B6773;font-size:11px}</style></head><body>
+  footer{padding:14px 32px;color:#6B6773;font-size:11px}
+  .tools{display:flex;gap:8px;align-items:center}.btn{border:1px solid #3A3450;background:#1D1A27;color:#ECEAF2;border-radius:8px;padding:6px 12px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;text-decoration:none}.btn:hover{border-color:#B9A3F2}
+  .act{display:flex;gap:6px;white-space:nowrap}.act button{border:0;border-radius:7px;padding:5px 9px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;background:#2A2538;color:#ECEAF2}.act button:hover{background:#B9A3F2;color:#16131F}</style></head><body>
   <header><div><h1><span>CRM</span> · ${info.business}</h1><div class="sub">Leads found by Tia – nobody is contacted without the owner's OK</div></div>
-  <div class="sub"><a href="crm/data.csv">Download CSV (Excel / Google Sheets)</a> · <span id="n"></span></div></header>
-  <table><thead><tr><th>Business</th><th>Fit</th><th>Why</th><th>Contact</th><th>Status</th><th>Found</th></tr></thead><tbody id="rows"></tbody></table>
+  <div class="tools"><span id="n" class="sub"></span><a class="btn" href="crm/data.csv">⬇ Excel</a><button class="btn" id="gs">⬆ Google Sheets</button><span id="gsr" class="sub"></span></div></header>
+  <table><thead><tr><th>Business</th><th>Fit</th><th>Why</th><th>Contact</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table>
   <footer>Business data © OpenStreetMap contributors (ODbL) and each business's own website.</footer>
   <script>
   const seen=new Set();const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -579,12 +582,36 @@ function crmPage() {
   document.getElementById("rows").innerHTML=rows.map(r=>'<tr class="'+(seen.has(r.id)?'':'new')+'"><td><div class="name">'+esc(r.name)+'</div><div class="seg">'+esc(r.segment)+(r.address?' · '+esc(r.address):'')+'</div></td>'+
   '<td><div class="fit"><div class="bar"><i style="width:'+(r.fit||0)+'%"></i></div>'+(r.fit||0)+'%</div></td><td class="why">'+esc(r.why)+'</td>'+
   '<td>'+(r.website?'<a href="'+esc(r.website)+'" target="_blank">'+esc(r.website.replace(/^https?:\\/\\//,'').replace(/\\/$/,''))+'</a><br>':'')+esc(r.email)+'</td>'+
-  '<td><span class="st '+(r.status==="to contact"?'go':'')+'">'+esc(r.status)+'</span></td><td class="seg">'+esc(r.found_at)+'</td></tr>').join("");
+  '<td><span class="st '+(r.status==="to contact"?'go':'')+'">'+esc(r.status)+'</span><div class="seg">'+esc(r.found_at)+'</div></td>'+
+  '<td><div class="act"><button data-a="mail" data-n="'+esc(r.name)+'">✉ Email</button>'+(r.phone?'<button data-a="wa" data-n="'+esc(r.name)+'" data-p="'+esc(r.phone)+'">WhatsApp</button>':'')+'</div></td></tr>').join("");
   rows.forEach(r=>seen.add(r.id));}catch(e){}}
+  // Email / WhatsApp a lead = ask Tia (she writes it; a draft, or a message that waits for your tap)
+  document.getElementById("rows").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;const T=parent&&parent.TiaTalk;if(!T)return alert("Open the CRM inside Tia to do this.");
+    T.ask(b.dataset.a==="mail"?"Write a Gmail draft to "+b.dataset.n+" introducing us":"Write a WhatsApp message to "+b.dataset.n+" at "+b.dataset.p+" introducing us");};
+  document.getElementById("gs").onclick=async()=>{const r=document.getElementById("gsr");r.textContent="Making the Google Sheet…";
+    try{const j=await (await fetch("crm/sheet",{method:"POST"})).json();if(j.error)throw new Error(j.error);r.innerHTML='✓ <a href="'+esc(j.url)+'" target="_blank">Open the Google Sheet ↗</a>';}catch(e){r.textContent="⚠ "+e.message;}};
   load();setInterval(load,1500);</script></body></html>`;
 }
 
 function serveStatic(req, res, route, url) {
+  if (route === "/crm/sheet" && req.method === "POST") {
+    if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
+    // the CRM as a new Google Sheet in the owner's Drive (Composio, Google Sheets)
+    (async () => {
+      const C = require("./connectors/composio");
+      const rows = require("./leads/finder").loadCrm(loadConfig());
+      const info = engine.info();
+      const made = await C.execute("GOOGLESHEETS_CREATE_GOOGLE_SHEET1", { title: `Tia CRM – ${info.business} – ${new Date().toISOString().slice(0, 10)}` });
+      const id = made.spreadsheetId || made.spreadsheet_id || (made.data && (made.data.spreadsheetId || made.data.spreadsheet_id));
+      if (!id) throw new Error("Google Sheets didn't return the new sheet");
+      const cols = ["status", "fit", "name", "segment", "address", "website", "email", "phone", "why", "found_at"];
+      await C.execute("GOOGLESHEETS_BATCH_UPDATE", { spreadsheet_id: id, sheet_name: "Sheet1", first_cell_location: "A1", value_input_option: "RAW", values: [cols, ...rows.map((r) => cols.map((c) => (r[c] === undefined || r[c] === null ? "" : String(r[c]))))] });
+      return { url: made.spreadsheetUrl || (made.data && made.data.spreadsheetUrl) || `https://docs.google.com/spreadsheets/d/${id}/edit`, rows: rows.length };
+    })()
+      .then((r) => sendJson(res, 200, r))
+      .catch((e) => sendJson(res, 502, { error: String(e.message || e).slice(0, 200) }));
+    return true;
+  }
   if (route === "/crm" || route === "/crm/data" || route === "/crm/data.csv") {
     if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
     const { loadCrm } = require("./leads/finder");

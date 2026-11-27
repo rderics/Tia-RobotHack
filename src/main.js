@@ -21,6 +21,13 @@ async function createWindow() {
   session.defaultSession.setPermissionRequestHandler((wc, permission, done) => {
     done(permission === "media" && wc.getURL().startsWith(`http://localhost:${web.PORT}`));
   });
+  // The real apps shown inside Tia (Instagram) see a normal Chrome, not "Electron" – otherwise they refuse to log in.
+  const chromeUA = session.defaultSession.getUserAgent().replace(/\s(Electron|tia)\/\S+/gi, "");
+  session.fromPartition("persist:instagram").setUserAgent(chromeUA);
+  app.on("web-contents-created", (e, wc) => {
+    if (wc.getType() !== "webview") return;
+    wc.setWindowOpenHandler(({ url }) => (wc.loadURL(url), { action: "deny" })); // links stay inside the tab
+  });
   win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -30,7 +37,7 @@ async function createWindow() {
     backgroundColor: "#0C0B0F",
     icon: path.join(__dirname, "renderer", "assets", process.platform === "win32" ? "icon.ico" : "favicon-192.png"),
     show: !screenshotPath,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: true }, // webview = the real Instagram tab
   });
   win.removeMenu();
   // F11 = full screen for the stand / pitch (no window frame, no address bar)

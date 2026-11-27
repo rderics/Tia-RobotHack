@@ -100,7 +100,22 @@ function readNote(vaultDir, rel) {
 }
 
 // Contract from the vault template. p = { to (client name), lines, total_eur, title, offer_date?, weeks? }
+// Referral partnership agreement (Templates/Template — Partner agreement.md) – for a company that sends us clients
+function partnerHtml(info, cfg, p, { contractNo, date }) {
+  const tpl = readNote(cfg.vaultDir, "Templates/Template — Partner agreement.md") || "# REFERRAL PARTNERSHIP AGREEMENT No. {contract_no}\n\n{business} and {partner} agree to refer clients to each other.";
+  const values = { contract_no: contractNo, date, partner: p.to || "(partner)", business: info.business, owner: info.owner };
+  const filled = tpl.replace(/^---[\s\S]*?---\s*/, "").replace(/\{(\w+)\}/g, (all, k) => (k in values ? String(values[k]) : "________"));
+  return shell(
+    info,
+    `Partnership agreement ${contractNo}`,
+    `${md(filled)}
+    <div class="sign"><div>${esc(info.business)} – ${esc(info.owner)}</div><div>Partner – ${esc(values.partner)}</div></div>`,
+    info.profile !== "owner"
+  );
+}
+
 function contractHtml(info, cfg, p, { contractNo, date }) {
+  if (!(p.lines && p.lines.length)) return partnerHtml(info, cfg, p, { contractNo, date }); // a lead/partner: referral agreement, no prices
   const tpl = readNote(cfg.vaultDir, "Templates/Template — Contract.md") || "# CONTRACT No. {contract_no}\n\n{client} · {address}\n\nTotal {total} EUR";
   const client = readNote(cfg.vaultDir, `Clients/${p.to}.md`);
   const address = ((client.match(/\*\*Object:\*\*\s*(.+)/) || [])[1] || "").trim() || "(object address)";

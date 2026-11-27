@@ -702,3 +702,53 @@ body.tab-settings .tia-pip { display: none !important; }
 .st-oh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .st-chip { font-size: 11px; font-weight: 700; border-radius: 10px; padding: 1px 8px; background: #2A2538; color: #9C97A6; }
 .st-chip.ok { background: #1F3A2E; color: #9FE3BF; } .st-chip.in { background: #2E2650; color: #CBB8FF; }
+
+/* ======================= INSTAGRAM – the real instagram.com (Electron webview) + Tia panel ======================= */
+webview.ig-real { display: flex; position: fixed; z-index: 42; left: -10000px; top: 0; width: 800px; height: 600px; visibility: hidden; background: #000; border: 0; }
+webview.ig-real.show { visibility: visible; }
+.igr { height: 100%; display: grid; grid-template-columns: 1fr 380px; background: #000; }
+.ig-slot { height: 100%; }
+body.tab-instagram .chview:has(.igr) .src-sw { display: none; }
+.igr-side { height: 100%; overflow: auto; background: #FFFFFF; color: #0C1014; border-left: 1px solid #DBDBDB; padding: 16px 18px 90px; display: flex; flex-direction: column; gap: 10px; font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+.igr-hd { display: flex; align-items: center; gap: 8px; color: #7B5CE0; } .igr-hd b { font-size: 16px; color: #0C1014; } .igr-hd .sp { flex: 1; }
+.igr-ic { border: 1px solid #DBDBDB; background: #fff; border-radius: 8px; width: 32px; height: 30px; cursor: pointer; }
+.igr-acct { display: flex; flex-direction: column; } .igr-acct span { color: #737373; font-size: 13px; }
+.igr-best { font-size: 13px; color: #404040; }
+.igr-go { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.igr-score { display: flex; gap: 12px; align-items: center; background: #F7F5FE; border-radius: 12px; padding: 10px 12px; font-weight: 600; }
+.igr-score .ring { flex: none; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 17px "Segoe UI", sans-serif; border: 4px solid #2BB673; }
+.igr-score .ring.mid { border-color: #E6A700; } .igr-score .ring.low { border-color: #E5484D; }
+.igr-t { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #737373; margin-top: 4px; }
+.igr-ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; } .igr-ul.ok li::marker { color: #2BB673; } .igr-ul.fix li::marker { color: #E6A700; }
+.igr-idea { background: #FAFAFA; border: 1px solid #EFEFEF; border-radius: 10px; padding: 8px 10px; }
+body.tab-instagram .tia-pip { left: auto; right: 396px; }
+
+/* Mail: Gmail + Outlook in one place */
+.ol-app { display: inline-block; font: 700 10.5px/1 "Segoe UI", sans-serif; padding: 3px 6px; border-radius: 4px; margin-right: 6px; vertical-align: 1px; }
+.ol-app.gmail { background: #FCE8E6; color: #C5221F; } .ol-app.outlook { background: #DEECF9; color: #0F6CBD; }
+.ol-folders .ol-acct.gmail, .ol-folders .ol-acct.outlook { margin-top: 12px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ======================= Tia PiP: click to talk, type, approve ======================= */
+.tia-pip .pipbox { cursor: pointer; }
+.tia-pip .piprec { display: none; position: absolute; left: 6px; right: 6px; bottom: 6px; z-index: 2; text-align: center; font: 700 11px/1.2 "Segoe UI", sans-serif; color: #fff; background: rgba(229,72,77,.92); border-radius: 8px; padding: 5px 4px; }
+.tia-pip.listening { border-color: #E5484D; box-shadow: 0 0 0 3px rgba(229,72,77,.35), 0 18px 50px rgba(0,0,0,.45); }
+.tia-pip.listening .piprec { display: block; animation: pipPulse 1.2s ease-in-out infinite; }
+@keyframes pipPulse { 50% { opacity: .65; } }
+.tia-pip .piptalk { display: flex; gap: 4px; padding: 0 8px 8px; }
+.tia-pip .pipin { flex: 1; min-width: 0; border: 1px solid #2B2836; background: #1D1A27; color: #ECEAF2; border-radius: 8px; padding: 6px 8px; font: 12px "Segoe UI", sans-serif; outline: none; }
+.tia-pip .pipin:focus { border-color: #B9A3F2; }
+.tia-pip .pipmic { flex: none; width: 30px; border: 0; border-radius: 8px; background: #B9A3F2; color: #16131F; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.tia-pip .pipmic svg { width: 16px; height: 16px; }
+.tia-pip.listening .pipmic { background: #E5484D; color: #fff; }
+.tia-pip .pipcard { margin: 0 8px 8px; background: #1D1A27; border: 1px solid #3A3450; border-radius: 10px; padding: 8px; font: 12px/1.4 "Segoe UI", sans-serif; color: #ECEAF2; }
+.tia-pip .pipcard[hidden] { display: none; }
+.tia-pip .pc-t { font-weight: 700; margin-bottom: 4px; } .tia-pip .pc-x { color: #C9C4D4; max-height: 90px; overflow: auto; margin-bottom: 6px; }
+.tia-pip .pc-b { display: flex; gap: 6px; } .tia-pip .pc-b button { flex: 1; border: 0; border-radius: 7px; padding: 6px; cursor: pointer; font: 700 12px "Segoe UI", sans-serif; background: #2A2538; color: #ECEAF2; }
+.tia-pip .pc-b button.ok { background: #2BB673; color: #fff; } .tia-pip .pc-done { color: #9FE3BF; font-weight: 700; }
+/* wider PiP on the app pages so the box and the card fit */
+body.has-rail:not(.tab-tia) .tia-pip { width: 220px !important; }
+body.has-rail:not(.tab-tia) .tia-pip .pipbox { height: 150px !important; }
+body.has-rail:not(.tab-tia) .tia-pip .pipcap { max-height: 72px; }
+
+/* the PiP sits bottom-left on every app page (Instagram: next to Tia's panel) */
+body.tab-leads .tia-pip, body.tab-vault .tia-pip { top: auto !important; bottom: 16px !important; right: auto !important; left: 80px !important; }

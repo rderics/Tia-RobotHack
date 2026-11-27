@@ -20,7 +20,7 @@
     try {
       saved = localStorage.getItem(`tia.src.${t}`);
     } catch {}
-    mode[t] = saved || (["linkedin", "ads", "calendar"].includes(t) ? "live" : "demo");
+    mode[t] = "live"; // 27.11: the apps always show the owner's own accounts (the public static demo has no live data)
   }
   const isLive = (tab) => canLive() && mode[tab] === "live";
 
@@ -82,8 +82,8 @@
     };
     const liveBtn = h("button", { class: live ? "on" : "", disabled: !canLive(), title: canLive() ? (s ? `Composio: ${s.state}${s.name ? ` · ${s.name}` : ""}` : "") : "Your own accounts show on the live Tia (this is the public demo)", onclick: () => set("live") },
       h("span", { class: `dot ${s ? s.state : ""}` }), `My ${label} · live`);
-    const box = h("div", { class: "src-sw" }, h("button", { class: live ? "" : "on", onclick: () => set("demo") }, "Oakline Studio · demo"), liveBtn);
-    if (live) box.append(h("button", { class: "rf", title: "Read again from the app", onclick: () => (load(tab === "email" ? "gmail" : tab, true), rerender()) }, "↻"));
+    const box = h("div", { class: "src-sw" }, canLive() ? null : h("button", { class: "on" }, "Oakline Studio · demo"), liveBtn);
+    if (live) box.append(h("button", { class: "rf", title: "Read again from the app", onclick: () => (tab === "email" ? (load("gmail", true), load("outlook", true)) : load(tab, true), rerender()) }, "↻"));
     return box;
   }
   const notice = (h, tab, s, what) => {
@@ -103,8 +103,14 @@
   }
   function items(tab) {
     if (tab === "email") {
-      const s = load("gmail");
-      return (s.data && s.data.items ? s.data.items : []).map(asItem);
+      // Gmail + Outlook in one inbox; plus the new mails Tia wrote as drafts (voice command or New mail)
+      const g = load("gmail");
+      const o = load("outlook");
+      const mail = [...(g.data && g.data.items ? g.data.items : []), ...(o.data && o.data.items ? o.data.items : [])].map(asItem);
+      const made = Object.entries(drafts)
+        .filter(([id, d]) => /^(new_|cmd_)/.test(id) && (d.app === "gmail" || d.app === "outlook"))
+        .map(([id, d]) => ({ id, live: d.app, channel: "email", draftOnly: true, from: d.to || "(no recipient)", address: d.to || "", subject: d.subject || "(No subject)", text: d.text, draft: d.text, received: d.savedAt.replace("T", " ").slice(0, 16), time: new Date(d.savedAt).toTimeString().slice(0, 5), state: "edited", actions: [{ step: "draft", status: "done", detail: `Saved – ${d.where}` }], reason: "", summary: "" }));
+      return [...mail, ...made].sort((a, b) => String(b.received || "").localeCompare(String(a.received || "")));
     }
     if (tab === "slack") {
       const s = load("slack");
@@ -122,8 +128,17 @@
   }
   function acct(tab) {
     if (tab === "email") {
-      const a = (store.gmail && store.gmail.data && store.gmail.data.account) || "your Gmail";
-      return { live: true, box: a, from: a, me: a, initials: a.slice(0, 2).toUpperCase(), draftWhere: "Gmail", banner: "Write your reply here, or let Tia write it. “Save draft” puts it in Gmail → Drafts.", savedBanner: "Saved in Gmail → Drafts – open Gmail to send it.", note: "Tia never sends – you press Send in Gmail." };
+      const a = (store.gmail && store.gmail.data && store.gmail.data.account) || "Gmail";
+      const o = (store.outlook && store.outlook.data && store.outlook.data.account) || "Outlook";
+      const app = (i) => (i && i.live === "outlook" ? "Outlook" : "Gmail");
+      return {
+        live: true, box: "All inboxes", from: a, me: a, initials: a.slice(0, 2).toUpperCase(), draftWhere: "Gmail",
+        accounts: [{ key: "gmail", label: "Gmail", name: a }, { key: "outlook", label: "Outlook", name: o }],
+        fromOf: (i) => (i && i.live === "outlook" ? o : a),
+        bannerOf: (i) => `Write your reply here, or let Tia write it. “Save draft” puts it in ${app(i)} → Drafts${i && i.live === "outlook" ? " (Outlook opens and Tia types it in)" : ""}.`,
+        savedOf: (i) => `Saved in ${app(i)} → Drafts – open ${app(i)} to send it.`,
+        noteOf: (i) => `Tia never sends – you press Send in ${app(i)}.`,
+      };
     }
     if (tab === "slack") {
       const s = store.slack && store.slack.data;
@@ -141,7 +156,7 @@
       ...base,
       acct: acct(tab),
       decide: async (x, text) => {
-        const body = { app: x.live, id: x.id, text: text !== undefined ? text : x.draft, to: x.address, subject: x.subject, threadId: x.threadId };
+        const body = { app: x.live, id: x.id, text: text !== undefined ? text : x.draft, to: x.address, subject: x.subject, threadId: x.threadId, entryId: x.entryId, storeId: x.storeId };
         if (x.live === "slack") {
           const s = store.slack.data;
           Object.assign(body, { team: s.team, channelId: x.channelId, to: x.address });
@@ -169,7 +184,7 @@
             await navigator.clipboard.writeText(body.text);
           } catch {}
         }
-        x.actions = [{ step: "draft", status: "run", detail: x.live === "gmail" ? "Saving the draft in Gmail…" : "Saving the draft…" }];
+        x.actions = [{ step: "draft", status: "run", detail: x.live === "gmail" ? "Saving the draft in Gmail…" : x.live === "outlook" ? "Outlook is opening – Tia types the draft…" : "Saving the draft…" }];
         base.render();
         try {
           await saveDraft(body);
@@ -185,9 +200,11 @@
         if (r.error) throw new Error(r.error);
         return r;
       },
-      sendNew: async ({ to, subject, text }) => {
-        const r = await saveDraft({ app: "gmail", id: `new_${Date.now()}`, isNew: true, to, subject, text });
-        return { detail: `Saved – ${r.where}. Open Gmail to send it.` };
+      sendNew: async ({ to, subject, text, from }) => {
+        const app = from === "outlook" ? "outlook" : "gmail";
+        const r = await saveDraft({ app, id: `new_${Date.now()}`, isNew: true, to, subject, text });
+        rerender();
+        return { detail: `Saved – ${r.where}. Open ${app === "outlook" ? "Outlook" : "Gmail"} to send it.` };
       },
       typeDraft: (x, ta, done) => {
         if (x.live === "whatsapp") {
@@ -525,6 +542,115 @@
     return h("div", { class: "ig igp-wrap" }, nav, main, side);
   }
 
+  // ============================ INSTAGRAM – the real instagram.com inside the desktop app ============================
+  // Electron only (<webview>, own logged-in session "persist:instagram"); a browser gets the look-alike above.
+  // The webview lives on <body> (not in the view) so switching tabs never reloads it – it is laid over the slot.
+  const inElectron = /Electron/i.test(navigator.userAgent);
+  let igWeb = null;
+  function igWebview() {
+    if (igWeb) return igWeb;
+    igWeb = document.createElement("webview");
+    igWeb.className = "ig-real";
+    igWeb.setAttribute("partition", "persist:instagram");
+    igWeb.setAttribute("allowpopups", "");
+    igWeb.setAttribute("src", "https://www.instagram.com/");
+    document.body.append(igWeb);
+    window.addEventListener("resize", placeIg);
+    return igWeb;
+  }
+  function placeIg() {
+    if (!igWeb) return;
+    const slot = document.querySelector(".ig-slot");
+    const on = slot && document.body.classList.contains("tab-instagram") && !document.querySelector(".chview[hidden]");
+    if (!on) return igWeb.classList.remove("show");
+    const r = slot.getBoundingClientRect();
+    Object.assign(igWeb.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    igWeb.classList.add("show");
+  }
+  const igRev = { data: null, busy: false, err: "", post: "", postBusy: false, postText: "" };
+  async function igReview(fresh) {
+    igRev.busy = true;
+    igRev.err = "";
+    rerender();
+    try {
+      const r = await T().livePost("instagram/review", { fresh: !!fresh });
+      if (r.error) throw new Error(r.error);
+      igRev.data = r;
+    } catch (e) {
+      igRev.err = e.message || String(e);
+    }
+    igRev.busy = false;
+    rerender();
+  }
+  function instagramReal(c) {
+    const { h } = c;
+    igWebview();
+    setTimeout(placeIg, 0);
+    const s = load("instagram");
+    const d = s.data;
+    const panel = h("div", { class: "igr-side" });
+    panel.append(h("div", { class: "igr-hd" }, I("sparkle"), h("b", {}, "Tia · Instagram"), h("span", { class: "sp" }), h("button", { class: "igr-ic", title: "Read the account again", onclick: () => (load("instagram", true), rerender()) }, "↻")));
+    if (!d) panel.append(notice(h, "instagram", s, "Instagram") || h("div", { class: "lv-wait" }, "…"));
+    else {
+      const posts = d.posts || [];
+      const avg = (k) => {
+        const v = posts.map((p) => p[k]).filter((x) => x !== null && x !== undefined);
+        return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+      };
+      const best = posts.slice().sort((a, b) => (b.views || b.likes || 0) - (a.views || a.likes || 0))[0];
+      panel.append(
+        h("div", { class: "igr-acct" }, h("b", {}, `@${d.profile.username}`), h("span", {}, `${n0(d.profile.followers)} followers · ${n0(d.profile.posts)} posts`)),
+        h("div", { class: "am-kpi" }, [["Avg views", n0(avg("views"))], ["Avg likes", n0(avg("likes"))], ["Avg reach", n0(avg("reach"))], ["Saves", n0(avg("saved"))]].map(([k, v]) => h("div", {}, h("span", {}, k), h("b", {}, v)))),
+        best ? h("div", { class: "igr-best" }, "Best of the last ", String(posts.length), ": ", h("b", {}, best.date), ` – ${n0(best.views)} views, ${n0(best.likes)} likes`) : "");
+      // the review
+      const rv = igRev.data;
+      panel.append(h("button", { class: "am-primary igr-go", disabled: igRev.busy, onclick: () => igReview(!!rv) }, I("sparkle"), igRev.busy ? "Tia is reading your numbers…" : rv ? "Review again" : "Review my Instagram"));
+      if (igRev.err) panel.append(h("div", { class: "lv-wait err" }, igRev.err));
+      if (rv) {
+        panel.append(
+          h("div", { class: "igr-score" }, h("div", { class: `ring ${rv.score >= 70 ? "good" : rv.score >= 45 ? "mid" : "low"}` }, String(rv.score)), h("div", {}, rv.verdict)),
+          h("div", { class: "igr-t" }, "What works"), h("ul", { class: "igr-ul ok" }, (rv.working || []).map((x) => h("li", {}, x))),
+          h("div", { class: "igr-t" }, "Improve"), h("ul", { class: "igr-ul fix" }, (rv.fix || []).map((x) => h("li", {}, x))),
+          h("div", { class: "igr-t" }, "Next post"), h("div", { class: "igr-idea" }, rv.next_post_idea));
+        igRev.post = igRev.post || rv.next_post_caption || "";
+      }
+      // a post draft: Tia writes the caption, the owner posts it in Instagram (Create) himself
+      const ta = h("textarea", { class: "am-ta", rows: 6, placeholder: "What is the post about? A few words – Tia writes the caption.", oninput: (e) => (igRev.post = e.target.value) });
+      ta.value = igRev.post;
+      const msg = h("div", { class: "am-saved muted" }, igRev.postText || "Tia never posts by herself – copy the caption, then press Create in Instagram.");
+      panel.append(h("div", { class: "igr-t" }, "Draft a post"), ta,
+        h("div", { class: "am-row" },
+          h("button", { class: "am-btn", disabled: igRev.postBusy, onclick: async () => {
+            igRev.postBusy = true;
+            rerender();
+            try {
+              const r = await T().livePost("suggest", { app: "instagram", mode: "caption", text: igRev.post || "a new post", stats: posts.slice(0, 3).map((p) => `${p.date}: ${p.views ?? "-"} views, ${p.likes} likes`).join("; ") });
+              if (r.error) throw new Error(r.error);
+              igRev.post = r.text;
+              igRev.postText = "";
+            } catch (e) {
+              igRev.postText = `⚠ ${e.message || e}`;
+            }
+            igRev.postBusy = false;
+            rerender();
+          } }, I("sparkle"), igRev.postBusy ? "Tia is writing…" : "Let Tia write"),
+          h("button", { class: "am-primary", onclick: async () => {
+            try {
+              await navigator.clipboard.writeText(ta.value);
+              igRev.postText = "✓ Copied – press Create (+) in Instagram and paste it.";
+            } catch {
+              igRev.postText = "Select the text and copy it (Ctrl+C).";
+            }
+            rerender();
+          } }, "Copy caption")),
+        msg);
+    }
+    return h("div", { class: "igr" }, h("div", { class: "ig-slot" }), panel);
+  }
+  const instagramView = (c) => (inElectron ? instagramReal(c) : instagramLive(c));
+  // voice command "review my Instagram" → the hub asks the screen to show it
+  window.TiaIgReview = (fresh) => igReview(fresh);
+
   // ============================ WHATSAPP (live: Business number by Meta webhook) ============================
   let waSel = null;
   function waItems() {
@@ -627,8 +753,9 @@
     });
 
   window.TiaLive = {
-    LIVE_TABS, canLive, isLive, switcher, items, ctxFor,
+    LIVE_TABS, canLive, isLive, switcher, items, ctxFor, loadDrafts, selectWa: (id) => ((waSel = `wa_${id}`), rerender()), reload: (what) => (load(what, true), rerender()),
     setRerender: (fn) => ((rerender = fn), loadDrafts()),
-    views: { ads: adsView, linkedin: linkedinView, instagram: instagramLive, whatsapp: whatsappLive },
+    views: { ads: adsView, linkedin: linkedinView, instagram: instagramView, whatsapp: whatsappLive },
+    placeIg,
   };
 })();

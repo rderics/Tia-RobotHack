@@ -42,29 +42,36 @@
 
   // ============================ OUTLOOK ============================
   let folder = "inbox";
+  let mailAcct = "all"; // live: all inboxes, or only Gmail / only Outlook
   let composing = null; // { to, subject, text } while writing a new mail
   function mail(c, items, x) {
     const { h } = c;
     const A = c.acct || {};
-    const inFolder = (i) => ({ inbox: true, unread: isOpen(i), needs: i.state === "open" && !i.live, handled: i.state === "handled", drafts: ["approved", "edited"].includes(i.state) })[folder];
-    const shown = items.filter((i) => inFolder(i) && match("email", i));
-    const n = (f) => items.filter((i) => ({ inbox: isOpen(i), unread: isOpen(i), needs: i.state === "open" && !i.live, handled: i.state === "handled", drafts: ["approved", "edited"].includes(i.state) })[f]).length;
-    const F = (key, icon, label, extra = "") =>
-      h("div", { class: `ol-f ${folder === key ? "on" : ""} ${extra}`, onclick: () => ((folder = key), (composing = null), c.render()) }, I(icon), h("span", {}, label), n(key) ? h("span", { class: "n" }, n(key)) : "");
-    const folders = h("div", { class: "ol-folders" },
-      h("div", { class: "ol-acct" }, A.box || "info@oakline-studio.example"),
-      F("inbox", folder === "inbox" ? "mail_inbox_filled" : "mail_inbox", "Inbox"),
-      A.live ? "" : F("needs", "sparkle", "Needs you", "tia"),
-      A.live ? "" : F("handled", "checkmark", "Handled by Tia", "tia"),
-      F("drafts", "drafts", "Drafts"));
+    const inAcct = (i, acc = mailAcct) => !A.accounts || acc === "all" || i.live === acc;
+    const inF = (i, f) => ({ inbox: !i.draftOnly, unread: isOpen(i) && !i.draftOnly, needs: i.state === "open" && !i.live, handled: i.state === "handled", drafts: ["approved", "edited"].includes(i.state) })[f];
+    const shown = items.filter((i) => inAcct(i) && inF(i, folder) && match("email", i));
+    if (A.accounts && x && !shown.includes(x)) x = shown[0]; // switching folders opens that folder's first mail
+    const n = (f, acc = mailAcct) => items.filter((i) => inAcct(i, acc) && (f === "inbox" ? isOpen(i) && !i.draftOnly : inF(i, f))).length;
+    const F = (key, icon, label, extra = "", acc = mailAcct) =>
+      h("div", { class: `ol-f ${folder === key && mailAcct === acc ? "on" : ""} ${extra}`, onclick: () => ((folder = key), (mailAcct = acc), (composing = null), c.render()) }, I(icon), h("span", {}, label), n(key, acc) ? h("span", { class: "n" }, n(key, acc)) : "");
+    const folders = A.accounts
+      ? h("div", { class: "ol-folders" },
+          F("inbox", "mail_inbox_filled", "All inboxes", "", "all"),
+          A.accounts.map((a) => [h("div", { class: `ol-acct ${a.key}` }, h("span", { class: `ol-app ${a.key}` }, a.label), a.name), F("inbox", "mail_inbox", "Inbox", "", a.key), F("drafts", "drafts", "Drafts", "", a.key)]).flat())
+      : h("div", { class: "ol-folders" },
+          h("div", { class: "ol-acct" }, A.box || "info@oakline-studio.example"),
+          F("inbox", folder === "inbox" ? "mail_inbox_filled" : "mail_inbox", "Inbox"),
+          A.live ? "" : F("needs", "sparkle", "Needs you", "tia"),
+          A.live ? "" : F("handled", "checkmark", "Handled by Tia", "tia"),
+          F("drafts", "drafts", "Drafts"));
     const search = searchBox(c, "email", "ol-search", "Search mail");
     search.setAttribute("data-search", "email");
     const list = h("div", { class: "ol-card" },
-      h("div", { class: "ol-lhd" }, { inbox: "Inbox", needs: "Needs you", handled: "Handled by Tia", drafts: "Drafts" }[folder] || "Inbox"),
+      h("div", { class: "ol-lhd" }, A.accounts && mailAcct !== "all" ? `${mailAcct === "outlook" ? "Outlook" : "Gmail"} · ` : "", { inbox: A.accounts && mailAcct === "all" ? "All inboxes" : "Inbox", needs: "Needs you", handled: "Handled by Tia", drafts: "Drafts" }[folder] || "Inbox"),
       shown.map((i) =>
         h("div", { class: `ol-row ${isOpen(i) && i.state !== "edited" ? "unread" : ""} ${x && i.id === x.id && !composing ? "sel" : ""}`, onclick: () => ((composing = null), c.select(i.id)) },
           c.avatar(i.from), h("div", { class: "who" }, i.from), h("div", { class: "time" }, i.time),
-          h("div", { class: "subj" }, i.subject || "(No subject)"), h("div", { class: "prev" }, c.chip(i), h("span", {}, i.text.slice(0, 90))))),
+          h("div", { class: "subj" }, A.accounts ? h("span", { class: `ol-app ${i.live}` }, i.live === "outlook" ? "Outlook" : "Gmail") : "", i.subject || "(No subject)"), h("div", { class: "prev" }, c.chip(i), h("span", {}, String(i.text || "").slice(0, 90))))),
       shown.length ? null : h("div", { class: "ch-empty" }, query.email ? "No mail matches your search." : folder === "drafts" ? "No drafts yet – answer a mail and press Save draft." : "Nothing here."));
     const read = h("div", { class: "ol-card ol-read" });
     if (composing) read.append(composeView(c, A));
@@ -73,22 +80,23 @@
         h("div", { class: "ol-subj" }, x.subject || "(No subject)"),
         h("div", { class: "ol-msg" },
           h("div", { class: "ol-from" }, c.avatar(x.from), h("div", { class: "n" }, x.from, " ", h("span", {}, `<${x.address}>`)), h("div", { class: "acts" }, h("div", { class: "t" }, x.time)),
-            h("div", { class: "to" }, `To: ${A.me || "Mārtiņš Ozols"}`)),
+            h("div", { class: "to" }, x.draftOnly ? `Draft in ${x.live === "outlook" ? "Outlook" : "Gmail"} – to ${x.address}` : `To: ${(A.fromOf && A.fromOf(x)) || A.me || "Mārtiņš Ozols"}`)),
           h("div", { class: "ol-body" }, x.text)));
-      if (replyable(x)) {
+      if (x.draftOnly) read.append(h("div", { class: "ol-reply" }, tiaBanner(c, x, `Tia saved this as a draft in ${x.live === "outlook" ? "Outlook" : "Gmail"} – open it there and press Send.`), c.steps(x)));
+      else if (replyable(x)) {
         const open = isOpen(x);
         const ta = h("textarea", { "aria-label": "Message body", placeholder: "Write your reply – or press “Let Tia write”", oninput: (e) => (c.userEdited[x.id] = e.target.value) });
         ta.value = c.composerValue(x);
         read.append(h("div", { class: "ol-reply" },
-          tiaBanner(c, x, x.live ? (x.state === "edited" ? A.savedBanner : A.banner) : x.state === "new" ? "Write your reply, or let Tia write it from the business notes. “Save draft” opens Outlook and types it in – you press Send." : open ? "Tia drafted this reply – edit it, or save it as a draft." : x.state === "handled" ? "Tia handled this message with the reply below." : "Saved as a draft in Outlook."),
-          h("div", { class: "ol-line" }, h("span", { class: "k" }, "From"), h("span", {}, A.from || "info@oakline-studio.example")),
+          tiaBanner(c, x, x.live ? (x.state === "edited" ? (A.savedOf ? A.savedOf(x) : A.savedBanner) : A.bannerOf ? A.bannerOf(x) : A.banner) : x.state === "new" ? "Write your reply, or let Tia write it from the business notes. “Save draft” opens Outlook and types it in – you press Send." : open ? "Tia drafted this reply – edit it, or save it as a draft." : x.state === "handled" ? "Tia handled this message with the reply below." : "Saved as a draft in Outlook."),
+          h("div", { class: "ol-line" }, h("span", { class: "k" }, "From"), h("span", {}, (A.fromOf && A.fromOf(x)) || A.from || "info@oakline-studio.example")),
           h("div", { class: "ol-line" }, h("span", { class: "k" }, "To"), h("span", { class: "ol-pill" }, c.avatar(x.from), x.address)),
           ta,
           h("div", { class: "ol-rbar" },
             h("button", { class: "ol-primary", disabled: !open, onclick: () => c.decide(x, ta.value) }, "Save draft"),
             h("button", { class: "ol-btn", disabled: !open, onclick: () => ((c.userEdited[x.id] = undefined), c.typeDraft(x, ta)) }, I("sparkle"), "Let Tia write"),
             h("button", { class: "ol-btn", disabled: !open, onclick: () => c.reject(x) }, "Discard"),
-            h("span", { class: "note" }, A.note || "Tia never sends – you press Send in Outlook.")),
+            h("span", { class: "note" }, (A.noteOf && A.noteOf(x)) || A.note || "Tia never sends – you press Send in Outlook.")),
           c.steps(x)));
         if (c.pendingFor(x.id)) c.typeDraft(x, ta);
       }
@@ -111,8 +119,13 @@
     const ta = h("textarea", { placeholder: "Write the mail – or write a few words about what it should say and press “Let Tia write”", oninput: (e) => (m.text = e.target.value) });
     ta.value = m.text;
     const status = h("div", { class: "tia-steps" });
+    m.from = m.from || (mailAcct === "outlook" ? "outlook" : "gmail");
+    const fromSel = A.accounts
+      ? h("select", { class: "ol-in", onchange: (e) => (m.from = e.target.value) }, A.accounts.map((a) => h("option", { value: a.key, selected: m.from === a.key ? "" : null }, `${a.label} – ${a.name}`)))
+      : null;
     return h("div", { class: "ol-reply ol-compose" },
       h("div", { class: "ol-subj" }, "New message"),
+      fromSel ? h("div", { class: "ol-line" }, h("span", { class: "k" }, "From"), fromSel) : "",
       tiaBanner(c, null, "Write it yourself, or give Tia a few words and she writes it from the business notes. Save draft = a real draft you send yourself."),
       h("div", { class: "ol-line" }, h("span", { class: "k" }, "To"), to),
       h("div", { class: "ol-line" }, h("span", { class: "k" }, "Subject"), subj),
@@ -122,7 +135,8 @@
           if (!m.text.trim()) return ta.focus();
           status.textContent = "Saving the draft…";
           try {
-            const r = await c.sendNew({ channel: "email", to: m.to, subject: m.subject, text: m.text });
+            status.textContent = m.from === "outlook" ? "Outlook is opening – Tia types the draft…" : "Saving the draft in Gmail…";
+            const r = await c.sendNew({ channel: "email", to: m.to, subject: m.subject, text: m.text, from: m.from });
             status.textContent = `✓ ${(r && r.detail) || "Draft saved – you press Send."}`;
           } catch (e) {
             status.textContent = `⚠ ${e.message || e}`;
@@ -268,5 +282,5 @@
       h("div", { class: "sl-body sl-clean" }, side, main));
   }
 
-  window.TiaApps = { mail, wa, ig, slack, I };
+  window.TiaApps = { mail, wa, ig, slack, I, setMail: ({ folder: f, acct } = {}) => ((folder = f || folder), (mailAcct = acct || mailAcct), (composing = null)) };
 })();

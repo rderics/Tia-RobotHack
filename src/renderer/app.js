@@ -465,8 +465,9 @@ async function ask(text) {
   }
 }
 const rec = { media: null, chunks: [], stream: null, started: 0 };
+let recByClick = false; // started from the PiP: a second click (not letting go of the mouse) sends it
 async function micDown(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   if (rec.media || $("askbar").classList.contains("busy")) return;
   stopSpeaking();
   try {
@@ -482,6 +483,7 @@ async function micDown(e) {
   rec.started = Date.now();
   $("micBtn").classList.add("on");
   $("recNote").hidden = false;
+  window.dispatchEvent(new CustomEvent("tia-rec", { detail: { on: true } }));
   showSaid("");
   say("Listening…", { speak: false });
 }
@@ -491,6 +493,7 @@ async function micUp() {
   rec.media = null;
   $("micBtn").classList.remove("on");
   $("recNote").hidden = true;
+  window.dispatchEvent(new CustomEvent("tia-rec", { detail: { on: false } }));
   const stopped = new Promise((r) => (media.onstop = r));
   media.stop();
   await stopped;
@@ -512,7 +515,7 @@ const queue = [];
 let draining = false;
 let runId = 0;
 function onEvent(ev) {
-  if (ev.type === "thinking") return; // the stage shows what Tia is reading, in step with the animation
+  if (ev.type === "thinking" || ev.type === "ui") return; // "ui" = a command switching pages (channels/views.js) // the stage shows what Tia is reading, in step with the animation
   if (ev.type === "heard") {
     showSaid(ev.text);
     setThinking(true);
@@ -716,8 +719,23 @@ $("resetBtn").onclick = async () => {
     ask($("askInput").value);
   };
   $("micBtn").addEventListener("pointerdown", micDown);
-  window.addEventListener("pointerup", micUp);
-  window.addEventListener("pointercancel", micUp);
+  window.addEventListener("pointerup", () => (recByClick ? null : micUp()));
+  window.addEventListener("pointercancel", () => (recByClick ? null : micUp()));
+  // the Tia picture on every app page: click = start listening, click again = send (or type into its box)
+  window.TiaTalk = {
+    toggle: async () => {
+      if (rec.media) {
+        recByClick = false;
+        return micUp();
+      }
+      recByClick = true;
+      await micDown(null);
+      if (!rec.media) recByClick = false;
+    },
+    ask: (t) => ask(t),
+    listening: () => !!rec.media,
+    busy: () => $("askbar").classList.contains("busy"),
+  };
 
   ensureEmpty();
   setVoice(voice.on, false);

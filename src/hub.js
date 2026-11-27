@@ -225,6 +225,35 @@ function act(item, fn) {
 }
 
 let docCounter = 0;
+async function makeDocument(cfg, item, step) {
+  const p = item.proposal;
+  const info = engine.info();
+  const c = card(item);
+  const day = new Date(Date.parse(String(info.today || "").replace(/^[A-Za-z]+,?\s*/, "").split(",")[0]) || Date.now());
+  const date = day.toLocaleDateString("en-GB").replace(/\//g, ".");
+  let html;
+  let name;
+  if (p.kind === "contract") {
+    // next free number after the PDFs already made (survives restarts)
+    let max = 40 + docCounter;
+    try {
+      for (const f of require("fs").readdirSync(actions.docsDir(cfg))) {
+        const m = f.match(/OS-\d{4}-(\d{3})/);
+        if (m) max = Math.max(max, Number(m[1]));
+      }
+    } catch {}
+    docCounter++;
+    const no = `OS-${new Date().getFullYear()}-${String(max + 1).padStart(3, "0")}`;
+    html = contractHtml(info, cfg, p, { contractNo: no, date });
+    name = `${p.lines && p.lines.length ? "Contract" : "Partnership agreement"} ${no} – ${p.to}`;
+  } else {
+    html = offerHtml(info, { ...c, state: "approved" });
+    name = `Offer – ${p.to} – ${date}`;
+  }
+  const file = await actions.pdf(cfg, { html, name }, step);
+  item.document = file;
+  return file;
+}
 async function documentFlow(cfg, item, step) {
   const p = item.proposal;
   const info = engine.info();
@@ -261,7 +290,7 @@ async function documentFlow(cfg, item, step) {
 // ---------- lead finder: web → AI fit score → CRM, visible step by step; outreach only as drafts ----------
 function leadSearch(cfg, item, text) {
   // the owner's Google Sheet (or Tia's own /crm page) opens and fills in row by row
-  if (actionsOn(cfg)) actions.open(process.env.GOOGLE_SHEET_URL && leads.sheetOn() ? process.env.GOOGLE_SHEET_URL : `http://localhost:${process.env.TIA_PORT || 4747}/crm`);
+  emit({ type: "ui", tab: "leads" }); // the CRM tab inside Tia fills in row by row
   act(item, async (step) => {
     const r = await leads.findLeads(cfg, { text, limit: cfg.leadLimit || 6 }, step);
     item.state = "handled";
@@ -286,11 +315,111 @@ function leadSearch(cfg, item, text) {
 const actionsOn = (cfg) => (cfg.actions || {}).show !== false;
 
 // ---------- voice / typed commands ----------
-function deskForPrompt() {
-  return desk.items.map((i) => {
+function deskForPrompt(cfg) {
+  const out = desk.items.map((i) => {
     const c = card(i);
     return { state: i.state === "open" ? "needs owner" : i.state, from: c.from, summary: c.summary };
   });
+  // the CRM's newest leads and the last person/company Tia wrote to – so "the newest lead" / "the latest company" resolve
+  try {
+    // only leads Tia can actually write to (an email address), newest first – "the newest lead" = the first one here
+    for (const r of leads.loadCrm(cfg).filter((x) => x.email).slice(0, 5)) out.push({ state: "CRM lead", from: r.name, summary: `${r.segment || "lead"}, fit ${r.fit || 0}%, ${r.email}, found ${r.found_at || ""}${r.status ? `, status ${r.status}` : ""}${r.why ? `. Why they fit: ${r.why}` : ""}` });
+  } catch {}
+  if (desk.lastContact) out.push({ state: "LATEST COMPANY WE INTERACTED WITH", from: desk.lastContact.name, summary: `${desk.lastContact.what} ${desk.lastContact.email ? `(${desk.lastContact.email})` : ""}` });
+  return out;
+}
+
+// who is this? → an email address from the CRM (leads) or the client's vault note
+function contactFor(cfg, name) {
+  const n = String(name || "").trim().toLowerCase();
+  const rows = leads.loadCrm(cfg);
+  const row = rows.find((r) => r.name.toLowerCase() === n) || rows.find((r) => n && (r.name.toLowerCase().includes(n) || n.includes(r.name.toLowerCase())));
+  if (row) return { name: row.name, email: row.email || "", lead: row };
+  try {
+    const note = require("fs").readFileSync(require("path").join(cfg.vaultDir, "Clients", `${name}.md`), "utf8");
+    return { name, email: (note.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/) || [])[0] || "" };
+  } catch {}
+  return { name: name || "", email: "" };
+}
+
+// "write a draft to …" – the owner asked, so the draft is made right away (a draft is never sent)
+function draftNow(cfg, item, app, text) {
+  const p = item.proposal;
+  const who = contactFor(cfg, p.to);
+  const id = `cmd_${Date.now()}`;
+  item.state = "approved";
+  desk.lastContact = { name: who.name || p.to, email: who.email, what: `${app === "gmail" ? "Gmail" : "Outlook"} draft: ${p.title}` };
+  act(item, async (step) => {
+    const L = require("./connectors/live");
+    step({ step: app, status: "start", detail: app === "gmail" ? `Writing the Gmail draft to ${who.name || p.to}` : `Outlook is opening – writing to ${who.name || p.to}` });
+    if (app === "gmail" && !who.email) throw new Error(`I have no email address for ${who.name || p.to} – add it in the CRM, or say "Outlook draft"`);
+    if (app === "gmail") emit({ type: "ui", tab: "email", folder: "drafts", acct: "gmail" });
+    await L.saveDraft(cfg, { app, id, isNew: true, to: who.email || who.name || p.to, subject: p.title || `Hello from ${cfg.business || engine.info().business}`, text: p.message_text || text, attach: p.attach || [] });
+    step({ step: app, status: "done", detail: `Draft saved in ${app === "gmail" ? "Gmail" : "Outlook"} – you press Send` });
+    if (who.lead) {
+      const rows = leads.loadCrm(cfg);
+      const row = rows.find((r) => r.name === who.lead.name);
+      if (row) (row.status = "draft ready"), leads.saveCrm(cfg, rows);
+    }
+    emit({ type: "ui", tab: "email", folder: "drafts", acct: app, select: id });
+    logActivity(cfg.notesDir, `${app} draft to ${who.name || p.to}: ${p.title}`);
+  });
+}
+
+// "write a contract for …" – the PDF is made right away and shown in Docs (printing only when the owner asks)
+function contractNow(cfg, item) {
+  const p = item.proposal;
+  item.state = "approved";
+  const who = contactFor(cfg, p.to);
+  act(item, async (step) => {
+    const file = await makeDocument(cfg, item, step);
+    desk.lastDoc = { file, to: who.name || p.to, email: who.email, kind: p.kind, title: p.title, message_text: p.message_text, at: Date.now() };
+    desk.lastContact = { name: who.name || p.to, email: who.email, what: `${p.title}` };
+    emit({ type: "ui", tab: "docs", doc: require("path").basename(file) });
+    logActivity(cfg.notesDir, `${p.title}: PDF made (${require("path").basename(file)})`);
+  });
+}
+
+// Fast answers that need no AI round-trip: open a page, email the last document, review Instagram, score ads.
+const PAGES = { mail: "email", email: "email", inbox: "email", gmail: "email", outlook: "email", vault: "vault", leads: "leads", crm: "leads", whatsapp: "whatsapp", ads: "ads", "ads manager": "ads", slack: "slack", docs: "docs", documents: "docs", contracts: "docs", calendar: "calendar", instagram: "instagram", settings: "settings", tia: "tia" };
+async function quick(cfg, text) {
+  const t = text.toLowerCase().replace(/[.!?]+$/, "").trim();
+  const open = t.match(/^(?:tia,?\s*)?(?:open|show(?: me)?|go to|switch to)\s+(?:my |the )?([a-z ]+?)(?:\s+(?:tab|page|app))?$/);
+  if (open && PAGES[open[1].trim()]) {
+    const tab = PAGES[open[1].trim()];
+    emit({ type: "ui", tab });
+    return { say: `Here's ${tab === "email" ? "your mail – Gmail and Outlook together" : `your ${open[1].trim()}`}.` };
+  }
+  // "email it / put it in a draft / send the contract by email" right after a contract or offer was made
+  const d = desk.lastDoc;
+  if (d && Date.now() - d.at < 3 * 3600e3 && /\b(e-?mail|mail|draft|outlook)\b/.test(t) && /\b(it|that|contract|agreement|offer|document|pdf)\b/.test(t) && !/\blead/.test(t)) {
+    const app = "outlook"; // documents go out through Outlook (Gmail drafts can't carry the PDF here)
+    const item = { id: `c${++seq}`, kind: "reply", state: "open", at: Date.now(), sources: ["Docs"], proposal: { kind: "reply", title: `${d.title || "Contract"}`, to: d.to, summary: `Email with ${require("path").basename(d.file)} attached`, message_text: d.message_text || `Hello,\n\nplease find the ${d.kind === "contract" ? "agreement" : d.kind} attached for your review and signature.\n\nBest regards,\n${cfg.owner || engine.info().owner}`, lines: [], total_eur: 0, valid_until: "", when: "", attach: [d.file] } };
+    desk.items.push(item);
+    draftNow(cfg, item, app, "");
+    return { say: `Opening Outlook – I'm writing the email to ${d.to} with the ${d.kind === "contract" ? "agreement" : d.kind} attached. It stays a draft, you press Send.`, item };
+  }
+  // "find me new leads" – straight to the lead finder; with no kind given, the vault's best partner source (Lead sources 2026)
+  if (/\b(find|look for|search|get)\b/.test(t) && /\b(leads?|clients?|partners?|customers?)\b/.test(t)) {
+    const kinds = /architect|design|real.?estate|agenc|developer|builder|construct/.test(t) ? "" : "architects and interior design studios";
+    const area = /jūrmala|jurmala/.test(t) ? "" : /riga|rīga/.test(t) ? "" : " in Riga";
+    const title = `${kinds}${area}`.trim() || t;
+    const item = { id: `c${++seq}`, kind: "find_leads", state: "working", at: Date.now(), proposal: { kind: "find_leads", title: title || "new leads", to: "", summary: `New leads: ${title}`, message_text: "", lines: [], total_eur: 0, valid_until: "", when: "" }, sources: ["Lead sources 2026"] };
+    desk.items.push(item);
+    leadSearch(cfg, item, `${title} ${text}`);
+    return { say: `On it – I'm searching for ${title || "new leads"} and adding the good ones to your CRM.`, item };
+  }
+  if (/instagram/.test(t) && /(review|stat|improv|analy|numbers|doing|insight)/.test(t)) {
+    emit({ type: "ui", tab: "instagram", igReview: true });
+    const L = require("./connectors/live");
+    const r = await L.instagramReview(cfg);
+    return { say: `${r.verdict} I'd give it ${r.score} out of 100 – the fixes and your next post are on the right.` };
+  }
+  if (/\b(ads?|ad account|campaigns?)\b/.test(t) && /(score|review|analy|improv|check|how.*doing|perform)/.test(t)) {
+    emit({ type: "ui", tab: "ads", adsReview: true });
+    return { say: "Here's your Meta Ads account. I'm scoring your newest ad against its numbers – the better version is on the right." };
+  }
+  return null;
 }
 
 async function command(text, via) {
@@ -304,11 +433,20 @@ async function command(text, via) {
   emit({ type: "heard", text, via });
   try {
     const cfg = loadConfig();
+    const fast = await quick(cfg, text).catch((e) => ({ say: `That didn't work: ${String(e.message || e).slice(0, 120)}` }));
+    if (fast) {
+      say(fast.say, via);
+      desk.thinking = false;
+      bump();
+      const out = { heard: text, say: fast.say, question: "", item: null, mode: "live" };
+      emit({ type: "reply", via, ...out });
+      return out;
+    }
     const ctx = contextFor(cfg, [text, ...history.map((h) => h.text)].join(" "));
     const res = await runCommand(cfg, {
       vaultContext: ctx.text,
       today: engine.info().today,
-      desk: deskForPrompt(),
+      desk: deskForPrompt(cfg),
       history,
       text,
     });
@@ -321,6 +459,23 @@ async function command(text, via) {
     } else if (p && p.kind !== "none") {
       item = { id: `c${++seq}`, kind: p.kind, state: "open", at: Date.now(), proposal: p, sources: res.vault_sources && res.vault_sources.length ? res.vault_sources : ctx.sources };
       desk.items.push(item);
+      // the owner asked for it by voice: drafts and documents are made at once (nothing is sent – he presses Send)
+      if (p.kind === "reply" && p.message_text) {
+        const app = /outlook/i.test(text) ? "outlook" : "gmail";
+        draftNow(cfg, item, app, text);
+        res.say = app === "gmail" ? `Writing to ${p.to} now – the draft goes into Gmail, Drafts. Nothing is sent until you press Send.` : `Outlook is opening – I'm typing the email to ${p.to}. It stays a draft, you press Send.`;
+      } else if (p.kind === "contract" || p.kind === "offer") {
+        contractNow(cfg, item);
+        res.say = `${p.lines && p.lines.length ? `The contract for ${p.to}` : `A referral partnership agreement for ${p.to}`} is ready in Docs, made from the template in your vault. Say "email it" and I'll put it in an Outlook draft.`;
+      }
+      else if (p.kind === "whatsapp") {
+        let chat = null;
+        try {
+          chat = require("./connectors/whatsapp").findChat(cfg, p.to);
+        } catch {}
+        emit({ type: "ui", tab: "whatsapp", chat: chat && chat.waId });
+        res.say = `Here's my WhatsApp to ${p.to}${chat ? "" : " – I don't have their chat yet"}. Tap Send and it goes out from your number.`;
+      }
     }
     say(res.say, via);
     desk.thinking = false;

@@ -35,15 +35,15 @@
   };
   const TABS = [
     ["tia", "Tia"],
-    ["email", "Mail"],
-    ["calendar", "Calendar"],
-    ["whatsapp", "WhatsApp"],
-    ["instagram", "Instagram"],
-    ["slack", "Slack"],
-    ["ads", "Ads"],
-    ["docs", "Docs"],
-    ["leads", "Leads"],
     ["vault", "Vault"],
+    ["leads", "Leads"],
+    ["email", "Mail"],
+    ["whatsapp", "WhatsApp"],
+    ["ads", "Ads"],
+    ["slack", "Slack"],
+    ["docs", "Docs"],
+    ["calendar", "Calendar"],
+    ["instagram", "Instagram"],
     ["settings", "Settings"],
   ];
   const COLORS = ["#4F6BED", "#C239B3", "#E3008C", "#038387", "#CA5010", "#8764B8", "#498205", "#0078D4", "#986F0B", "#D13438"];
@@ -76,8 +76,20 @@
     const f = h("button", { class: "follow on", title: "When on, Tia opens the right app herself while she works", onclick: () => setFollow(!follow) }, "Follow Tia");
     rail.append(f);
     view = h("div", { class: "chview", hidden: true });
-    pip = h("div", { class: "tia-pip", hidden: true }, h("div", { class: "pipbox", id: "pipBox" }), h("div", { class: "pipcap" }, h("b", {}, "Tia"), h("span", { id: "pipText" }, "")));
+    const pipIn = h("input", { class: "pipin", placeholder: "Ask Tia…", "aria-label": "Ask Tia", onkeydown: (e) => {
+      if (e.key !== "Enter" || !pipIn.value.trim()) return;
+      window.TiaTalk && window.TiaTalk.ask(pipIn.value);
+      pipIn.value = "";
+    } });
+    const pipMic = h("button", { class: "pipmic", title: "Click, talk, click again to send", onclick: (e) => (e.stopPropagation(), window.TiaTalk && window.TiaTalk.toggle()) });
+    pipMic.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+    pip = h("div", { class: "tia-pip", hidden: true },
+      h("div", { class: "pipbox", id: "pipBox", title: "Click to talk to Tia – click again to send", onclick: () => window.TiaTalk && window.TiaTalk.toggle() }, h("div", { class: "piprec" }, "● Listening – click to send")),
+      h("div", { class: "pipcap" }, h("b", {}, "Tia"), h("span", { id: "pipText" }, "")),
+      h("div", { class: "piptalk" }, pipIn, pipMic),
+      h("div", { class: "pipcard", hidden: true }));
     document.body.append(rail, view, pip);
+    window.addEventListener("tia-rec", (e) => pip.classList.toggle("listening", !!e.detail.on));
     // mirror Tia's caption and "talking" state into the PiP
     const sync = () => {
       $("pipText").textContent = ($("speechText") && $("speechText").textContent) || "";
@@ -117,6 +129,7 @@
     pip.hidden = !inChannel;
     moveAvatar(inChannel);
     if (inChannel) render();
+    if (window.TiaLive && window.TiaLive.placeIg) setTimeout(window.TiaLive.placeIg, 0); // the real Instagram shows only on its tab
   }
   function showTab(key, { byUser = false } = {}) {
     if (byUser && key !== "tia" && follow && document.body.classList.contains("running")) setFollow(false); // owner takes over
@@ -233,7 +246,7 @@
     if (tab === "docs") return window.TiaDocs ? view.append(window.TiaDocs.view(baseCtx())) : null;
     if (tab === "vault") return window.TiaVault ? view.append(window.TiaVault.el()) : view.append(h("div", { class: "ch-empty" }, "Vault view not loaded."));
     const L = window.TiaLive;
-    const LABEL = { calendar: "Google Calendar", email: "Gmail", slack: "Slack", instagram: "Instagram", whatsapp: "WhatsApp", linkedin: "LinkedIn", ads: "Meta Ads" };
+    const LABEL = { calendar: "Google Calendar", email: "Gmail + Outlook", slack: "Slack", instagram: "Instagram", whatsapp: "WhatsApp", linkedin: "LinkedIn", ads: "Meta Ads" };
     // While Tia runs the stand demo with "Follow Tia" on, the apps show the demo business she is working on
     const live = L && L.isLive(tab) && !(follow && document.body.classList.contains("running"));
     if (L && LABEL[tab]) view.append(L.switcher(h, tab, LABEL[tab]));
@@ -426,8 +439,57 @@
     pendingType = x.draft ? x.id : null;
     setTab(x.channel);
   });
+  // ---------- commands switch pages ("find me leads" → Leads, "write a draft" → Mail → Drafts, contract → Docs) ----------
+  const waitFor = (sel2, ms = 60000) =>
+    new Promise((res) => {
+      const t0 = Date.now();
+      const tick = () => (document.querySelector(sel2) ? res(document.querySelector(sel2)) : Date.now() - t0 > ms ? res(null) : setTimeout(tick, 300));
+      tick();
+    });
+  async function autoReviewAd() {
+    const row = await waitFor(".am-table tbody tr");
+    if (!row) return;
+    row.click(); // campaign → its ads
+    await new Promise((r) => setTimeout(r, 1500));
+    const ad = await waitFor(".am-table tbody tr", 20000);
+    if (ad) ad.click(); // ad → Tia's score and better version
+  }
+  function onUi(ev) {
+    if (ev.tab === "email") {
+      if (window.TiaApps && window.TiaApps.setMail) window.TiaApps.setMail({ folder: ev.folder, acct: ev.acct });
+      if (ev.select) sel.email = ev.select;
+      if (window.TiaLive && window.TiaLive.loadDrafts) window.TiaLive.loadDrafts();
+    }
+    if (ev.tab === "docs" && window.TiaDocs && window.TiaDocs.show) window.TiaDocs.show(ev.doc);
+    if (ev.tab === "whatsapp" && ev.chat && window.TiaLive && window.TiaLive.selectWa) window.TiaLive.selectWa(ev.chat);
+    if (ev.tab === "leads" && tab === "leads") render(); // fresh iframe
+    if (ev.tab !== tab) setTab(ev.tab);
+    else render();
+    if (ev.igReview && window.TiaIgReview) window.TiaIgReview(false);
+    if (ev.adsReview) autoReviewAd();
+  }
+  // a proposal that needs a tap (WhatsApp send) shows next to Tia on any page
+  function showCard(item) {
+    const box = pip.querySelector(".pipcard");
+    if (!item || item.state !== "open" || !["whatsapp", "calendar", "order"].includes(item.kind)) return;
+    box.innerHTML = "";
+    const done = (msg) => {
+      box.innerHTML = "";
+      box.append(h("div", { class: "pc-done" }, msg));
+      setTimeout(() => (box.hidden = true), 2500);
+    };
+    box.append(
+      h("div", { class: "pc-t" }, item.title || item.kind),
+      item.text || item.message_text ? h("div", { class: "pc-x" }, item.text || item.message_text) : "",
+      h("div", { class: "pc-b" },
+        h("button", { class: "ok", onclick: async () => (await window.tia.decide(item.id, "approve"), done(item.kind === "whatsapp" ? "✓ Sent on WhatsApp" : "✓ Done")) }, item.kind === "whatsapp" ? "Send" : "Approve"),
+        h("button", { onclick: async () => (await window.tia.decide(item.id, "reject"), done("Skipped")) }, "Skip")));
+    box.hidden = false;
+  }
   if (window.tia && window.tia.onEvent)
     window.tia.onEvent((ev) => {
+      if (ev.type === "ui") return onUi(ev);
+      if (ev.type === "reply" && ev.item) showCard(ev.item);
       if (ev.type === "start") document.body.classList.add("running");
       if (ev.type === "done" || ev.type === "error") {
         document.body.classList.remove("running");

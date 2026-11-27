@@ -8,6 +8,7 @@
   let data = null;
   let err = "";
   let sel = null;
+  let want = null; // a document a voice command just made – shown as soon as the list has it
   let asking = false;
   let note = "";
   const busy = {};
@@ -101,7 +102,8 @@
 
     // ---- middle: list ----
     const files = (data && data.files) || [];
-    if (!sel || !files.find((f) => f.name === sel)) sel = files[0] && files[0].name;
+    if (want && files.find((f) => f.name === want)) (sel = want), (want = null);
+    if (!want && (!sel || !files.find((f) => f.name === sel))) sel = files[0] && files[0].name;
     const list = h("div", { class: "dx-list" }, h("div", { class: "dx-h" }, I("folder"), `Documents (${files.length})`, h("span", { class: "sp" }), h("button", { class: "dx-btn sm", onclick: () => (load(), loadDesk()) }, "↻")));
     for (const f of files) {
       list.append(h("div", { class: `dx-file ${f.name === sel ? "on" : ""}`, onclick: () => ((sel = f.name), rerender()) },
@@ -134,5 +136,5 @@
       if (ev.type === "action" && /pdf|print|outlook/.test(ev.step || "")) setTimeout(load, 800);
       if (ev.type === "decided" || ev.type === "result" || ev.type === "proposal" || ev.type === "desk") loadDesk();
     });
-  window.TiaDocs = { view, setRerender: (fn) => (rerender = fn) };
+  window.TiaDocs = { view, setRerender: (fn) => (rerender = fn), show: (name) => ((want = name || null), (sel = name || sel), load(), loadDesk()) };
 })();

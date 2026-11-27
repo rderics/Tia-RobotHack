@@ -7,7 +7,7 @@ const path = require("path");
 const https = require("https");
 const C = require("./composio");
 
-const TTL = { status: 60e3, gmail: 3 * 60e3, slack: 3 * 60e3, instagram: 15 * 60e3, linkedin: 60 * 60e3, ads: 30 * 60e3 };
+const TTL = { status: 60e3, gmail: 3 * 60e3, outlook: 3 * 60e3, slack: 3 * 60e3, instagram: 15 * 60e3, linkedin: 60 * 60e3, ads: 30 * 60e3 };
 const dir = (cfg) => {
   const d = path.join(cfg.dataDir, "live");
   fs.mkdirSync(d, { recursive: true });
@@ -54,6 +54,14 @@ async function status(cfg, fresh) {
       out[app] = { state: st, name: (ig && ig.profile && ig.profile.username ? `@${ig.profile.username}` : "") || (acc && (acc.display_name || acc.alias)) || "" };
     }
     return out;
+  });
+}
+
+// ---------- Outlook (classic Outlook on this PC, through outlook.py – read + drafts only) ----------
+async function outlook(cfg, fresh) {
+  return cached(cfg, "outlook", fresh, async () => {
+    const msgs = await require("./outlook").fetchInbox({ ...cfg, inboxHours: cfg.outlookHours || 168, inboxLimit: 15 });
+    return { account: (msgs[0] && msgs[0].mailbox) || "Outlook", items: msgs.map((m) => ({ ...m, id: `o_${String(m.entryId).slice(-24)}`, live: "outlook" })) };
   });
 }
 
@@ -178,6 +186,12 @@ async function saveDraft(cfg, b) {
     rec.where = "Gmail → Drafts";
     rec.draftId = id;
     rec.link = "https://mail.google.com/mail/u/0/#drafts";
+  } else if (b.app === "outlook") {
+    // Outlook opens and Tia types the draft in front of the owner; it is saved in Drafts – he presses Send
+    const A = require("../actions");
+    const reply = b.entryId ? { entryId: b.entryId, storeId: b.storeId } : null;
+    await A.outlook(cfg, { to: b.to, subject: reply ? "" : b.subject || "", text: rec.text, attach: b.attach || [], replyTo: reply, save: true });
+    rec.where = "Outlook → Drafts";
   } else if (b.app === "slack") rec.link = b.team && b.channelId ? `https://app.slack.com/client/${b.team}/${b.channelId}` : "https://app.slack.com/client";
   else if (b.app === "linkedin") rec.link = "https://www.linkedin.com/feed/?shareActive=true";
   else if (b.app === "ads") rec.link = b.account ? `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${String(b.account).replace(/^act_/, "")}` : "https://adsmanager.facebook.com/";
@@ -284,6 +298,38 @@ async function reviewAd(cfg, b) {
   return out;
 }
 
+// ---------- Instagram account review: what works, what to fix, the next post (numbers from the account only) ----------
+const IG_REVIEW_SCHEMA = {
+  type: "object", additionalProperties: false,
+  required: ["score", "verdict", "working", "fix", "next_post_idea", "next_post_caption"],
+  properties: {
+    score: { type: "number", description: "0-100: how well the account's recent posts perform for its size" },
+    verdict: { type: "string", description: "One spoken sentence: the main finding, tied to a number." },
+    working: { type: "array", items: { type: "string" }, description: "2-3 things that work, each tied to a post or number" },
+    fix: { type: "array", items: { type: "string" }, description: "2-3 concrete improvements, each tied to a number" },
+    next_post_idea: { type: "string", description: "One post idea built on what already works" },
+    next_post_caption: { type: "string", description: "A ready caption for that post in the account's language and voice, hook first, one call to action, 3-5 hashtags" },
+  },
+};
+async function instagramReview(cfg, fresh) {
+  const d = await instagram(cfg);
+  const file = path.join(dir(cfg), "ig-review.json");
+  const old = readJ(file, null);
+  const key = `${d.profile.username}:${d.posts.map((p) => p.id).join(",")}`;
+  if (!fresh && old && old.key === key) return old.review;
+  const lines = d.posts.map((p, i) => `${i + 1}. ${p.date} ${p.type} – views ${p.views ?? "-"}, reach ${p.reach ?? "-"}, likes ${p.likes}, comments ${p.comments}, saves ${p.saved ?? "-"}, shares ${p.shares ?? "-"} – caption: ${String(p.caption || "").replace(/\s+/g, " ").slice(0, 160)}`);
+  const r = await brain().ask(cfg, {
+    system: "You are Tia, a careful social-media analyst for a small business owner. Judge only from the numbers and captions given, tie every point to a number or a post date, never invent results, followers or facts. Short, plain sentences.",
+    schema: IG_REVIEW_SCHEMA,
+    prompt: `Instagram @${d.profile.username} (${d.profile.type}): ${d.profile.followers} followers, ${d.profile.posts} posts. Bio: ${d.profile.bio}
+Last ${d.posts.length} posts, newest first:
+${lines.join("\n")}`,
+  });
+  const review = { ...r.answer, score: Math.max(0, Math.min(100, Math.round(Number(r.answer.score) || 0))), via: r.via, at: new Date().toISOString() };
+  writeJ(file, { key, review });
+  return review;
+}
+
 // ---------- images from the apps' CDNs (the screen's CSP only loads our own address) ----------
 const IMG_HOSTS = /(^|\.)(fbcdn\.net|cdninstagram\.com|licdn\.com|slack-edge\.com|googleusercontent\.com)$/i;
 function image(u, res) {
@@ -345,4 +391,4 @@ Sentence: ${String(b.text || "").slice(0, 500)}`,
   return r.answer;
 }
 
-module.exports = { status, gmail, slack, instagram, linkedin, ads, drafts, saveDraft, suggest, linkedinPost, reviewAd, image, calendar, addEvent, parseEvent };
+module.exports = { status, gmail, outlook, slack, instagram, instagramReview, linkedin, ads, drafts, saveDraft, suggest, linkedinPost, reviewAd, image, calendar, addEvent, parseEvent };
