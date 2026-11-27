@@ -49,7 +49,8 @@ In Tia: **Settings → Connected apps**
 1. Press **Sign in to Composio** → a browser opens → sign in with **Google** (free) → come back to Tia → press **↻**.
 2. Next to each app press **Connect** → sign in in the browser → **Allow** → back in Tia press **↻**. The dot turns green.
    - Google Calendar · Gmail · Slack · Instagram · Meta Ads
-3. In each app tab, switch the button at the **bottom left** from **Oakline Studio · demo** to **My … · live** to see your own account.
+3. Each app tab now shows your own account (the green dot bottom left = connected, ↻ = read again). Instagram shows the real instagram.com – log in there once.
+4. **Talk to Tia on any page:** click her picture (bottom left), talk, click again – or type under it.
 
 **Outlook** – nothing to connect. Just be signed in to **classic Outlook** on the PC (not "new Outlook").
 Tia types reply drafts into it in front of you; you press Send.
