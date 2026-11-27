@@ -29,7 +29,7 @@ Everything slow (lead search, AI) is sped up in the edit.
 | 3b | Leads | Point at **⬇ Excel** / **⬆ Google Sheets** and the **✉ Email** buttons per row | – |
 | 4 | **Mail** | 🎤 **"Now write up a Gmail draft to the newest lead."** | Opens Mail → Gmail · Drafts with the email written (real Gmail draft) |
 | 4b | Mail | Talk: Gmail + Outlook in one inbox, reply or "Let Tia write" on any mail | – |
-| 5 | **WhatsApp** | Talk: your real WhatsApp. Optional 🎤 "Send Ralfs a WhatsApp that the pitch video is ready" → **Send** in the card | Opens the chat, card next to Tia; goes out only on your tap |
+| 5 | **WhatsApp** | Talk: your real WhatsApp. 🎤 **"Send Hariss a WhatsApp: hello, this is a message from Tia, thumbs up."** → **Send** in the card (Tia can only message Hariss) | Opens the chat, card next to Tia; goes out only on your tap |
 | 6 | **Ads** | 🎤 **"Score my ads and tell me how to improve them."** | Opens Meta Ads, scores the newest ad, shows Tia's better version. Talk: analytics, future: ad variations + video from images (Higgsfield) |
 | 7 | **Slack** | Talk: team channels in one place; Tia writes the messages | – |
 | 8 | **Docs** | 🎤 **"Write up a contract for the latest company we interacted with."** | Referral partnership agreement PDF for that lead, from the vault template |
