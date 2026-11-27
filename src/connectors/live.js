@@ -48,8 +48,10 @@ async function status(cfg, fresh) {
     for (const [app, kit] of Object.entries(APPS)) {
       const list = all[kit] || [];
       const st = list.find((a) => a.status === "ACTIVE") ? "connected" : list.find((a) => a.status === "INITIALIZING" || a.status === "INITIATED") ? "pending" : list.length ? "expired" : "missing";
-      const acc = list.find((a) => a.status === "ACTIVE");
-      out[app] = { state: st, name: (acc && (acc.display_name || acc.alias)) || "" };
+      const chosen = app === "instagram" && cfg.instagramAccount; // config.json picks which linked Instagram Tia reads
+      const acc = (chosen && list.find((a) => a.id === chosen && a.status === "ACTIVE")) || list.find((a) => a.status === "ACTIVE");
+      const ig = chosen && (readJ(path.join(dir(cfg), "instagram.json"), null) || {}).data;
+      out[app] = { state: st, name: (ig && ig.profile && ig.profile.username ? `@${ig.profile.username}` : "") || (acc && (acc.display_name || acc.alias)) || "" };
     }
     return out;
   });
@@ -97,7 +99,7 @@ async function instagram(cfg, fresh) {
     ]);
     const metric = (p, k) => ((p.insights && p.insights.data) || []).find((x) => x.name === k)?.values?.[0]?.value ?? null;
     const posts = (media.data || []).map((p) => ({
-      id: p.id, caption: p.caption || "", type: p.media_type, image: p.thumbnail_url || (p.media_type === "IMAGE" ? p.media_url : ""), link: p.permalink, date: day(new Date(p.timestamp)),
+      id: p.id, caption: p.caption || "", type: p.media_type, image: p.thumbnail_url || (p.media_type !== "VIDEO" ? p.media_url : "") /* a carousel's media_url = its first photo */, link: p.permalink, date: day(new Date(p.timestamp)),
       likes: Number(p.like_count || 0), comments: Number(p.comments_count || 0), views: metric(p, "views"), reach: metric(p, "reach"), saved: metric(p, "saved"), shares: metric(p, "shares"),
     }));
     const threads = ((conv.data && conv.data.data) || conv.data || []).filter((x) => x && x.id);
