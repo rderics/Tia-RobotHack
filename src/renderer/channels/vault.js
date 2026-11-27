@@ -109,7 +109,7 @@
   }
 
   // ---------- explorer ----------
-  const openFolders = new Set(["Clients", "Projects"]);
+  const openFolders = new Set(); // all folders start closed – click one to open it
   function renderTree(filter = "") {
     const box = root.querySelector(".vx-tree");
     box.innerHTML = "";

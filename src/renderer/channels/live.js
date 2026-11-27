@@ -744,7 +744,7 @@
       load("whatsapp", true);
       if (ev.type === "whatsapp-in") {
         waSel = `wa_${ev.chat}`;
-        const followOn = document.querySelector(".apprail .follow.on");
+        const followOn = document.body.classList.contains("running") && document.querySelector(".apprail .follow.on"); // only while Tia runs the inbox – never yank the owner's screen
         if (followOn && window.TiaChannels && window.TiaChannels.showTab) {
           mode.whatsapp = "live";
           window.TiaChannels.showTab("whatsapp");

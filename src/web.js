@@ -569,10 +569,10 @@ function crmPage() {
   .st{font-size:11px;padding:3px 8px;border-radius:99px;background:#26232F;color:#8C8796;white-space:nowrap}.st.go{background:rgba(76,195,138,.16);color:#4CC38A}
   a{color:#B9A3F2;text-decoration:none}.why{color:#B5B0BF;max-width:46ch}.name{font-weight:600}.seg{color:#8C8796;font-size:12px}
   footer{padding:14px 32px;color:#6B6773;font-size:11px}
-  .tools{display:flex;gap:8px;align-items:center}.btn{border:1px solid #3A3450;background:#1D1A27;color:#ECEAF2;border-radius:8px;padding:6px 12px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;text-decoration:none}.btn:hover{border-color:#B9A3F2}
+  .tools{display:flex;gap:8px;align-items:center}.btn{border:1px solid #3A3450;background:#1D1A27;color:#ECEAF2;border-radius:8px;padding:6px 12px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;text-decoration:none}.btn:hover{border-color:#B9A3F2}.btn.go{background:#B9A3F2;color:#16131F;border-color:#B9A3F2}
   .act{display:flex;gap:6px;white-space:nowrap}.act button{border:0;border-radius:7px;padding:5px 9px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;background:#2A2538;color:#ECEAF2}.act button:hover{background:#B9A3F2;color:#16131F}</style></head><body>
   <header><div><h1><span>CRM</span> · ${info.business}</h1><div class="sub">Leads found by Tia – nobody is contacted without the owner's OK</div></div>
-  <div class="tools"><span id="n" class="sub"></span><a class="btn" href="crm/data.csv">⬇ Excel</a><button class="btn" id="gs">⬆ Google Sheets</button><span id="gsr" class="sub"></span></div></header>
+  <div class="tools"><span id="n" class="sub"></span><button class="btn go" id="more">✦ Find more leads</button><a class="btn" href="crm/data.csv">⬇ Excel</a><button class="btn" id="gs">⬆ Google Sheets</button><span id="gsr" class="sub"></span></div></header>
   <table><thead><tr><th>Business</th><th>Fit</th><th>Why</th><th>Contact</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table>
   <footer>Business data © OpenStreetMap contributors (ODbL) and each business's own website.</footer>
   <script>
@@ -588,6 +588,7 @@ function crmPage() {
   // Email / WhatsApp a lead = ask Tia (she writes it; a draft, or a message that waits for your tap)
   document.getElementById("rows").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;const T=parent&&parent.TiaTalk;if(!T)return alert("Open the CRM inside Tia to do this.");
     T.ask(b.dataset.a==="mail"?"Write a Gmail draft to "+b.dataset.n+" introducing us":"Write a WhatsApp message to "+b.dataset.n+" at "+b.dataset.p+" introducing us");};
+  document.getElementById("more").onclick=()=>{const T=parent&&parent.TiaTalk;if(!T)return alert("Open the CRM inside Tia to do this.");T.ask("Find me new leads and add them to the CRM");};
   document.getElementById("gs").onclick=async()=>{const r=document.getElementById("gsr");r.textContent="Making the Google Sheet…";
     try{const j=await (await fetch("crm/sheet",{method:"POST"})).json();if(j.error)throw new Error(j.error);r.innerHTML='✓ <a href="'+esc(j.url)+'" target="_blank">Open the Google Sheet ↗</a>';}catch(e){r.textContent="⚠ "+e.message;}};
   load();setInterval(load,1500);</script></body></html>`;

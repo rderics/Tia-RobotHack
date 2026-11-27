@@ -9,8 +9,9 @@ Everything slow (lead search, AI) is sped up in the edit.
 
 ## Before recording (5 min)
 - Start **Tia** from the desktop icon. Press **F11**.
-- **Instagram** tab: log in to instagram.com once (it stays logged in).
-- **Outlook** (classic) open in the background and signed in.
+- One-time sign-ins inside Tia (they stay logged in): **Instagram** (log in), **WhatsApp** (phone → Linked devices → scan the QR), **Slack** (your workspace), **Calendar** (Sign in with Google).
+- In WhatsApp / Slack: open a chat → **Let Tia write** → **Put it in WhatsApp/Slack** → you press Enter.
+- **Outlook** (classic) open in the background and signed in – Tia uses the RTU mailbox (Rinalds-Henrijs.Derics@edu.rtu.lv), not su.external.
 - Check **Settings → AI** shows a working AI (Test → "Works").
 - Delete old test drafts if you want a clean Drafts folder.
 

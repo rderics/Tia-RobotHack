@@ -23,7 +23,7 @@ async function createWindow() {
   });
   // The real apps shown inside Tia (Instagram) see a normal Chrome, not "Electron" – otherwise they refuse to log in.
   const chromeUA = session.defaultSession.getUserAgent().replace(/\s(Electron|tia)\/\S+/gi, "");
-  session.fromPartition("persist:instagram").setUserAgent(chromeUA);
+  for (const p of ["instagram", "whatsapp", "slack", "calendar"]) session.fromPartition(`persist:${p}`).setUserAgent(chromeUA);
   app.on("web-contents-created", (e, wc) => {
     if (wc.getType() !== "webview") return;
     wc.setWindowOpenHandler(({ url }) => (wc.loadURL(url), { action: "deny" })); // links stay inside the tab

@@ -178,7 +178,23 @@ def type_into(item, text, ms):
 
 def cmd_compose(a):
     app = outlook()
-    mail = app.CreateItem(0)
+    mail = None
+    if a.account:  # write from this mailbox (not Outlook's default account): its own Drafts + its account
+        ns = app.GetNamespace("MAPI")
+        want = a.account.lower()
+        store = next((st for st in ns.Stores if want in (st.DisplayName or "").lower()), None)
+        if store is not None:
+            try:
+                mail = store.GetDefaultFolder(16).Items.Add(0)  # 16 = Drafts of that mailbox
+            except Exception:
+                mail = None
+        acc = next((ac for ac in app.Session.Accounts if want in ((ac.SmtpAddress or "") + " " + (ac.DisplayName or "")).lower()), None)
+        if mail is None:
+            mail = app.CreateItem(0)
+        if acc is not None:
+            mail._oleobj_.Invoke(*(64209, 0, 8, 0, acc))  # SendUsingAccount (pywin32 needs the raw call)
+    if mail is None:
+        mail = app.CreateItem(0)
     mail.To = a.to
     mail.Subject = a.subject
     if a.on_behalf:
@@ -236,6 +252,7 @@ def main():
     c.add_argument("--type-ms", type=int, default=18)
     c.add_argument("--no-save", action="store_true")
     c.add_argument("--on-behalf", default="")
+    c.add_argument("--account", default="")
     a = p.parse_args()
     try:
         {"list": cmd_list, "draft": cmd_draft, "compose": cmd_compose}[a.cmd](a)

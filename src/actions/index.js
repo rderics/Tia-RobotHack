@@ -80,6 +80,7 @@ async function outlook(cfg, { to, subject, text, attach = [], replyTo = null, sa
     for (const f of attach) args.push("--attach", f);
     if (!save) args.push("--no-save"); // the stand never writes into the owner's real mailbox
     if (cfg.profile !== "owner") args.push("--on-behalf", cfg.businessEmail || "info@oakline-studio.example");
+    else if (cfg.outlookAccount) args.push("--account", cfg.outlookAccount); // the owner's own mailbox, not Outlook's default
   }
   const r = await run(py, args, { timeoutMs: 180000, json: true });
   onStep({ step: "outlook", status: "done", detail: r.saved ? "Draft saved in Outlook – you press Send" : "Draft open in Outlook – you press Send" });

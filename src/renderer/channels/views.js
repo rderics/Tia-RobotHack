@@ -130,6 +130,7 @@
     moveAvatar(inChannel);
     if (inChannel) render();
     if (window.TiaLive && window.TiaLive.placeIg) setTimeout(window.TiaLive.placeIg, 0); // the real Instagram shows only on its tab
+    if (window.TiaReal) setTimeout(window.TiaReal.place, 0); // same for WhatsApp, Slack, Calendar
   }
   function showTab(key, { byUser = false } = {}) {
     if (byUser && key !== "tia" && follow && document.body.classList.contains("running")) setFollow(false); // owner takes over
@@ -251,6 +252,7 @@
     const live = L && L.isLive(tab) && !(follow && document.body.classList.contains("running"));
     if (L && LABEL[tab]) view.append(L.switcher(h, tab, LABEL[tab]));
     if (tab === "settings") return window.TiaSettings ? view.append(window.TiaSettings.view(baseCtx())) : null;
+    if (window.TiaReal && window.TiaReal.has(tab)) return view.append(window.TiaReal.view(tab, baseCtx())); // the real app (desktop)
     if (tab === "calendar") return window.TiaCalendar ? view.append(window.TiaCalendar.view(baseCtx())) : null;
     if (L && (tab === "linkedin" || tab === "ads" || (live && (tab === "instagram" || tab === "whatsapp")))) return view.append(L.views[tab](baseCtx()));
     const items = (live ? L.items(tab) : S.list(tab)).sort((a, b) => (a.placeholder ? -1 : b.placeholder ? 1 : String(b.received || b.time).localeCompare(String(a.received || a.time))));
@@ -500,6 +502,7 @@
   build();
   if (window.TiaSettings) window.TiaSettings.setRerender(() => (tab === "settings" ? render() : null));
   if (window.TiaCalendar) window.TiaCalendar.setRerender(() => (tab === "calendar" ? render() : null));
+  if (window.TiaReal) window.TiaReal.setRerender(() => (["whatsapp", "slack", "calendar"].includes(tab) ? render() : null));
   if (window.TiaDocs) window.TiaDocs.setRerender(() => (tab === "docs" ? render() : null));
   if (window.TiaLive) window.TiaLive.setRerender(() => (tab !== "tia" ? render() : null));
   S.load().then(render);
