@@ -13,10 +13,12 @@ $repo = "https://github.com/rderics/Tia-RobotHack"
 function Say($t) { Write-Host "`n== $t" -ForegroundColor Cyan }
 function Has($c) { [bool](Get-Command $c -ErrorAction SilentlyContinue) }
 function Refresh-Path { $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") }
-function Winget($id, $name) {
-  if (-not (Has "winget")) { Write-Host "winget missing - install $name by hand" -ForegroundColor Yellow; return }
+# (not named "Winget": a function with that name hides winget.exe and calls itself forever)
+function Install-WithWinget($id, $name) {
+  $wg = Get-Command winget -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $wg) { Write-Host "winget missing - install $name by hand" -ForegroundColor Yellow; return }
   Write-Host "Installing $name..."
-  winget install --id $id -e --accept-package-agreements --accept-source-agreements --silent | Out-Null
+  & $wg.Source install --id $id -e --accept-package-agreements --accept-source-agreements --silent | Out-Null
   Refresh-Path
 }
 
@@ -24,7 +26,7 @@ Write-Host "Tia installer - AI secretary (RobotHack 2026)" -ForegroundColor Mage
 
 Say "1/6 Download Tia"
 # Git makes Tia update herself from GitHub later (Tia checks every 15 minutes)
-if (-not (Has "git") -and -not $testRun) { Winget "Git.Git" "Git (for automatic updates)" }
+if (-not (Has "git") -and -not $testRun) { Install-WithWinget "Git.Git" "Git (for automatic updates)" }
 if (Test-Path (Join-Path $dest ".git")) {
   if (Has "git") { git -C $dest pull --ff-only; Write-Host "Updated with git pull" }
 } elseif ((Has "git") -and -not (Test-Path $dest)) {
@@ -80,14 +82,14 @@ if (-not $haveCode -and -not $teamFile -and -not $testRun) {
 
 Say "3/6 Tools (Node, Python, ffmpeg, cloudflared, Obsidian)"
 if (-not $testRun) {
-if (-not (Has "cloudflared") -and -not (Test-Path "C:\Program Files (x86)\cloudflared\cloudflared.exe")) { Winget "Cloudflare.cloudflared" "cloudflared (public address for the phone + WhatsApp)" }
+if (-not (Has "cloudflared") -and -not (Test-Path "C:\Program Files (x86)\cloudflared\cloudflared.exe")) { Install-WithWinget "Cloudflare.cloudflared" "cloudflared (public address for the phone + WhatsApp)" }
 # Composio CLI: connects Gmail, Google Calendar, Slack, Instagram, LinkedIn, Meta Ads (each teammate signs in to their own free account in Tia → Settings)
 if (-not (Test-Path (Join-Path $env:USERPROFILE ".composio\composio.exe"))) {
   Write-Host "Installing Composio (app connections)..."
   try { powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ComposioHQ/composio/next/install.ps1 | iex" } catch { Write-Host "Composio install failed - app connections can be added later with Update Tia." -ForegroundColor Yellow }
 }
 $obsidianExe = Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"
-if (-not (Test-Path $obsidianExe)) { Winget "Obsidian.Obsidian" "Obsidian (to show the business vault)" }
+if (-not (Test-Path $obsidianExe)) { Install-WithWinget "Obsidian.Obsidian" "Obsidian (to show the business vault)" }
 }
 
 Say "4/6 Tia's setup (packages, Outlook support, AI)"
