@@ -799,3 +799,7 @@ body.has-rail.tab-ads .am-drawer { padding-bottom: 320px; }
 .tia-pip.mini .pipcard:not([hidden]) { position: absolute; bottom: 92px; right: 0; width: 240px; }
 .tia-pip.mini .pipmin { top: 2px; right: 2px; }
 .tia-pip .pipcap { cursor: grab; }
+
+/* WhatsApp / Slack: the real app fills the page; a slim dark column on the right holds only Tia's box */
+.igr.real.slim { grid-template-columns: 1fr 252px; }
+.real-tia { height: 100%; background: #0E0D13; border-left: 1px solid #26232F; }

@@ -59,21 +59,7 @@
   const st = {}; // per app: { chat, text, draft, busy, note }
   const S = (k) => (st[k] = st[k] || { chat: "", text: "", draft: "", busy: false, note: "" });
   // follow the chat the owner opens in the real app
-  setInterval(async () => {
-    for (const key of ["whatsapp", "slack"]) {
-      if (!webs[key] || !document.body.classList.contains(`tab-${key}`)) continue;
-      const r = await run(key, READ[key]);
-      const s = S(key);
-      const chat = (r && r.chat) || "";
-      if (chat !== s.chat) {
-        s.chat = chat;
-        s.text = (r && r.text) || "";
-        s.draft = "";
-        s.note = "";
-        rerender();
-      } else if (r) s.text = r.text;
-    }
-  }, 1500);
+  // (28.11: no reply panel next to WhatsApp / Slack any more – the real app fills the page, Tia's own box sits on the right)
 
   function chatPanel(h, key, I) {
     const s = S(key);
@@ -168,11 +154,12 @@
     const I = window.TiaApps ? window.TiaApps.I : () => document.createElement("span");
     web(key);
     setTimeout(place, 0);
-    const panel = h("div", { class: "igr-side real-side" },
-      h("div", { class: "igr-hd" }, I("sparkle"), h("b", {}, `Tia · ${APPS[key].name}`), h("span", { class: "sp" }),
-        h("button", { class: "igr-ic", title: `Reload ${APPS[key].name}`, onclick: () => webs[key] && webs[key].reload() }, "↻")),
-      key === "calendar" ? calPanel(h, I) : chatPanel(h, key, I));
-    return h("div", { class: "igr real" }, h("div", { class: "real-slot", "data-app": key }), panel);
+    if (key === "calendar") {
+      const panel = h("div", { class: "igr-side real-side" }, h("div", { class: "igr-hd" }, I("sparkle"), h("b", {}, `Tia · ${APPS[key].name}`)), calPanel(h, I));
+      return h("div", { class: "igr real" }, h("div", { class: "real-slot", "data-app": key }), panel);
+    }
+    // WhatsApp / Slack: the real app + a slim column that only holds Tia's box (talk to her, approve a send)
+    return h("div", { class: "igr real slim" }, h("div", { class: "real-slot", "data-app": key }), h("div", { class: "real-tia" }));
   }
 
   // Send a WhatsApp in the real WhatsApp Web. Step 1 (page script): find the chat (list or search), open it and check the

@@ -614,36 +614,7 @@
           h("div", { class: "igr-t" }, "Next post"), h("div", { class: "igr-idea" }, rv.next_post_idea));
         igRev.post = igRev.post || rv.next_post_caption || "";
       }
-      // a post draft: Tia writes the caption, the owner posts it in Instagram (Create) himself
-      const ta = h("textarea", { class: "am-ta", rows: 6, placeholder: "What is the post about? A few words – Tia writes the caption.", oninput: (e) => (igRev.post = e.target.value) });
-      ta.value = igRev.post;
-      const msg = h("div", { class: "am-saved muted" }, igRev.postText || "Tia never posts by herself – copy the caption, then press Create in Instagram.");
-      panel.append(h("div", { class: "igr-t" }, "Draft a post"), ta,
-        h("div", { class: "am-row" },
-          h("button", { class: "am-btn", disabled: igRev.postBusy, onclick: async () => {
-            igRev.postBusy = true;
-            rerender();
-            try {
-              const r = await T().livePost("suggest", { app: "instagram", mode: "caption", text: igRev.post || "a new post", stats: posts.slice(0, 3).map((p) => `${p.date}: ${p.views ?? "-"} views, ${p.likes} likes`).join("; ") });
-              if (r.error) throw new Error(r.error);
-              igRev.post = r.text;
-              igRev.postText = "";
-            } catch (e) {
-              igRev.postText = `⚠ ${e.message || e}`;
-            }
-            igRev.postBusy = false;
-            rerender();
-          } }, I("sparkle"), igRev.postBusy ? "Tia is writing…" : "Let Tia write"),
-          h("button", { class: "am-primary", onclick: async () => {
-            try {
-              await navigator.clipboard.writeText(ta.value);
-              igRev.postText = "✓ Copied – press Create (+) in Instagram and paste it.";
-            } catch {
-              igRev.postText = "Select the text and copy it (Ctrl+C).";
-            }
-            rerender();
-          } }, "Copy caption")),
-        msg);
+      // (28.11: the post-draft box is gone – this panel is the statistics dashboard only)
     }
     return h("div", { class: "igr" }, h("div", { class: "ig-slot" }), panel);
   }
