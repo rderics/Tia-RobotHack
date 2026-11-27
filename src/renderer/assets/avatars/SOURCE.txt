@@ -1,5 +1,4 @@
-tia.vrm – "ユズキ / 黒いスーツ" (Yuzuki, black suit) by Tovie, VRoid Hub
-https://hub.vroid.com/en/characters/5420030512481141791/models/215177788091647819
-Conditions of use (VRoid Hub licence, also in the file's metadata): avatar use by everyone; corporate commercial
-use allowed; personal commercial use allowed; modification allowed; redistribution allowed; credit not required.
-Tia's changes: lavender blouse tint at run time (src/renderer/app.js → tint).
+tia.vrm – "Tia", made for this project by Ralfs Jefimovs (team member) in VRoid Studio (VRM 1.0), 27.11.2026.
+Licence (file metadata): VRM 1.0 licence, personal / non-profit use – fine for the RobotHack prototype. For a
+commercial product, the team decides the licence (it's our own model).
+Previous model (until 27.11): "ユズキ / 黒いスーツ" by Tovie, VRoid Hub (commercial use allowed).

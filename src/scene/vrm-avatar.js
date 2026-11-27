@@ -32,12 +32,13 @@ export async function createAvatar(container, { url, mood = "neutral", tint = {}
   if (!vrm) throw new Error("not a VRM file");
   VRMUtils.removeUnnecessaryVertices(gltf.scene);
   VRMUtils.combineSkeletons(gltf.scene);
+  // Tia's model (VRoid Studio export, VRM 1.0, by Ralfs) needs the 180° turn to face the camera – the arm check
+  // below fixes the pose either way. For another model, change this test if she shows her back.
   const vrm0 = !!(vrm.meta && vrm.meta.metaVersion === "1");
-  if (vrm0) VRMUtils.rotateVRM0(vrm); // old VRoid exports face the other way
+  if (vrm0) VRMUtils.rotateVRM0(vrm);
   const flip = vrm0 ? -1 : 1; // …and their bones turn the other way round the vertical and depth axes
   vrm.scene.traverse((o) => (o.frustumCulled = false));
   scene.add(vrm.scene);
-  vrm.scene.traverse((o) => [].concat(o.material || []).forEach((m) => console.log(m.name)));
   // brand colours: { "<part of material name>": 0xRRGGBB } multiplies that material's colour (e.g. a lavender blouse)
   vrm.scene.traverse((o) => {
     for (const m of [].concat(o.material || []))
@@ -48,7 +49,6 @@ export async function createAvatar(container, { url, mood = "neutral", tint = {}
   const em = vrm.expressionManager;
   if (em) for (const e of em.expressions) e.overrideMouth = "none";
   const has = (n) => !!(em && em.getExpression(n));
-  console.log("expressions:", em ? em.expressions.map((e) => e.expressionName) : "none");
 
   // Relaxed standing pose instead of the T-pose: arms down, slight elbow bend, hands relaxed.
   const pose = {
@@ -157,7 +157,7 @@ export async function createAvatar(container, { url, mood = "neutral", tint = {}
     }
     eyeTarget.position.lerp(new THREE.Vector3(glance.x, glance.y, 0), 0.08);
 
-        if (em) {
+    if (em) {
       // blinking
       if (time > blinkAt && blinkT < 0) blinkT = 0;
       let blink = 0;
@@ -220,7 +220,6 @@ export async function createAvatar(container, { url, mood = "neutral", tint = {}
     vrm,
     // Speak an mp3/wav (base64) with word timings. Resolves when she has finished (or was stopped).
     async speak({ audio, words, wtimes, wdurations }) {
-      console.log("speak called, words:", words && words.length, "audio bytes:", audio && audio.length);
       stop();
       const ac = audioCtx();
       if (ac.state === "suspended") await ac.resume().catch(() => {});
