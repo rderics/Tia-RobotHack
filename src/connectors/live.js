@@ -89,10 +89,11 @@ async function slack(cfg, fresh) {
 // ---------- Instagram (business/creator account: profile, recent posts with insights, DMs) ----------
 async function instagram(cfg, fresh) {
   return cached(cfg, "instagram", fresh, async () => {
+    const acc = { account: cfg.instagramAccount || process.env.TIA_INSTAGRAM_ACCOUNT || undefined }; // which linked Instagram (config.json)
     const [me, media, conv] = await Promise.all([
-      C.execute("INSTAGRAM_GET_USER_INFO", { ig_user_id: "me" }),
-      C.execute("INSTAGRAM_GET_IG_USER_MEDIA", { ig_user_id: "me", limit: 12, fields: "id,caption,media_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count,insights.metric(views,reach,saved,shares,total_interactions)" }).catch(() => ({})),
-      C.execute("INSTAGRAM_LIST_ALL_CONVERSATIONS", {}).catch(() => ({})),
+      C.execute("INSTAGRAM_GET_USER_INFO", { ig_user_id: "me" }, acc),
+      C.execute("INSTAGRAM_GET_IG_USER_MEDIA", { ig_user_id: "me", limit: 12, fields: "id,caption,media_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count,insights.metric(views,reach,saved,shares,total_interactions)" }, acc).catch(() => ({})),
+      C.execute("INSTAGRAM_LIST_ALL_CONVERSATIONS", {}, acc).catch(() => ({})),
     ]);
     const metric = (p, k) => ((p.insights && p.insights.data) || []).find((x) => x.name === k)?.values?.[0]?.value ?? null;
     const posts = (media.data || []).map((p) => ({

@@ -706,7 +706,10 @@ async function startOnline() {
     W.registerWithRelay(url, os.hostname())
       .then((r) => r && r.ok && console.log(`WhatsApp relay: messages now come to ${url}`))
       .catch((e) => console.warn(`[whatsapp] relay registration failed: ${e.message || e}`));
-  if (cfg.publicUrl) register(cfg.publicUrl.replace(/\/$/, ""));
+  if (cfg.publicUrl) {
+    await tunnel.ensureNamed().catch((e) => console.warn(`[tunnel] ${e.message || e}`)); // the phone needs it
+    register(cfg.publicUrl.replace(/\/$/, ""));
+  }
   else if (cfg.quickTunnel !== false && process.env.TIA_QUICK_TUNNEL !== "0") {
     tunnel.start(PORT);
     tunnel.onUrl(register);

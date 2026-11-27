@@ -40,7 +40,6 @@
     ["whatsapp", "WhatsApp"],
     ["instagram", "Instagram"],
     ["slack", "Slack"],
-    ["linkedin", "LinkedIn"],
     ["ads", "Ads"],
     ["docs", "Docs"],
     ["leads", "Leads"],

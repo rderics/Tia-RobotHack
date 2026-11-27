@@ -92,7 +92,7 @@
       ? h("div", { class: "st-add" }, h("span", {}, "Add:"), ...notUsed.map((p) => h("button", { class: "st-btn", onclick: () => ((order = [...order, p.id]), rerender()) }, `+ ${p.label}`)))
       : "";
     const conn = s.connections || {};
-    const NAMES = { calendar: "Google Calendar", gmail: "Gmail", slack: "Slack", instagram: "Instagram", linkedin: "LinkedIn", ads: "Meta Ads", whatsappBusiness: "WhatsApp Business" };
+    const NAMES = { calendar: "Google Calendar", gmail: "Gmail", slack: "Slack", instagram: "Instagram", ads: "Meta Ads", whatsappBusiness: "WhatsApp Business" };
     const connBox = h("div", { class: "st-card" },
       h("div", { class: "st-h" }, "Connected apps"),
       composioBox(h, s.composio || {}, edit),
@@ -199,7 +199,7 @@
         await load();
       } }, "Check now")) : "");
   }
-  const CONNECTABLE = { calendar: 1, gmail: 1, slack: 1, instagram: 1, linkedin: 1, ads: 1 };
+  const CONNECTABLE = { calendar: 1, gmail: 1, slack: 1, instagram: 1, ads: 1 };
   async function connect(app, btn) {
     btn.disabled = true;
     btn.textContent = "Opening…";
@@ -216,7 +216,7 @@
   }
   function composioBox(h, c, edit) {
     if (c.loggedIn) return h("div", { class: "st-desc" }, `App connections by Composio · signed in as ${c.email}. Press Connect next to an app and allow it in the browser.`);
-    if (!c.installed) return h("div", { class: "st-desc warn" }, "Composio (connects Gmail, Calendar, Slack, Instagram, LinkedIn, Meta Ads) isn't installed – run “Update Tia” on the desktop, then come back.");
+    if (!c.installed) return h("div", { class: "st-desc warn" }, "Composio (connects Gmail, Calendar, Slack, Instagram, Meta Ads) isn't installed – run “Update Tia” on the desktop, then come back.");
     return h("div", { class: "st-cbox" },
       h("div", {}, h("b", {}, "Step 1 · Sign in to Composio (free)"), h("div", { class: "st-desc" }, "It connects your apps safely – Tia never sees your passwords. A browser opens: sign in with Google, then come back and press ↻.")),
       edit ? h("button", { class: "st-save", onclick: async (e) => { e.target.textContent = "Browser opened – sign in, then ↻"; await T().composioLogin(); } }, "Sign in to Composio") : "",

@@ -45,7 +45,33 @@ function start(port) {
   process.on("exit", () => child && child.kill());
 }
 
+// The owner's own named tunnel (scripts/tunnel-setup.ps1 → ~/.cloudflared/tia.yml, e.g. tia.rderics.id.lv):
+// at every start check it answers, and start it if not – so the phone app works whenever Tia is open.
+// It runs on its own (detached), so the phone keeps working even if the Tia window is closed and reopened.
+async function ensureNamed() {
+  const yml = path.join(require("os").homedir(), ".cloudflared", "tia.yml");
+  if (!fs.existsSync(yml)) return { named: false };
+  const host = (fs.readFileSync(yml, "utf8").match(/hostname:\s*(\S+)/) || [])[1];
+  const name = (fs.readFileSync(yml, "utf8").match(/^tunnel:\s*(\S+)/m) || [])[1] || "tia";
+  const up = async () => {
+    try {
+      const r = await fetch(`https://${host}/connect`, { method: "HEAD", signal: AbortSignal.timeout(8000) });
+      return r.status < 500;
+    } catch {
+      return false;
+    }
+  };
+  if (!host || (await up())) return { named: true, running: true, host };
+  const logs = path.join(__dirname, "..", "data", "logs");
+  fs.mkdirSync(logs, { recursive: true });
+  const out = fs.openSync(path.join(logs, "tunnel.log"), "a");
+  const c = spawn(exe(), ["tunnel", "--no-autoupdate", "--config", yml, "run", name], { detached: true, stdio: ["ignore", out, out], windowsHide: true });
+  c.unref();
+  console.log(`Started the tunnel for ${host}`);
+  return { named: true, started: true, host };
+}
+
 const url = () => current;
 const onUrl = (fn) => (waiters.add(fn), current && fn(current), () => waiters.delete(fn));
 
-module.exports = { start, url, onUrl };
+module.exports = { start, url, onUrl, ensureNamed };

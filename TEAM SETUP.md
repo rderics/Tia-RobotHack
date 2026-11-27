@@ -48,7 +48,7 @@ In Tia: **Settings → Connected apps**
 
 1. Press **Sign in to Composio** → a browser opens → sign in with **Google** (free) → come back to Tia → press **↻**.
 2. Next to each app press **Connect** → sign in in the browser → **Allow** → back in Tia press **↻**. The dot turns green.
-   - Google Calendar · Gmail · Slack · Instagram · LinkedIn · Meta Ads
+   - Google Calendar · Gmail · Slack · Instagram · Meta Ads
 3. In each app tab, switch the button at the **bottom left** from **Oakline Studio · demo** to **My … · live** to see your own account.
 
 **Outlook** – nothing to connect. Just be signed in to **classic Outlook** on the PC (not "new Outlook").
@@ -84,7 +84,6 @@ The team's **WhatsApp Business** number works through the team code (no setup ne
 | **Mail** | Open a mail → **Let Tia write** → **Save draft** (Outlook opens and types it) · **New mail** |
 | **Calendar** | **Fill in with Tia**: *"Team call tomorrow at 10 for 30 minutes"* → **Add** |
 | **WhatsApp / Instagram / Slack** | open a chat → ✦ / **Let Tia write** → send |
-| **LinkedIn** | write a topic → **Let Tia write** → **Copy & open LinkedIn** |
 | **Ads** | click a campaign → an ad → Tia's score and improved version |
 | **Docs** | contracts and offers → **Print** / **Email as draft** |
 | **Leads** | ask Tia on the Tia tab: *"Find architects in Riga who could send us clients"* |
