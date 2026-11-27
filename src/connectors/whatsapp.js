@@ -152,7 +152,15 @@ const linkedOn = () => {
   }
 };
 const canSend = () => linkedOn() || !!(process.env.WHATSAPP_TOKEN && allowedNumbers()[0]);
+// Demo safety (config.json "whatsappOnly"): Tia may message ONLY these chats – everyone else is refused in code.
+function allowedChat(cfg, waId) {
+  const only = cfg.whatsappOnly;
+  if (!Array.isArray(only) || !only.length) return true;
+  const id = String(waId || "").replace(/^\+/, "").replace(/@.*$/, "");
+  return only.some((o) => [o.waId, o.number].filter(Boolean).map(String).includes(id));
+}
 async function send(cfg, waId, text) {
+  if (!allowedChat(cfg, waId)) throw new Error(`For the demo Tia only messages ${(cfg.whatsappOnly || []).map((o) => o.name).join(", ")} on WhatsApp`);
   // a chat from the owner's linked WhatsApp goes out through that phone; others through the Business API
   const known = read(cfg).chats[String(waId).replace(/^\+/, "")];
   if (linkedOn() && (!known || known.source === "link" || !process.env.WHATSAPP_TOKEN)) {
@@ -191,8 +199,14 @@ async function send(cfg, waId, text) {
 }
 // find a chat by a name the owner says ("Ralfs") – for "send Ralfs a WhatsApp"
 function findChat(cfg, name) {
-  const n = String(name || "").toLowerCase().trim();
+  const n = String(name || "").toLowerCase().replace(/['’]s\b/g, "").trim();
   if (!n) return null;
+  if (Array.isArray(cfg.whatsappOnly) && cfg.whatsappOnly.length) {
+    // demo: only the allowed chats can be found – by name or any of their aliases ("Ralfs", "Ralph", "Ralfs Jefimovs")
+    const all = read(cfg).chats;
+    const hit = cfg.whatsappOnly.find((o) => [o.name, ...(o.aliases || [])].some((a) => { const x = String(a || "").toLowerCase(); return x && (x === n || n.includes(x) || x.includes(n)); }));
+    return hit ? { ...(all[hit.waId] || {}), waId: hit.waId, name: hit.name } : null;
+  }
   const chats = Object.values(read(cfg).chats);
   return chats.find((c) => (c.name || "").toLowerCase() === n) || chats.find((c) => (c.name || "").toLowerCase().split(/\s+/).includes(n)) || chats.find((c) => (c.name || "").toLowerCase().includes(n)) || null;
 }

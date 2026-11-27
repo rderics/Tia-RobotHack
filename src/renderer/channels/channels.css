@@ -526,7 +526,7 @@ body.tab-ads .tia-pip .pipcap, body.tab-linkedin .tia-pip .pipcap, body.tab-inst
 .wa-redo:hover { background: #F0EBFD; } .wa-redo svg.i { width: 22px; height: 22px; }
 
 /* ======================= DOCUMENTS (contracts / offers → print) ======================= */
-.dx { height: 100%; display: grid; grid-template-columns: 340px 300px 1fr; background: #F3F2F1; color: #242424; font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+.dx { height: 100%; display: grid; grid-template-columns: 340px 1fr; background: #F3F2F1; color: #242424; font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
 .dx-left { overflow: auto; padding: 16px 14px 80px; border-right: 1px solid #E1DFDD; display: flex; flex-direction: column; gap: 10px; background: #FAF9F8; }
 .dx-h { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #605E5C; margin-top: 6px; }
 .dx-h .sp, .dx-bar .sp { flex: 1; }
@@ -763,3 +763,14 @@ body.tab-whatsapp .tia-pip, body.tab-slack .tia-pip { left: auto !important; rig
 .rp-ev { display: flex; flex-direction: column; gap: 6px; background: #FAFAFA; border: 1px solid #EFEFEF; border-radius: 10px; padding: 10px; }
 .rp-f { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 8px; font-size: 13px; } .rp-f span { color: #737373; }
 .rp-f input { border: 1px solid #DBDBDB; border-radius: 7px; padding: 6px 8px; font: 13px "Segoe UI", sans-serif; }
+
+/* Settings → AI: each provider's logo on a small white tile */
+.st-logo { width: 28px; height: 28px; flex: none; border-radius: 8px; background: #fff; padding: 4px; box-sizing: border-box; object-fit: contain; }
+.st-logo.none { display: inline-flex; align-items: center; justify-content: center; color: #16131F; background: #B9A3F2; font-size: 15px; }
+
+/* listening: live level bar + which microphone */
+.tia-pip .piprec .pr-t { display: block; }
+.tia-pip .piprec .pr-bar { height: 5px; margin: 4px 2px 2px; background: rgba(255,255,255,.3); border-radius: 3px; overflow: hidden; }
+.tia-pip .piprec .pr-bar i { display: block; height: 100%; width: 0; background: #fff; transition: width .06s linear; }
+.tia-pip .piprec .pr-dev { display: block; font-weight: 600; font-size: 10px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tia-pip.listening .piprec { animation: none; }

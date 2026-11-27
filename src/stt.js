@@ -49,7 +49,32 @@ function start(cfg) {
   return ready;
 }
 
+// Groq's Whisper large (the team key) – much better than the small offline model with a webcam mic and a noisy room.
+// A short word list keeps the names Tia should hear right. Falls back to the offline model on any problem.
+const VOCAB = "Tia, Ralfs, Ralfs Jefimovs, WhatsApp, Instagram, Slack, Outlook, Gmail, CRM, leads, Meta Ads, Google Calendar, contract, agreement, Oakline Studio, vault, draft.";
+async function viaGroq(buffer, ext) {
+  const t0 = Date.now();
+  const form = new FormData();
+  form.append("file", new Blob([buffer]), `voice.${ext || "webm"}`);
+  form.append("model", process.env.GROQ_STT_MODEL || "whisper-large-v3-turbo");
+  form.append("language", "en");
+  form.append("prompt", VOCAB);
+  form.append("response_format", "json");
+  const r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { authorization: `Bearer ${process.env.GROQ_API_KEY}` }, body: form, signal: AbortSignal.timeout(20000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || `Groq ${r.status}`);
+  const text = String(j.text || "").trim();
+  return { id: `g${t0}`, text: /^(you|thank you\.?|\.)$/i.test(text) ? "" : text, ms: Date.now() - t0, via: "groq" }; // Whisper's "you" on silence
+}
+
 async function transcribe(cfg, buffer, ext) {
+  if (process.env.GROQ_API_KEY && cfg.sttProvider !== "local") {
+    try {
+      return await viaGroq(buffer, ext);
+    } catch (e) {
+      console.warn(`[voice] Groq speech-to-text failed (${e.message}) – using the offline model`);
+    }
+  }
   const ok = await start(cfg);
   if (!ok || !worker) throw new Error("Speech-to-text is not available on this computer – type the command instead.");
   const dir = path.join(cfg.dataDir, "voice");

@@ -72,34 +72,7 @@
       return root;
     }
     if (!data && !err) load(), loadDesk();
-    // ---- left: make a new one ----
-    const input = h("input", { class: "dx-in", placeholder: "e.g. Make the contract for Ieva Bērziņa", onkeydown: (e) => e.key === "Enter" && ask(e.target.value) });
-    const projects = (data && data.projects) || [];
-    const pick = h("select", { class: "dx-in" }, h("option", { value: "" }, "Pick a project from the vault…"), projects.map((p) => h("option", { value: p }, p)));
-    const left = h("div", { class: "dx-left" },
-      h("div", { class: "dx-h" }, I("sparkle"), "New document"),
-      h("div", { class: "dx-card" },
-        h("label", {}, "Tell Tia what you need"), input,
-        h("div", { class: "dx-row" },
-          h("button", { class: "dx-primary", disabled: asking, onclick: () => ask(input.value) }, asking ? "Tia is preparing it…" : "Ask Tia")),
-        h("label", {}, "Or pick a project"), pick,
-        h("div", { class: "dx-row" },
-          h("button", { class: "dx-btn", disabled: asking, onclick: () => pick.value && ask(`Make the contract for the project "${pick.value}"`) }, "Contract"),
-          h("button", { class: "dx-btn", disabled: asking, onclick: () => pick.value && ask(`Make an offer for the project "${pick.value}"`) }, "Offer")),
-        note ? h("div", { class: "dx-note" }, I("sparkle"), note) : ""),
-      h("div", { class: "dx-h" }, "Waiting for your OK"),
-      desk.filter((d) => d.state === "open").length
-        ? desk.filter((d) => d.state === "open").map((d) =>
-            h("div", { class: "dx-card prop" },
-              h("div", { class: "t" }, d.title || `${d.kind} – ${d.from || ""}`),
-              h("div", { class: "s" }, d.summary || ""),
-              d.total_eur || d.total ? h("div", { class: "s" }, `Total ${d.total_eur || d.total} €`) : "",
-              h("div", { class: "dx-row" },
-                h("button", { class: "dx-primary", onclick: async () => (await T().decide(d.id, "approve"), setTimeout(() => (load(), loadDesk()), 4000), loadDesk()) }, "Approve → PDF, print, draft"),
-                h("button", { class: "dx-btn", onclick: async () => (await T().decide(d.id, "reject"), loadDesk()) }, "Drop"))))
-        : h("div", { class: "dx-empty" }, "Nothing waiting. Ask Tia above – the contract comes from the vault's template, the client's project and the price list."),
-      h("div", { class: "dx-flow" }, h("b", {}, "What happens on Approve"), h("ol", {}, h("li", {}, "PDF made from Templates/Template — Contract"), h("li", {}, "Sent to the default printer"), h("li", {}, "Outlook opens with the email + PDF attached – you press Send"))));
-
+    // 27.11: just the documents and the PDF – new ones come from Tia (voice / Tia tab), approvals live on the Tia tab
     // ---- middle: list ----
     const files = (data && data.files) || [];
     if (want && files.find((f) => f.name === want)) (sel = want), (want = null);
@@ -117,17 +90,15 @@
     if (sel) {
       const fr = h("iframe", { class: "dx-pdf", title: sel });
       fr.src = T().docFile(sel);
-      const to = h("input", { class: "dx-in", placeholder: "Email to (optional)" });
       right.append(
         h("div", { class: "dx-bar" },
           h("b", {}, sel.replace(/\.pdf$/i, "")), h("span", { class: "sp" }),
           h("button", { class: "dx-primary", disabled: !!busy[sel], onclick: () => run(sel, "Printing…", () => T().docPrint(sel)) }, I("record"), busy[sel] === "Printing…" ? "Printing…" : "Print"),
-          h("button", { class: "dx-btn", disabled: !!busy[sel], onclick: () => run(sel, "Writing the email…", () => T().docEmail(sel, to.value)) }, I("mail"), "Email as draft"),
-          h("button", { class: "dx-btn", onclick: () => T().docOpen(sel) }, "Open")),
-        h("div", { class: "dx-bar sub" }, to, msg[sel] ? h("span", { class: "dx-msg" }, msg[sel]) : ""),
+          h("button", { class: "dx-btn", disabled: !!busy[sel], onclick: () => run(sel, "Writing the email…", () => T().docEmail(sel, "")) }, I("mail"), "Email as draft")),
+        msg[sel] ? h("div", { class: "dx-bar sub" }, h("span", { class: "dx-msg" }, msg[sel])) : "",
         fr);
     } else right.append(h("div", { class: "ch-empty" }, "Your contracts and offers show here."));
-    root.append(left, list, right);
+    root.append(list, right);
     return root;
   }
 

@@ -483,7 +483,28 @@ async function micDown(e) {
   rec.started = Date.now();
   $("micBtn").classList.add("on");
   $("recNote").hidden = false;
-  window.dispatchEvent(new CustomEvent("tia-rec", { detail: { on: true } }));
+  // live level + the microphone's name, so the owner sees at once if Tia hears him (or the wrong mic is on)
+  const track = rec.stream.getAudioTracks()[0];
+  const device = (track && track.label) || "microphone";
+  try {
+    rec.ctx = new AudioContext();
+    const an = rec.ctx.createAnalyser();
+    an.fftSize = 512;
+    rec.ctx.createMediaStreamSource(rec.stream).connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    rec.peak = 0;
+    const tick = () => {
+      if (!rec.media) return;
+      an.getByteTimeDomainData(buf);
+      let m = 0;
+      for (const v of buf) m = Math.max(m, Math.abs(v - 128));
+      rec.peak = Math.max(rec.peak, m);
+      window.dispatchEvent(new CustomEvent("tia-level", { detail: { level: Math.min(1, m / 60), device } }));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  } catch {}
+  window.dispatchEvent(new CustomEvent("tia-rec", { detail: { on: true, device } }));
   showSaid("");
   say("Listening…", { speak: false });
 }
@@ -494,11 +515,17 @@ async function micUp() {
   $("micBtn").classList.remove("on");
   $("recNote").hidden = true;
   window.dispatchEvent(new CustomEvent("tia-rec", { detail: { on: false } }));
+  const silent = rec.ctx && rec.peak < 4; // nothing above the noise floor the whole time
+  try {
+    rec.ctx && rec.ctx.close();
+  } catch {}
+  rec.ctx = null;
   const stopped = new Promise((r) => (media.onstop = r));
   media.stop();
   await stopped;
   rec.stream.getTracks().forEach((t) => t.stop());
   if (Date.now() - rec.started < 600) return say("Hold the mic while you talk, then let go.", { speak: false });
+  if (silent) return say("I heard only silence – check that the right microphone is on (Windows sound settings → Input), then try again.", { speak: false });
   const blob = new Blob(rec.chunks, { type: media.mimeType || "audio/webm" });
   setThinking(true);
   say("One moment…", { speak: false });

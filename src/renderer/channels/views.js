@@ -84,12 +84,16 @@
     const pipMic = h("button", { class: "pipmic", title: "Click, talk, click again to send", onclick: (e) => (e.stopPropagation(), window.TiaTalk && window.TiaTalk.toggle()) });
     pipMic.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
     pip = h("div", { class: "tia-pip", hidden: true },
-      h("div", { class: "pipbox", id: "pipBox", title: "Click to talk to Tia – click again to send", onclick: () => window.TiaTalk && window.TiaTalk.toggle() }, h("div", { class: "piprec" }, "● Listening – click to send")),
+      h("div", { class: "pipbox", id: "pipBox", title: "Click to talk to Tia – click again to send", onclick: () => window.TiaTalk && window.TiaTalk.toggle() }, h("div", { class: "piprec" }, h("span", { class: "pr-t" }, "● Listening – click to send"), h("div", { class: "pr-bar" }, h("i", {})), h("span", { class: "pr-dev" }, ""))),
       h("div", { class: "pipcap" }, h("b", {}, "Tia"), h("span", { id: "pipText" }, "")),
       h("div", { class: "piptalk" }, pipIn, pipMic),
       h("div", { class: "pipcard", hidden: true }));
     document.body.append(rail, view, pip);
-    window.addEventListener("tia-rec", (e) => pip.classList.toggle("listening", !!e.detail.on));
+    window.addEventListener("tia-rec", (e) => {
+      pip.classList.toggle("listening", !!e.detail.on);
+      if (e.detail.device) pip.querySelector(".pr-dev").textContent = e.detail.device.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, "");
+    });
+    window.addEventListener("tia-level", (e) => (pip.querySelector(".pr-bar i").style.width = `${Math.round(e.detail.level * 100)}%`));
     // mirror Tia's caption and "talking" state into the PiP
     const sync = () => {
       $("pipText").textContent = ($("speechText") && $("speechText").textContent) || "";

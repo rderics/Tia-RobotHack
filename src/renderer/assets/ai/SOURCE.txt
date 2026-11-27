@@ -1,0 +1,2 @@
+AI provider logos: LobeHub Icons (@lobehub/icons-static-svg 1.106.0), MIT licence – https://github.com/lobehub/lobe-icons
+The logos are trademarks of their owners; shown only to name each provider in Settings.

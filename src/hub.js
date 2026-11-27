@@ -155,7 +155,7 @@ async function decide({ id, verdict, editedText, via }) {
         // the owner approved it → it goes out from the business WhatsApp number (or wa.me if this PC can't send)
         const W = require("./connectors/whatsapp");
         const digits = String(p.to || "").replace(/[^\d]/g, "");
-        const chat = digits.length >= 8 ? { waId: digits, name: p.to } : W.findChat(cfg, p.to);
+        const chat = digits.length >= 8 && !(cfg.whatsappOnly || []).length ? { waId: digits, name: p.to } : W.findChat(cfg, p.to);
         if (W.canSend() && chat) {
           line = `Sending it to ${p.to} on WhatsApp now.`;
           act(item, async (step) => {
@@ -164,6 +164,8 @@ async function decide({ id, verdict, editedText, via }) {
             emit({ type: "whatsapp-sent", chat: chat.waId, at: Date.now() });
             step({ step: "whatsapp", status: "done", detail: `Sent on WhatsApp to ${chat.name || p.to}` });
           });
+        } else if (W.canSend() && (cfg.whatsappOnly || []).length) {
+          line = `For the demo I only message ${cfg.whatsappOnly.map((o) => o.name).join(", ")} on WhatsApp – not ${p.to}.`;
         } else if (W.canSend()) {
           line = `I don't have ${p.to}'s WhatsApp yet – they need to message the business number once, or tell me the number.`;
         } else {
@@ -473,7 +475,7 @@ async function command(text, via) {
         try {
           chat = require("./connectors/whatsapp").findChat(cfg, p.to);
         } catch {}
-        emit({ type: "ui", tab: "whatsapp", chat: chat && chat.waId });
+        emit({ type: "ui", tab: "whatsapp", chat: chat && chat.waId, number: chat && chat.number });
         res.say = `Here's my WhatsApp to ${p.to}${chat ? "" : " – I don't have their chat yet"}. Tap Send and it goes out from your number.`;
       }
     }

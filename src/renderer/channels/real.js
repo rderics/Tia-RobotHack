@@ -181,5 +181,14 @@
     place,
     setRerender: (fn) => (rerender = fn),
     reload: (key) => webs[key] && webs[key].reload(),
+    // open a chat in the real app (WhatsApp Web: web.whatsapp.com/send?phone=…)
+    open: (key, url) => {
+      const w = web(key);
+      try {
+        w.loadURL(url);
+      } catch {
+        w.setAttribute("src", url);
+      }
+    },
   };
 })();

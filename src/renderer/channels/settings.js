@@ -139,7 +139,15 @@
       teamMsg || t.error ? h("div", { class: `st-test ${String(teamMsg).startsWith("✓") ? "ok" : "bad"}` }, teamMsg || t.error) : "");
   }
   // Every AI Tia can use – what it needs (a key or a sign-in), no ranking: the owner picks
+  // each AI's own logo next to its name (Settings → AI)
+  const LOGOS = { gemini: "gemini-color", groq: "groq", openrouter: "openrouter-color", "claude-code": "claude-color", api: "claude-color", codex: "openai", openai: "openai", antigravity: "antigravity-color" };
+  function logo(h, id) {
+    if (!LOGOS[id]) return h("span", { class: "st-logo none" }, "✦");
+    const im = h("img", { class: "st-logo", alt: "", src: `assets/ai/${LOGOS[id]}.svg` });
+    return im;
+  }
   const OPTIONS = [
+    // (logos: assets/ai, LobeHub Icons, MIT – see assets/ai/SOURCE.txt)
     { id: "gemini", name: "Google Gemini", how: "API key · free tier", key: "GEMINI_API_KEY", ph: "AIza…", link: "https://aistudio.google.com/apikey" },
     { id: "groq", name: "Groq", how: "API key · free tier", key: "GROQ_API_KEY", ph: "gsk_…", link: "https://console.groq.com/keys" },
     { id: "openrouter", name: "OpenRouter", how: "API key · free models", key: "OPENROUTER_API_KEY", ph: "sk-or-…", link: "https://openrouter.ai/keys" },
@@ -166,7 +174,7 @@
         ctrl.push(h("div", { class: "st-grow" }, u), h("div", { class: "st-grow" }, m, keyInput("TIA_AI_KEY", "key")));
       }
       return h("div", { class: `st-opt ${p.configured ? "ready" : ""}` },
-        h("div", { class: "st-oh" }, h("b", {}, o.name), h("span", { class: `st-chip ${p.configured ? "ok" : ""}` }, p.configured ? "Ready" : "Not set up"), inList ? h("span", { class: "st-chip in" }, `#${order.indexOf(o.id) + 1} in order`) : ""),
+        h("div", { class: "st-oh" }, logo(h, o.id), h("b", {}, o.name), h("span", { class: `st-chip ${p.configured ? "ok" : ""}` }, p.configured ? "Ready" : "Not set up"), inList ? h("span", { class: "st-chip in" }, `#${order.indexOf(o.id) + 1} in order`) : ""),
         h("div", { class: "st-desc" }, o.how),
         ...ctrl,
         h("div", { class: "st-grow" },
