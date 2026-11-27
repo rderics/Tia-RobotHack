@@ -403,7 +403,7 @@ function clearAll() {
 }
 function setRunning(on) {
   state.running = on;
-  for (const id of ["runBtn", "resetBtn"]) $(id).disabled = on;
+  $("runBtn").disabled = on;
 }
 
 // ---------- documents ----------
@@ -603,13 +603,19 @@ async function handleEvent(ev) {
 }
 
 async function start(mode) {
-  if (state.running) return;
-  runId++;
+  if (state.running) return;      // check BEFORE marking as running
+  const myRun = ++runId;          // only increment once
   queue.length = 0;
   stopSpeaking();
   showTab("needs");
   setRunning(true);
-  await window.tia.run(state.isStatic ? "replay" : mode || "auto");
+  try {
+    await window.tia.run(state.isStatic ? "replay" : mode || "auto");
+  } catch (err) {
+    console.error("Run failed:", err);
+  } finally {
+    if (myRun === runId) setRunning(false);
+  }
 }
 
 // Rebuild the desk after a page reload (the server keeps it).
@@ -675,17 +681,30 @@ async function init() {
   document.body.classList.toggle("can-talk", canTalk);
 
   window.tia.onEvent(onEvent);
-  $("runBtn").onclick = () => start("auto");
-  $("resetBtn").onclick = async () => {
+$("runBtn").onclick = () => start("auto");
+
+$("resetBtn").onclick = async () => {
+  const btn = $("resetBtn");
+  btn.disabled = true;
+
+  // 1. Stop everything on the page first, without conditions
+  runId++;                  // events from the old run are now ignored
+  queue.length = 0;
+  stopSpeaking();
+  clearAll();
+  setRunning(false);
+
+  // 2. Then reset the backend
+  try {
     await window.tia.reset();
-    if (!window.tia.state) {
-      runId++;
-      queue.length = 0;
-      stopSpeaking();
-      clearAll();
-    }
     say("Fresh start. I've forgotten what you taught me today.");
-  };
+  } catch (err) {
+    console.error("Reset failed:", err);
+    say("Sorry, I couldn't reset just now.");
+  } finally {
+    btn.disabled = false;
+  }
+};
   $("voiceBtn").onclick = () => setVoice(!voice.on);
   $("pairBtn").onclick = () => openPair();
   $("printBtn").onclick = () => $("docFrame").contentWindow && $("docFrame").contentWindow.print();
