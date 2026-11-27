@@ -1,0 +1,13 @@
+[
+  { "id": "hello", "text": "Hi, I'm Tia – an AI secretary for small business owners." },
+  { "id": "inbox", "text": "Every morning I read every inbox: email, WhatsApp, Instagram and Slack." },
+  { "id": "risk", "text": "Routine work, I finish myself. Anything with money or risk waits for you – like this fake bank-details email." },
+  { "id": "apps", "text": "You stay in the apps you already know. I write the reply from your own business notes – you just check it." },
+  { "id": "contract", "text": "Need a contract? Just ask. If a detail is missing, I ask you first." },
+  { "id": "print", "text": "Approve it – and it's a PDF, printed, and waiting in Outlook for you to send." },
+  { "id": "vault", "text": "Everything I know comes from your notes, and you can watch exactly what I read." },
+  { "id": "calendar", "text": "Book a meeting in one sentence." },
+  { "id": "ads", "text": "I review your real ads – and write better ones." },
+  { "id": "phone", "text": "And you can approve it all from your phone." },
+  { "id": "outro", "text": "I'm Tia. I do the busywork – every decision stays yours." }
+]

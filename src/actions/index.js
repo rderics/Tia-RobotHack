@@ -46,13 +46,26 @@ function run(cmd, args, { timeoutMs = 120000, json = false } = {}) {
 }
 
 // Opens a file or link with its usual program (PDF viewer, browser, WhatsApp).
+// Recording the demo video (TIA_SIMULATE_ACTIONS=1): every step shows on the screen exactly as in real use, but
+// nothing prints, no Outlook/WhatsApp window opens. Never set on a real desk.
+const SIM = () => process.env.TIA_SIMULATE_ACTIONS === "1";
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+async function simulated(onStep, step, start, done, ms = 1800) {
+  onStep({ step, status: "start", detail: start });
+  await pause(ms);
+  onStep({ step, status: "done", detail: done });
+  return { simulated: true };
+}
+
 function open(target) {
+  if (SIM()) return;
   if (process.platform !== "win32") return spawn(process.platform === "darwin" ? "open" : "xdg-open", [target], { detached: true, stdio: "ignore" }).unref();
   spawn("cmd.exe", ["/c", "start", '""', target], { detached: true, stdio: "ignore", windowsHide: true }).unref();
 }
 
 // ---------- Outlook ----------
 async function outlook(cfg, { to, subject, text, attach = [], replyTo = null, save = false }, onStep = () => {}) {
+  if (SIM()) return simulated(onStep, "outlook", `Writing to ${to || "the client"} in Outlook`, `Draft in Outlook${attach.length ? " with the PDF attached" : ""} – you press Send`, 2600);
   const a = defaults(cfg);
   if (!a.outlook || process.platform !== "win32") throw new Error("Outlook isn't set up on this computer");
   onStep({ step: "outlook", status: "start", detail: `Writing to ${to || "the client"} in Outlook` });
@@ -121,6 +134,7 @@ async function defaultPrinter() {
 }
 
 async function print(cfg, file, onStep = () => {}) {
+  if (SIM()) return simulated(onStep, "print", "Sending to the printer", "Printed on the office printer", 2000);
   const a = defaults(cfg);
   if (!a.print) throw new Error("Printing is switched off (config actions.print)");
   const printer = (await defaultPrinter()) || "the default printer"; // silent printing always uses the Windows default
@@ -156,6 +170,7 @@ async function print(cfg, file, onStep = () => {}) {
 
 // ---------- WhatsApp ----------
 function whatsapp(cfg, { phone = "", text }, onStep = () => {}) {
+  if (SIM()) return (onStep({ step: "whatsapp", status: "done", detail: "WhatsApp open with the reply typed – you press send" }), { simulated: true });
   if (!defaults(cfg).whatsapp) throw new Error("WhatsApp actions are switched off");
   const digits = String(phone).replace(/\D/g, "");
   const usable = digits.length >= 8 && !/x/i.test(phone) ? digits : ""; // demo numbers are masked → choose the chat by hand
