@@ -113,8 +113,8 @@
     });
     const body = h("div", { class: "gc-body" }, hours, ...cols);
     const main = h("div", { class: "gc-main" }, grid, body, loading ? h("div", { class: "gc-load" }, "Loading the week…") : "", err ? h("div", { class: "gc-err" }, `Couldn't read the calendar: ${err}`) : "");
-    // side panel: event details or new event
-    const side = h("div", { class: "gc-side" });
+    // 28.11: no side panel – an opened event / "New event" shows as a small card over the week; the right column only holds Tia
+    const side = h("div", { class: "gc-pop" });
     const ev = evs.find((e) => e.id === sel);
     if (draft) side.append(newEventPanel(c, live, today));
     else if (ev) {
@@ -124,13 +124,9 @@
         ev.description && ev.description !== ev.title ? h("div", { class: "gc-desc" }, ev.description) : "",
         ev.link ? h("a", { class: "gc-btn", href: ev.link, target: "_blank", rel: "noopener" }, "Open in Google Calendar") : "",
         h("button", { class: "gc-btn", onclick: () => ((sel = null), rerender()) }, "Close"));
-    } else {
-      side.append(h("div", { class: "gc-st" }, "Tell Tia"),
-        h("div", { class: "gc-desc" }, "Say what to book – Tia fills in the event, you check it and press Add."),
-        tiaBox(c, live, today),
-        h("div", { class: "gc-desc muted" }, live ? `Your Google Calendar${data && data.account ? ` · ${data.account}` : ""}. Click an event to see it.` : "Oakline Studio's week, read from the vault note “Calendar — this week”. Click an event to see it."));
     }
-    return h("div", { class: "gc" }, head, h("div", { class: "gc-wrap" }, main, side));
+    if (draft || ev) main.append(side);
+    return h("div", { class: "gc" }, head, h("div", { class: "gc-wrap slim" }, main, h("div", { class: "real-tia" })));
   }
 
   function tiaBox(c, live, today) {

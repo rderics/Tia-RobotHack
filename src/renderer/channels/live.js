@@ -588,7 +588,7 @@
     setTimeout(placeIg, 0);
     const s = load("instagram");
     const d = s.data;
-    const panel = h("div", { class: "igr-side" });
+    const panel = h("div", { class: "igr-side dark" }); // same dark column as WhatsApp / Slack / Calendar, with the dashboard on top
     panel.append(h("div", { class: "igr-hd" }, I("sparkle"), h("b", {}, "Tia · Instagram"), h("span", { class: "sp" }), h("button", { class: "igr-ic", title: "Read the account again", onclick: () => (load("instagram", true), rerender()) }, "↻")));
     if (!d) panel.append(notice(h, "instagram", s, "Instagram") || h("div", { class: "lv-wait" }, "…"));
     else {
