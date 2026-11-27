@@ -315,6 +315,7 @@ async function localApi(req, res, route, url) {
         if (app === "draft") return sendJson(res, 200, await L.saveDraft(cfg, body));
         if (app === "calendar/add") return sendJson(res, 200, await L.addEvent(cfg, body));
         if (app === "calendar/parse") return sendJson(res, 200, await L.parseEvent(cfg, body));
+        if (app === "whatsapp/screen-result") return sendJson(res, 200, hub.screenResult(body));
         if (app === "whatsapp/send") {
           // the owner pressed Send on a reply (his approval) – Tia never calls this by herself
           const W = require("./connectors/whatsapp");
@@ -568,7 +569,7 @@ function crmPage() {
   .fit{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}.bar{width:70px;height:6px;border-radius:3px;background:#26232F;overflow:hidden}.bar i{display:block;height:100%;background:#B9A3F2}
   .st{font-size:11px;padding:3px 8px;border-radius:99px;background:#26232F;color:#8C8796;white-space:nowrap}.st.go{background:rgba(76,195,138,.16);color:#4CC38A}
   a{color:#B9A3F2;text-decoration:none}.why{color:#B5B0BF;max-width:46ch}.name{font-weight:600}.seg{color:#8C8796;font-size:12px}
-  footer{padding:14px 32px;color:#6B6773;font-size:11px}
+  footer{padding:14px 32px 320px;color:#6B6773;font-size:11px}
   .tools{display:flex;gap:8px;align-items:center}.btn{border:1px solid #3A3450;background:#1D1A27;color:#ECEAF2;border-radius:8px;padding:6px 12px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;text-decoration:none}.btn:hover{border-color:#B9A3F2}.btn.go{background:#B9A3F2;color:#16131F;border-color:#B9A3F2}
   .act{display:flex;gap:6px;white-space:nowrap}.act button{border:0;border-radius:7px;padding:5px 9px;font:600 12px "Segoe UI",sans-serif;cursor:pointer;background:#2A2538;color:#ECEAF2}.act button:hover{background:#B9A3F2;color:#16131F}</style></head><body>
   <header><div><h1><span>CRM</span> · ${info.business}</h1><div class="sub">Leads found by Tia – nobody is contacted without the owner's OK</div></div>

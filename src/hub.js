@@ -156,7 +156,18 @@ async function decide({ id, verdict, editedText, via }) {
         const W = require("./connectors/whatsapp");
         const digits = String(p.to || "").replace(/[^\d]/g, "");
         const chat = digits.length >= 8 && !(cfg.whatsappOnly || []).length ? { waId: digits, name: p.to } : W.findChat(cfg, p.to);
-        if (W.canSend() && chat) {
+        const WL = require("./connectors/wa-link");
+        const allowed = chat && W.allowedChat(cfg, chat.waId);
+        if (chat && allowed && !WL.connected() && listeners.size) {
+          // the owner's WhatsApp Web inside the desktop app: Tia opens the chat on screen, types it and presses Send
+          line = `Sending it to ${chat.name || p.to} in WhatsApp now.`;
+          act(item, async (step) => {
+            step({ step: "whatsapp", status: "start", detail: `Opening ${chat.name || p.to} in WhatsApp` });
+            const r = await screenSend(chat.name || p.to, p.message_text);
+            if (!r.ok) throw new Error(r.error || "WhatsApp on the screen didn't answer");
+            step({ step: "whatsapp", status: "done", detail: `Sent on WhatsApp to ${r.chat || chat.name || p.to}` });
+          });
+        } else if (W.canSend() && chat && allowed) {
           line = `Sending it to ${p.to} on WhatsApp now.`;
           act(item, async (step) => {
             step({ step: "whatsapp", status: "start", detail: `Sending to ${chat.name || p.to} on WhatsApp` });
@@ -204,6 +215,22 @@ async function decide({ id, verdict, editedText, via }) {
   return { ok: true, state: item.state, say: line, learn };
 }
 
+
+// WhatsApp through the screen: the desktop app types into the real WhatsApp Web and reports back (POST live/whatsapp/screen-result)
+const screenJobs = new Map();
+function screenSend(name, text) {
+  const id = `ws${Date.now()}`;
+  return new Promise((resolve) => {
+    const t = setTimeout(() => (screenJobs.delete(id), resolve({ ok: false, error: "WhatsApp on the screen didn't answer in time – is WhatsApp logged in inside Tia?" })), 60000);
+    screenJobs.set(id, (r) => (clearTimeout(t), screenJobs.delete(id), resolve(r || { ok: false })));
+    emit({ type: "ui", tab: "whatsapp", waSend: { id, name, text, dryRun: process.env.TIA_WA_DRYRUN === "1" } }); // dry run = tests only
+  });
+}
+function screenResult(b) {
+  const fn = screenJobs.get(String((b && b.id) || ""));
+  if (fn) fn({ ok: !!b.ok, error: b.error || "", chat: b.chat || "" });
+  return { ok: !!fn };
+}
 
 // ---------- real actions (Outlook window, PDF, printer, WhatsApp), visible on the owner's computer ----------
 // They run after the answer is sent, step by step; every step is an event the screen (and phone) can animate.
@@ -621,4 +648,4 @@ function getItem(id) {
 
 const rawItem = (id) => desk.items.find((x) => x.id === id) || null;
 
-module.exports = { emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange };
+module.exports = { emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange, screenResult };

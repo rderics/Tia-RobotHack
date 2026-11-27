@@ -88,6 +88,24 @@
       h("div", { class: "pipcap" }, h("b", {}, "Tia"), h("span", { id: "pipText" }, "")),
       h("div", { class: "piptalk" }, pipIn, pipMic),
       h("div", { class: "pipcard", hidden: true }));
+    // – = small (just her face) · drag the caption bar to move her; both remembered per page
+    const minBtn = h("button", { class: "pipmin", title: "Make Tia small / big", onclick: (e) => {
+      e.stopPropagation();
+      pip.classList.toggle("mini");
+      savePip();
+    } }, "–");
+    pip.querySelector(".pipbox").append(minBtn);
+    const cap = pip.querySelector(".pipcap");
+    cap.title = "Drag to move Tia";
+    cap.addEventListener("pointerdown", (e) => {
+      const r = pip.getBoundingClientRect();
+      const dx = e.clientX - r.left, dy = e.clientY - r.top;
+      cap.setPointerCapture(e.pointerId);
+      const move = (ev) => placePip(ev.clientX - dx, ev.clientY - dy);
+      const up = () => (cap.removeEventListener("pointermove", move), cap.removeEventListener("pointerup", up), savePip());
+      cap.addEventListener("pointermove", move);
+      cap.addEventListener("pointerup", up);
+    });
     document.body.append(rail, view, pip);
     window.addEventListener("tia-rec", (e) => {
       pip.classList.toggle("listening", !!e.detail.on);
@@ -102,6 +120,31 @@
     if ($("speechText")) new MutationObserver(sync).observe($("speechText"), { childList: true, characterData: true, subtree: true });
     if ($("stage")) new MutationObserver(sync).observe($("stage"), { attributes: true, attributeFilter: ["class"] });
     setTab("tia");
+  }
+  // ---------- the PiP's place per page (dragged position / small mode) ----------
+  function placePip(x, y) {
+    const w = pip.offsetWidth, hgt = pip.offsetHeight;
+    x = Math.max(64, Math.min(window.innerWidth - w - 4, x));
+    y = Math.max(4, Math.min(window.innerHeight - hgt - 4, y));
+    for (const [k, v] of [["left", `${x}px`], ["top", `${y}px`], ["right", "auto"], ["bottom", "auto"]]) pip.style.setProperty(k, v, "important");
+    pip.classList.add("moved");
+  }
+  const pipKey = () => `tia.pip.${tab}`;
+  function savePip() {
+    try {
+      const moved = pip.classList.contains("moved");
+      localStorage.setItem(pipKey(), JSON.stringify({ mini: pip.classList.contains("mini"), x: moved ? parseInt(pip.style.left, 10) : null, y: moved ? parseInt(pip.style.top, 10) : null }));
+    } catch {}
+  }
+  function loadPip() {
+    for (const k of ["left", "top", "right", "bottom"]) pip.style.removeProperty(k);
+    pip.classList.remove("moved", "mini");
+    try {
+      const p = JSON.parse(localStorage.getItem(pipKey()) || "null");
+      if (!p) return;
+      pip.classList.toggle("mini", !!p.mini);
+      if (p.x !== null && p.x !== undefined) requestAnimationFrame(() => placePip(p.x, p.y));
+    } catch {}
   }
   function setFollow(on) {
     follow = on;
@@ -131,6 +174,7 @@
     if (key === "settings" && window.TiaSettings) window.TiaSettings.reload();
     view.hidden = !inChannel;
     pip.hidden = !inChannel;
+    if (inChannel) loadPip();
     moveAvatar(inChannel);
     if (inChannel) render();
     if (window.TiaLive && window.TiaLive.placeIg) setTimeout(window.TiaLive.placeIg, 0); // the real Instagram shows only on its tab
@@ -472,6 +516,7 @@
     if (ev.tab !== tab) setTab(ev.tab);
     else render();
     if (ev.igReview && window.TiaIgReview) window.TiaIgReview(false);
+    if (ev.waSend && window.TiaReal && window.TiaReal.has("whatsapp")) setTimeout(() => window.TiaReal.waSend(ev.waSend), 400);
     if (ev.adsReview) autoReviewAd();
   }
   // a proposal that needs a tap (WhatsApp send) shows next to Tia on any page

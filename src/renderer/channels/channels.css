@@ -774,3 +774,28 @@ body.tab-whatsapp .tia-pip, body.tab-slack .tia-pip { left: auto !important; rig
 .tia-pip .piprec .pr-bar i { display: block; height: 100%; width: 0; background: #fff; transition: width .06s linear; }
 .tia-pip .piprec .pr-dev { display: block; font-weight: 600; font-size: 10px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tia-pip.listening .piprec { animation: none; }
+
+/* ======================= where Tia's picture sits on each page (28.11) – never over the content =======================
+   Real apps (WhatsApp, Slack, Instagram) and Calendar: inside Tia's own right panel, at its bottom.
+   Vault: bottom right (the "Tia is reading" panel). Mail / Docs: bottom left (under the short folder / document list).
+   Leads / Ads: bottom right, and the page gets room at the bottom so the last rows scroll clear of her.
+   She can also be dragged anywhere (the bar under her face) and made small with – . */
+body.has-rail.tab-whatsapp .tia-pip, body.has-rail.tab-slack .tia-pip, body.has-rail.tab-instagram .tia-pip,
+body.has-rail.tab-calendar .tia-pip, body.has-rail.tab-vault .tia-pip, body.has-rail.tab-leads .tia-pip, body.has-rail.tab-ads .tia-pip {
+  left: auto !important; right: 16px !important; top: auto !important; bottom: 16px !important; }
+body.has-rail.tab-email .tia-pip, body.has-rail.tab-docs .tia-pip { left: 76px !important; right: auto !important; top: auto !important; bottom: 16px !important; }
+/* room at the bottom of each scrolling area so nothing stays hidden under her */
+body.has-rail .igr-side, body.has-rail .gc-side { padding-bottom: 330px; }
+body.has-rail.tab-ads .am-left { padding-bottom: 320px; }
+body.has-rail.tab-ads .am-twrap { overflow: visible; }
+body.has-rail.tab-ads .am-drawer { padding-bottom: 320px; }
+.tia-pip.moved { transition: none; }
+/* small mode: just her face in a circle – click it to talk */
+.tia-pip .pipmin { position: absolute; top: 6px; right: 6px; z-index: 3; width: 22px; height: 22px; border: 0; border-radius: 6px; background: rgba(20,18,27,.7); color: #ECEAF2; cursor: pointer; font: 700 14px/1 "Segoe UI", sans-serif; }
+.tia-pip .pipmin:hover { background: #B9A3F2; color: #16131F; }
+.tia-pip.mini { width: 84px !important; border-radius: 50%; }
+.tia-pip.mini .pipbox { height: 84px !important; }
+.tia-pip.mini .pipcap, .tia-pip.mini .piptalk { display: none; }
+.tia-pip.mini .pipcard:not([hidden]) { position: absolute; bottom: 92px; right: 0; width: 240px; }
+.tia-pip.mini .pipmin { top: 2px; right: 2px; }
+.tia-pip .pipcap { cursor: grab; }

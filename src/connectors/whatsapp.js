@@ -287,4 +287,5 @@ function markRead(cfg, waId) {
   if (d.chats[waId]) (d.chats[waId].unread = 0), write(cfg, d);
 }
 
-module.exports = { verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay, addMessage, setName, setNumber };
+module.exports = {
+  allowedChat, verify, verifyToken, receive, processPayload, draftFor, data, markRead, send, canSend, findChat, registerWithRelay, pullFromRelay, addMessage, setName, setNumber };

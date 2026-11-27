@@ -175,7 +175,101 @@
     return h("div", { class: "igr real" }, h("div", { class: "real-slot", "data-app": key }), panel);
   }
 
+  // Send a WhatsApp in the real WhatsApp Web. Step 1 (page script): find the chat (list or search), open it and check the
+  // header IS that person – otherwise nothing happens. Step 2 (real keystrokes from Tia, like a person typing): clear the
+  // message box, type the text, check it, press Enter. dryRun = everything but Enter, and the box is cleared again.
+  function openChatJs(name) {
+    return `(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const norm = (x) => String(x || "").normalize("NFC").toLowerCase().trim();
+      const want = norm(${JSON.stringify(name)});
+      const match = (t) => { const v = norm(t); return v === want || v.startsWith(want) || want.startsWith(v + " ") || (want.split(" ")[0].length > 3 && v.split(" ")[0] === want.split(" ")[0]); };
+      const titles = () => [...document.querySelectorAll("#pane-side span[title]")];
+      const findRow = () => titles().find((x) => norm(x.getAttribute("title")) === want) || titles().find((x) => match(x.getAttribute("title")));
+      const header = () => document.querySelector("#main header span[dir=auto]");
+      if (!document.querySelector("#pane-side")) return { ok: false, error: "WhatsApp isn't logged in inside Tia – open the WhatsApp tab and scan the QR" };
+      if (!(header() && match(header().innerText))) {
+        let row = findRow();
+        if (!row) {
+          const box = document.querySelector("#side [contenteditable=true], #side input");
+          if (!box) return { ok: false, error: "WhatsApp search box not found" };
+          box.focus();
+          if (box.tagName === "INPUT") { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(box, ${JSON.stringify(name)}); box.dispatchEvent(new Event("input", { bubbles: true })); }
+          else document.execCommand("insertText", false, ${JSON.stringify(name)});
+          for (let i = 0; i < 25 && !(row = findRow()); i++) await sleep(300);
+        }
+        if (!row) return { ok: false, error: "No chat called " + ${JSON.stringify(name)} + " in WhatsApp" };
+        const cell = row.closest("[role=listitem], [role=row], [role=gridcell]") || row;
+        for (const t of ["mousedown", "mouseup", "click"]) cell.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window }));
+      }
+      let comp;
+      for (let i = 0; i < 25; i++) {
+        comp = document.querySelector("#main footer [contenteditable=true]");
+        if (comp && header() && match(header().innerText)) break;
+        await sleep(300);
+      }
+      if (!comp || !header() || !match(header().innerText)) return { ok: false, error: "Couldn't open the chat with " + ${JSON.stringify(name)} + " – nothing was sent" };
+      comp.focus();
+      return { ok: true, chat: header().innerText };
+    })()`;
+  }
+  const boxText = `(() => { const c = document.querySelector("#main footer [contenteditable=true]"); return c ? c.innerText.replace(/\\n+$/, "") : null; })()`;
+  const pause = (ms) => new Promise((x) => setTimeout(x, ms));
+  async function clearBox(w) {
+    w.focus();
+    w.sendInputEvent({ type: "keyDown", keyCode: "A", modifiers: ["control"] });
+    w.sendInputEvent({ type: "keyUp", keyCode: "A", modifiers: ["control"] });
+    w.sendInputEvent({ type: "keyDown", keyCode: "Backspace" });
+    w.sendInputEvent({ type: "keyUp", keyCode: "Backspace" });
+    await pause(300);
+  }
+  async function waSend({ id, name, text, dryRun }) {
+    let r;
+    try {
+      const w = web("whatsapp");
+      for (let i = 0; i < 40 && !w.getWebContentsId; i++) await pause(250);
+      r = await w.executeJavaScript(openChatJs(name), true);
+      if (r && r.ok) {
+        await clearBox(w); // an old draft in that chat must never be sent along
+        if ((await w.executeJavaScript(boxText)) !== "") r = { ok: false, error: "Couldn't empty the WhatsApp message box – nothing was sent" };
+        else {
+          w.focus();
+          await w.insertText(text);
+          await pause(400);
+          const typed = await w.executeJavaScript(boxText);
+          if (typed !== text) {
+            await clearBox(w);
+            r = { ok: false, error: "The text didn't land in WhatsApp correctly – nothing was sent" };
+          } else if (dryRun) {
+            await clearBox(w);
+            r = { ...r, dryRun: true, typed, left: await w.executeJavaScript(boxText) };
+          } else {
+            w.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+            w.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+            await pause(900);
+            const left = await w.executeJavaScript(boxText);
+            r = { ok: left === "", chat: r.chat, error: left ? "The message is still in the box – press Enter in WhatsApp" : "" };
+          }
+        }
+      }
+    } catch (e) {
+      r = { ok: false, error: String((e && e.message) || e) };
+    }
+    if (id && T().livePost) T().livePost("whatsapp/screen-result", { id, ...(r || {}) }).catch(() => {});
+    return r;
+  }
+  // tidy a chat's message box (e.g. a leftover test draft) – never sends
+  async function waClear(name) {
+    const w = web("whatsapp");
+    const r = await w.executeJavaScript(openChatJs(name), true);
+    if (!r || !r.ok) return r;
+    await clearBox(w);
+    return { ok: true, chat: r.chat, left: await w.executeJavaScript(boxText) };
+  }
+
   window.TiaReal = {
+    waSend,
+    waClear,
     has: (key) => inElectron && !!APPS[key],
     view,
     place,
