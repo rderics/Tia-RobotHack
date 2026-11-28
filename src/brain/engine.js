@@ -49,7 +49,7 @@ function finish(cfg, message, proposal, learning, extra = {}) {
 }
 
 // mode: "live" (calls Claude) or "replay" (plays a saved run – for bad venue Wi-Fi)
-async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false } = {}) {
+async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false, shouldStop = () => false } = {}) {
   const cfg = loadConfig();
   if (cfg.inboxSource === "none") throw new Error("No inbox is connected yet.");
   let inbox;
@@ -71,6 +71,7 @@ async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false }
     if (!fs.existsSync(cfg.replayFile)) throw new Error("No saved run yet – do one live run first.");
     const saved = JSON.parse(fs.readFileSync(cfg.replayFile, "utf8"));
     for (const msg of inbox) {
+      if (shouldStop()) break; // the owner pressed Stop
       const rec = saved[msg.id];
       if (!rec) continue;
       onEvent({ type: "thinking", message: msg });
@@ -83,12 +84,13 @@ async function runDay({ mode = "live", onEvent = () => {}, stopOnLimit = false }
     const saved = {};
     let limitHit = null;
     await runPool(inbox, cfg.concurrency, async (msg) => {
-      if (limitHit) return;
+      if (limitHit || shouldStop()) return; // Stop: nothing new is read
       onEvent({ type: "thinking", message: msg });
       const t0 = Date.now();
       try {
         const ctx = contextFor(cfg, `${msg.from} ${msg.subject || ""} ${msg.text}`);
         const { proposal, costUsd } = await decide(cfg, ctx.text, msg, today(cfg));
+        if (shouldStop()) return; // stopped while this one was being read – drop it
         saved[msg.id] = { proposal };
         const r = finish(cfg, msg, proposal, learning, { seconds: Math.round((Date.now() - t0) / 1000), costUsd });
         results.push(r);

@@ -265,6 +265,7 @@ async function actions(req, res, route, via) {
       return sendJson(res, 200, { error: String(e.message || e), content: "Sorry – I couldn't answer just now." });
     }
   }
+  if (route === "/api/stop") return sendJson(res, 200, hub.stop(via));
   if (route === "/api/reset") {
     hub.reset();
     return sendJson(res, 200, { ok: true });

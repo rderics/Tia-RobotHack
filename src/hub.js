@@ -56,6 +56,7 @@ function say(text, via) {
 
 // ---------- the inbox run ----------
 function onEngineEvent(ev) {
+  if (desk.stopped && ev.type !== "start") return; // after Stop nothing more reaches the screens
   if (ev.type === "start") {
     desk.items = desk.items.filter((i) => i.kind !== "message");
     desk.run = { running: true, done: 0, total: ev.total, mode: ev.mode };
@@ -89,9 +90,10 @@ async function runDay(mode) {
     mode = "live";
   } else if (auto) mode = loadConfig().commandMode === "scripted" || liveBlocked() || !engine.info().canGoLive ? "replay" : "live";
   desk.run.running = true;
+  desk.stopped = false;
   try {
     try {
-      await engine.runDay({ mode, onEvent: onEngineEvent, stopOnLimit: auto });
+      await engine.runDay({ mode, onEvent: onEngineEvent, stopOnLimit: auto, shouldStop: () => desk.stopped });
     } catch (e) {
       if (!(auto && e.code === "LIMIT")) throw e;
       if (loadConfig().profile === "owner") throw new Error("My Claude allowance is used up for now, so I can't read your inbox yet. I'll be able to again when it resets.");
@@ -102,6 +104,19 @@ async function runDay(mode) {
     onEngineEvent({ type: "error", error: String(e.message || e) });
     throw e;
   }
+}
+
+// ---------- Stop: the owner's big red button – nothing new starts, waiting screen jobs are dropped ----------
+function stop(via = "desktop") {
+  desk.stopped = true;
+  const wasRunning = desk.run.running;
+  desk.run.running = false;
+  desk.thinking = false;
+  for (const fn of [...screenJobs.values()]) fn({ ok: false, error: "Stopped by the owner" });
+  bump();
+  emit({ type: "stopped", via, at: Date.now() });
+  if (wasRunning) logActivity(loadConfig().notesDir, "Owner pressed Stop – the inbox run was stopped");
+  return { ok: true, wasRunning };
 }
 
 // ---------- decisions (from any screen) ----------
@@ -648,4 +663,4 @@ function getItem(id) {
 
 const rawItem = (id) => desk.items.find((x) => x.id === id) || null;
 
-module.exports = { emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange, screenResult };
+module.exports = { emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange, screenResult, stop };

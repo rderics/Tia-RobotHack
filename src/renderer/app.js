@@ -542,7 +542,17 @@ const queue = [];
 let draining = false;
 let runId = 0;
 function onEvent(ev) {
-  if (ev.type === "thinking" || ev.type === "ui") return; // "ui" = a command switching pages (channels/views.js) // the stage shows what Tia is reading, in step with the animation
+  if (ev.type === "thinking" || ev.type === "ui") return;
+  if (ev.type === "stopped") {
+    // stopped from another screen (the phone) – this screen stops too
+    runId++;
+    queue.length = 0;
+    stopSpeaking();
+    setRunning(false);
+    setThinking(false);
+    document.body.classList.remove("running");
+    return;
+  } // "ui" = a command switching pages (channels/views.js) // the stage shows what Tia is reading, in step with the animation
   if (ev.type === "heard") {
     showSaid(ev.text);
     setThinking(true);
@@ -712,6 +722,26 @@ async function init() {
 
   window.tia.onEvent(onEvent);
 $("runBtn").onclick = () => start("auto");
+// Stop: the server stops reading, the screen drops what it was still animating, Tia stops talking
+async function stopAll() {
+  runId++;
+  queue.length = 0;
+  stopSpeaking();
+  setRunning(false);
+  setThinking(false);
+  document.body.classList.remove("running");
+  try {
+    if (window.tia.stop) await window.tia.stop();
+  } catch {}
+  const line = () => say("Stopped. Nothing more will happen until you ask me.", { speak: false });
+  line();
+  setTimeout(() => (stopSpeaking(), line()), 700); // an animation that was mid-way can't overwrite it
+}
+$("stopBtn").onclick = stopAll;
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !document.querySelector("dialog[open]")) stopAll();
+});
+window.TiaStop = stopAll;
 
 $("resetBtn").onclick = async () => {
   const btn = $("resetBtn");

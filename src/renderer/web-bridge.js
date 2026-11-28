@@ -122,6 +122,7 @@
     webLink: () => (token ? `${location.origin}${location.pathname}#t=${token}` : ""),
     docUrl: (id) => withToken(`doc/${id}`),
     reset: () => post("api/reset"),
+    stop: () => post("api/stop"),
     onEvent: (fn) => listeners.push(fn),
   };
 })();

@@ -287,3 +287,7 @@ button, input, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .flycard, .flycard.in, .flycard.out { transition: opacity .2s linear; transform: none; }
 }
+
+/* Stop – always there, red, stops everything Tia is doing */
+.btn.stop { background: #3A1518; color: #FF8A8F; border: 1px solid #6B2228; font-weight: 700; }
+.btn.stop:hover { background: #E5484D; color: #fff; border-color: #E5484D; }
