@@ -299,3 +299,5 @@ body.guest { padding-top: 26px; }
 body.guest .chview, body.guest .apprail { top: 26px !important; }
 .guest-banner a { color: #B9A3F2; font-weight: 700; }
 @media (max-width: 900px) { .guest-banner { font-size: 11px; } }
+/* on a phone: no phone mock-up over Tia, and no "Try it on your phone" (you already are) */
+@media (max-width: 700px) { #phone { display: none !important; } body.guest #pairBtn { display: none !important; } }
