@@ -138,6 +138,13 @@ function htmlToText(s) {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+// Newsletters often arrive with their stylesheet as "text": drop CSS rules (selector { prop: value; }) and @media blocks
+function stripCss(t) {
+  let s = String(t || "");
+  for (let i = 0; i < 3; i++) s = s.replace(/@media[^{]{0,200}\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/gi, " ");
+  s = s.replace(/[^{}\n]{0,200}\{[^{}]*:[^{}]*\}/g, (m) => (/;|!important/.test(m) ? " " : m));
+  return s.replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, "\n\n").trim();
+}
 const header = (m, name) => ((m.payload && m.payload.headers) || []).find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || m[name.toLowerCase()] || "";
 async function gmailInbox({ max = 12, query = "in:inbox newer_than:3d" } = {}) {
   const data = await execute("GMAIL_FETCH_EMAILS", { query, max_results: max, include_payload: true, verbose: true });
@@ -157,7 +164,8 @@ async function gmailInbox({ max = 12, query = "in:inbox newer_than:3d" } = {}) {
       from: name.trim(),
       address: address.trim(),
       subject: m.subject || header(m, "Subject"),
-      text: htmlToText(String(m.messageText || m.preview?.body || m.snippet || "").replace(/\r/g, "")).slice(0, 1500),
+      to: m.to || header(m, "To"),
+      text: stripCss(htmlToText(String(m.messageText || m.preview?.body || m.snippet || "").replace(/\r/g, ""))).slice(0, 1500),
       time: d && !isNaN(d) ? d.toTimeString().slice(0, 5) : "",
       received: d && !isNaN(d) ? d.toISOString() : "",
     };

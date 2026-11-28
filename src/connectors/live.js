@@ -60,16 +60,23 @@ async function status(cfg, fresh) {
 // ---------- Outlook (classic Outlook on this PC, through outlook.py – read + drafts only) ----------
 async function outlook(cfg, fresh) {
   return cached(cfg, "outlook", fresh, async () => {
-    const msgs = await require("./outlook").fetchInbox({ ...cfg, inboxHours: cfg.outlookHours || 168, inboxLimit: 15 });
-    return { account: (msgs[0] && msgs[0].mailbox) || "Outlook", items: msgs.map((m) => ({ ...m, id: `o_${String(m.entryId).slice(-24)}`, live: "outlook" })) };
+    const msgs = await require("./outlook").fetchInbox({ ...cfg, inboxHours: cfg.outlookHours || 168, inboxLimit: 15, outlookFolders: "inbox,drafts,sent" });
+    return { account: (msgs[0] && msgs[0].mailbox) || "Outlook", items: withCats(cfg, msgs.map((m) => ({ ...m, id: `o_${String(m.entryId).slice(-24)}`, live: "outlook" }))) };
   });
 }
 
 // ---------- Gmail ----------
 async function gmail(cfg, fresh) {
   return cached(cfg, "gmail", fresh, async () => {
-    const msgs = await C.gmailInbox({ max: 15, query: "in:inbox" });
-    return { account: (await status(cfg)).gmail.name, items: msgs.map((m) => ({ ...m, id: `g_${m.gmailId}`, live: "gmail" })) };
+    const [inbox, sent, drafts] = await Promise.all([C.gmailInbox({ max: 15, query: "in:inbox" }), C.gmailInbox({ max: 8, query: "in:sent" }).catch(() => []), C.gmailInbox({ max: 8, query: "in:drafts" }).catch(() => [])]);
+    // Sent Items / Drafts show who the mail goes to
+    const out = (m, folder) => {
+      const to = String(m.to || "");
+      return { ...m, folder, from: ((to.match(/^"?([^"<]+?)"?\s*</) || [])[1] || to || "(no recipient)").trim(), address: ((to.match(/<([^>]+)>/) || [])[1] || to).trim() };
+    };
+    const items = [...inbox.map((m) => ({ ...m, folder: "inbox" })), ...sent.map((m) => out(m, "sent")), ...drafts.map((m) => out(m, "drafts"))];
+    const seen = new Set();
+    return { account: (await status(cfg)).gmail.name, items: withCats(cfg, items.filter((m) => !seen.has(m.gmailId) && seen.add(m.gmailId)).map((m) => ({ ...m, id: `g_${m.gmailId}`, live: "gmail" }))) };
   });
 }
 
@@ -330,6 +337,81 @@ ${lines.join("\n")}`,
   return review;
 }
 
+// ---------- Tia's mail categories (Outlook colour categories + Gmail labels "Tia/<category>") ----------
+const MAIL_CATS = ["Action needed", "Suspicious", "Clients", "Leads", "Suppliers", "Finance", "Team", "Updates", "Newsletters"];
+const catsFile = (cfg) => path.join(dir(cfg), "mail-categories.json");
+const catsOf = (cfg) => readJ(catsFile(cfg), {});
+// cached categories on the live mail (and the ones Outlook already has)
+function withCats(cfg, items) {
+  const known = catsOf(cfg);
+  return items.map((m) => ({ ...m, cats: known[m.id] || (m.categories || []).filter((c) => MAIL_CATS.includes(c)) }));
+}
+const CAT_SCHEMA = {
+  type: "object",
+  properties: { mails: { type: "array", items: { type: "object", properties: { n: { type: "integer" }, cats: { type: "array", items: { type: "string", enum: MAIL_CATS } } }, required: ["n", "cats"] } } },
+  required: ["mails"],
+};
+let gmailLabels = null;
+async function gmailLabelId(name) {
+  if (!gmailLabels) {
+    const d = await C.execute("GMAIL_LIST_LABELS", {});
+    gmailLabels = {};
+    for (const l of d.labels || []) gmailLabels[l.name] = l.id;
+  }
+  const full = `Tia/${name}`;
+  if (!gmailLabels.Tia) {
+    const r = await C.execute("GMAIL_CREATE_LABEL", { label_name: "Tia" }).catch(() => null);
+    if (r) gmailLabels.Tia = r.id || (r.label && r.label.id) || "made";
+  }
+  if (!gmailLabels[full]) {
+    const r = await C.execute("GMAIL_CREATE_LABEL", { label_name: full });
+    gmailLabels[full] = r.id || (r.label && r.label.id) || (r.data && r.data.id);
+  }
+  return gmailLabels[full];
+}
+// items: [{ id, live, entryId, storeId, gmailId, from, address, subject, text }]; set: { id: [cats] } when the owner chose them
+async function categorizeMail(cfg, { items = [], set = null } = {}) {
+  const list = items.slice(0, 40);
+  let result = {};
+  if (set) result = set;
+  else if (list.length) {
+    const lines = list.map((m, i) => `${i + 1}. From: ${m.from} <${m.address || ""}> · Subject: ${m.subject || "-"} · ${String(m.text || "").replace(/\s+/g, " ").slice(0, 260)}`);
+    const r = await brain().ask(cfg, {
+      system: `You are Tia, an email assistant. Put every email into 1–2 categories from this list: ${MAIL_CATS.join(", ")}. "Action needed" only together with another category, when the owner must do something soon (a deadline, a complaint, a question waiting for him). "Suspicious" = phishing, scams, unexpected bank-detail changes, prize mails. Newsletters = marketing/news mail; Updates = automatic notifications (receipts from services, security alerts, system mail). Clients = customers; Leads = possible new customers or partners; Team = colleagues, school or project teammates; Finance = invoices, payments, banks, taxes; Suppliers = orders and deliveries. Judge only from what is given.`,
+      schema: CAT_SCHEMA,
+      prompt: `Emails:\n${lines.join("\n")}`,
+    });
+    for (const x of r.answer.mails || []) if (list[x.n - 1]) result[list[x.n - 1].id] = (x.cats || []).filter((c) => MAIL_CATS.includes(c)).slice(0, 2);
+  }
+  // remember them, then write them into the mailboxes themselves
+  const known = catsOf(cfg);
+  Object.assign(known, result);
+  writeJ(catsFile(cfg), known);
+  const wrote = { outlook: 0, gmail: 0 };
+  const errors = [];
+  for (const m of list) {
+    const cats = result[m.id];
+    if (!cats) continue;
+    try {
+      if (m.live === "outlook" && m.entryId) {
+        await require("./outlook").categorize(cfg, m, cats);
+        wrote.outlook++;
+      } else if (m.live === "gmail" && m.gmailId) {
+        const add = [];
+        for (const c of cats) add.push(await gmailLabelId(c));
+        const remove = [];
+        for (const c of MAIL_CATS) if (!cats.includes(c) && gmailLabels && gmailLabels[`Tia/${c}`]) remove.push(gmailLabels[`Tia/${c}`]);
+        await C.execute("GMAIL_ADD_LABEL_TO_EMAIL", { message_id: m.gmailId, add_label_ids: add.filter(Boolean), remove_label_ids: remove });
+        wrote.gmail++;
+      }
+    } catch (e) {
+      errors.push(String(e.message || e).slice(0, 160));
+    }
+  }
+  const where = [wrote.outlook ? `${wrote.outlook} Outlook categories` : "", wrote.gmail ? `${wrote.gmail} Gmail labels (Tia/…)` : ""].filter(Boolean).join(" + ");
+  return { cats: result, wrote: where, errors: errors.slice(0, 3) };
+}
+
 // ---------- images from the apps' CDNs (the screen's CSP only loads our own address) ----------
 const IMG_HOSTS = /(^|\.)(fbcdn\.net|cdninstagram\.com|licdn\.com|slack-edge\.com|googleusercontent\.com)$/i;
 function image(u, res) {
@@ -394,4 +476,4 @@ Sentence: ${String(b.text || "").slice(0, 500)}`,
   return r.answer;
 }
 
-module.exports = { status, gmail, outlook, slack, instagram, instagramReview, linkedin, ads, drafts, saveDraft, suggest, linkedinPost, reviewAd, image, calendar, addEvent, parseEvent };
+module.exports = { categorizeMail, status, gmail, outlook, slack, instagram, instagramReview, linkedin, ads, drafts, saveDraft, suggest, linkedinPost, reviewAd, image, calendar, addEvent, parseEvent };

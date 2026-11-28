@@ -68,6 +68,7 @@
 
   // ---------- the source switch on top of every app ----------
   function switcher(h, tab, label) {
+    if (!canLive()) return ""; // public demo: only Oakline Studio, nothing of the owner's (28.11)
     const st = canLive() ? load("status") : {};
     const appKey = tab === "email" ? "gmail" : tab;
     const wa = tab === "whatsapp" && canLive() ? load("whatsapp").data : null; // WhatsApp comes by Meta webhook, not Composio
@@ -110,7 +111,8 @@
       const made = Object.entries(drafts)
         .filter(([id, d]) => /^(new_|cmd_)/.test(id) && (d.app === "gmail" || d.app === "outlook"))
         .map(([id, d]) => ({ id, live: d.app, channel: "email", draftOnly: true, from: d.to || "(no recipient)", address: d.to || "", subject: d.subject || "(No subject)", text: d.text, draft: d.text, received: d.savedAt.replace("T", " ").slice(0, 16), time: new Date(d.savedAt).toTimeString().slice(0, 5), state: "edited", actions: [{ step: "draft", status: "done", detail: `Saved – ${d.where}` }], reason: "", summary: "" }));
-      return [...mail, ...made].sort((a, b) => String(b.received || "").localeCompare(String(a.received || "")));
+      const real = new Set(mail.filter((m) => m.folder === "drafts").map((m) => String(m.subject || "").trim().toLowerCase()));
+      return [...mail, ...made.filter((m) => !real.has(String(m.subject || "").trim().toLowerCase()))].sort((a, b) => String(b.received || "").localeCompare(String(a.received || "")));
     }
     if (tab === "slack") {
       const s = load("slack");
@@ -195,6 +197,13 @@
         rerender();
       },
       reject: (x) => ((skipped[x.id] = true), rerender()),
+      // "Sort with Tia" / Categorize: Tia's categories, written into Outlook (colour categories) and Gmail (labels Tia/…)
+      categorize: async (list, set) => {
+        const r = await T().livePost("mail/categorize", { set: set || null, items: list.filter((m) => m.live === "gmail" || m.live === "outlook").map((m) => ({ id: m.id, live: m.live, entryId: m.entryId, storeId: m.storeId, gmailId: m.gmailId, from: m.from, address: m.address, subject: m.subject, text: String(m.text || "").slice(0, 400) })) });
+        if (r.error) throw new Error(r.error);
+        for (const k of ["gmail", "outlook"]) if (store[k] && store[k].data) for (const m of store[k].data.items || []) if (r.cats && r.cats[m.id]) m.cats = r.cats[m.id];
+        return r;
+      },
       writeNew: async ({ to, subject, notes }) => {
         const r = await T().livePost("suggest", { mode: "compose", vault: false, to, subject, text: notes });
         if (r.error) throw new Error(r.error);
@@ -620,7 +629,7 @@
   }
   const instagramView = (c) => (inElectron ? instagramReal(c) : instagramLive(c));
   // voice command "review my Instagram" → the hub asks the screen to show it
-  window.TiaIgReview = (fresh) => igReview(fresh);
+  window.TiaIgReview = (fresh) => (canLive() ? igReview(fresh) : window.TiaApps && window.TiaApps.igDemoReview()); // public demo: the demo account's review
 
   // ============================ WHATSAPP (live: Business number by Meta webhook) ============================
   let waSel = null;

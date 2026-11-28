@@ -83,10 +83,22 @@
     } });
     const pipMic = h("button", { class: "pipmic", title: "Click, talk, click again to send", onclick: (e) => (e.stopPropagation(), window.TiaTalk && window.TiaTalk.toggle()) });
     pipMic.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+    // Voice on/off + Stop on every app page (the top bar with them is behind the app there)
+    const SPK_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+    const SPK_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+    const pipVoice = h("button", { class: "pipvoice", onclick: (e) => (e.stopPropagation(), window.TiaVoice && window.TiaVoice.toggle()) });
+    const showVoice = (on) => {
+      pipVoice.innerHTML = on ? SPK_ON : SPK_OFF;
+      pipVoice.title = on ? "Voice on – Tia reads out loud (click to mute)" : "Voice off – Tia only writes (click to hear her)";
+      pipVoice.classList.toggle("off", !on);
+    };
+    showVoice(!window.TiaVoice || window.TiaVoice.on());
+    window.addEventListener("tia-voice", (e) => showVoice(e.detail.on));
+    const pipStop = h("button", { class: "pipstop", title: "Stop everything Tia is doing (Esc)", onclick: (e) => (e.stopPropagation(), window.TiaStop && window.TiaStop()) }, "■");
     pip = h("div", { class: "tia-pip", hidden: true },
       h("div", { class: "pipbox", id: "pipBox", title: "Click to talk to Tia – click again to send", onclick: () => window.TiaTalk && window.TiaTalk.toggle() }, h("div", { class: "piprec" }, h("span", { class: "pr-t" }, "● Listening – click to send"), h("div", { class: "pr-bar" }, h("i", {})), h("span", { class: "pr-dev" }, ""))),
       h("div", { class: "pipcap" }, h("b", {}, "Tia"), h("span", { id: "pipText" }, "")),
-      h("div", { class: "piptalk" }, pipIn, pipMic),
+      h("div", { class: "piptalk" }, pipIn, pipMic, pipVoice, pipStop),
       h("div", { class: "pipcard", hidden: true }));
     // – = small (just her face) · drag the caption bar to move her; both remembered per page
     const minBtn = h("button", { class: "pipmin", title: "Make Tia small / big", onclick: (e) => {

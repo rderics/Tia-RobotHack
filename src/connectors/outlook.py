@@ -7,12 +7,14 @@ the registry switch UseNewOutlook is set to 0 only for the moment of starting, t
 Both read the same server mailbox, so a draft saved here appears in new Outlook seconds later.
 
 Commands (output is one JSON object on stdout):
-  list  [--hours 48] [--limit 12] [--stores "a,b"]   newest inbox mail
+  list  [--hours 48] [--limit 12] [--stores "a,b"] [--folders inbox,drafts,sent]   newest mail per folder
+  categorize --entry ID --store STORE_ID --cats "Clients,Action needed"   Tia's colour categories on one mail
   draft --entry ID --store STORE_ID --text "..." [--show] [--type-ms 18]   reply DRAFT (never sends)
   compose --to A --subject S --text T [--attach F]... [--show] [--type-ms 18] [--no-save] [--on-behalf X]
         a new message: shown as a real Outlook window with the text typed in word by word (the audience sees
         Tia write), saved to Drafts unless --no-save. --on-behalf shows the business address in From (stand).
-Nothing here sends, deletes or moves mail, and nothing in a message is ever executed or followed.
+Nothing here sends, deletes or moves mail (categorize only sets Outlook colour categories), and nothing in a message
+is ever executed or followed.
 """
 import argparse
 import json
@@ -85,48 +87,96 @@ def sender_address(m):
     return getattr(m, "SenderEmailAddress", "") or ""
 
 
+FOLDERS = {"inbox": 6, "drafts": 16, "sent": 5}
+# Tia's categories → Outlook colour (OlCategoryColor)
+TIA_CATS = {"Action needed": 1, "Suspicious": 10, "Clients": 8, "Leads": 5, "Suppliers": 2, "Finance": 4, "Team": 9, "Updates": 6, "Newsletters": 13}
+
+
+def recipients(m):
+    try:
+        r = m.Recipients
+        if r.Count:
+            first = r.Item(1)
+            addr = ""
+            try:
+                ex = first.AddressEntry.GetExchangeUser()
+                addr = ex.PrimarySmtpAddress if ex else ""
+            except Exception:
+                pass
+            return (m.To or first.Name or ""), (addr or first.Address or "")
+    except Exception:
+        pass
+    return (m.To or ""), ""
+
+
 def cmd_list(a):
     ns = outlook().GetNamespace("MAPI")
     wanted = [s.strip().lower() for s in (a.stores or "").split(",") if s.strip()]
     since = datetime.now() - timedelta(hours=a.hours)
+    folders = [f.strip() for f in (a.folders or "inbox").split(",") if f.strip() in FOLDERS]
     out = []
     for store in ns.Stores:
         name = store.DisplayName
         if wanted and name.lower() not in wanted:
             continue
-        try:
-            items = store.GetDefaultFolder(6).Items  # 6 = Inbox
-            items.Sort("[ReceivedTime]", True)
-        except Exception:
-            continue
-        for m in items:
+        for fname in folders:
+            sort_by = "[ReceivedTime]" if fname == "inbox" else "[LastModificationTime]"
             try:
-                if m.Class != 43:  # mail items only
-                    continue
-                received = m.ReceivedTime
-                if received.replace(tzinfo=None) < since or len(out) >= a.limit * 4:
-                    break
-                subject = (m.Subject or "").strip()
-                sender = m.SenderName or ""
-                if BOUNCE.search(sender) or BOUNCE.search(subject) or AUTO.search(subject):
-                    continue
-                out.append({
-                    "entryId": m.EntryID,
-                    "storeId": store.StoreID,
-                    "mailbox": name,
-                    "channel": "email",
-                    "received": received.strftime("%Y-%m-%d %H:%M"),
-                    "time": received.strftime("%H:%M") if received.date() == datetime.now().date() else received.strftime("%d.%m %H:%M"),
-                    "from": sender,
-                    "address": sender_address(m),
-                    "subject": subject,
-                    "unread": bool(m.UnRead),
-                    "text": clean_body(m.Body),
-                })
+                items = store.GetDefaultFolder(FOLDERS[fname]).Items
+                items.Sort(sort_by, True)
             except Exception:
                 continue
-    out.sort(key=lambda x: x["received"], reverse=True)
-    print(json.dumps({"messages": out[: a.limit], "mailboxes": [s.DisplayName for s in ns.Stores]}, ensure_ascii=False))
+            n = 0
+            for m in items:
+                try:
+                    if m.Class != 43:  # mail items only
+                        continue
+                    when = m.ReceivedTime if fname == "inbox" else (m.SentOn if fname == "sent" else m.LastModificationTime)
+                    if when.replace(tzinfo=None) < since or n >= a.limit * (4 if fname == "inbox" else 1):
+                        break
+                    subject = (m.Subject or "").strip()
+                    if fname == "inbox":
+                        sender = m.SenderName or ""
+                        if BOUNCE.search(sender) or BOUNCE.search(subject) or AUTO.search(subject):
+                            continue
+                        who, addr = sender, sender_address(m)
+                    else:
+                        who, addr = recipients(m)
+                    n += 1
+                    out.append({
+                        "entryId": m.EntryID,
+                        "storeId": store.StoreID,
+                        "mailbox": name,
+                        "folder": fname,
+                        "channel": "email",
+                        "received": when.strftime("%Y-%m-%d %H:%M"),
+                        "time": when.strftime("%H:%M") if when.date() == datetime.now().date() else when.strftime("%d.%m %H:%M"),
+                        "from": who or "(no recipient)",
+                        "address": addr,
+                        "subject": subject,
+                        "unread": bool(m.UnRead) if fname == "inbox" else False,
+                        "categories": [c.strip() for c in (m.Categories or "").split(",") if c.strip()],
+                        "text": clean_body(m.Body),
+                    })
+                except Exception:
+                    continue
+    inbox = sorted([x for x in out if x["folder"] == "inbox"], key=lambda x: x["received"], reverse=True)[: a.limit]
+    rest = [x for x in out if x["folder"] != "inbox"]
+    print(json.dumps({"messages": inbox + rest, "mailboxes": [s.DisplayName for s in ns.Stores]}, ensure_ascii=False))
+
+
+def cmd_categorize(a):
+    ns = outlook().GetNamespace("MAPI")
+    cats = [c.strip() for c in a.cats.split(",") if c.strip() in TIA_CATS]
+    master = {c.Name for c in ns.Categories}
+    for c in cats:
+        if c not in master:
+            ns.Categories.Add(c, TIA_CATS[c])
+    m = ns.GetItemFromID(a.entry, a.store)
+    own = [c.strip() for c in (m.Categories or "").split(",") if c.strip() and c.strip() not in TIA_CATS]  # the owner's own categories stay
+    m.Categories = ", ".join(own + cats)
+    m.Save()
+    print(json.dumps({"ok": True, "categories": own + cats}, ensure_ascii=False))
 
 
 def bring_to_front(caption, topmost_seconds=0):
@@ -237,6 +287,11 @@ def main():
     l.add_argument("--hours", type=float, default=48)
     l.add_argument("--limit", type=int, default=12)
     l.add_argument("--stores", default="")
+    l.add_argument("--folders", default="inbox")
+    g = sub.add_parser("categorize")
+    g.add_argument("--entry", required=True)
+    g.add_argument("--store", required=True)
+    g.add_argument("--cats", default="")
     d = sub.add_parser("draft")
     d.add_argument("--entry", required=True)
     d.add_argument("--store", required=True)
@@ -255,7 +310,7 @@ def main():
     c.add_argument("--account", default="")
     a = p.parse_args()
     try:
-        {"list": cmd_list, "draft": cmd_draft, "compose": cmd_compose}[a.cmd](a)
+        {"list": cmd_list, "draft": cmd_draft, "compose": cmd_compose, "categorize": cmd_categorize}[a.cmd](a)
     except Exception as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False))
         sys.exit(1)

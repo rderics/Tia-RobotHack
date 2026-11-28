@@ -37,6 +37,7 @@ function run(cfg, args, timeoutMs = 180000) {
 async function fetchInbox(cfg) {
   const args = ["list", "--hours", String(cfg.inboxHours || 48), "--limit", String(cfg.inboxLimit || 12)];
   if (cfg.outlookStores && cfg.outlookStores.length) args.push("--stores", cfg.outlookStores.join(","));
+  if (cfg.outlookFolders) args.push("--folders", cfg.outlookFolders);
   const { messages } = await run(cfg, args);
   return messages.map((m, i) => ({ ...m, id: `m${String(i + 1).padStart(2, "0")}` }));
 }
@@ -45,4 +46,9 @@ function saveDraft(cfg, message, text) {
   return run(cfg, ["draft", "--entry", message.entryId, "--store", message.storeId, "--text", text], 120000);
 }
 
-module.exports = { fetchInbox, saveDraft };
+// Tia's colour categories on one mail (the owner's own categories stay)
+function categorize(cfg, m, cats) {
+  return run(cfg, ["categorize", "--entry", m.entryId, "--store", m.storeId, "--cats", (cats || []).join(",")], 60000);
+}
+
+module.exports = { fetchInbox, saveDraft, categorize };

@@ -74,7 +74,8 @@ function animate(r) {
 // ---------- voice: Microsoft neural voice from Tia's server, lips in sync; browser voice as fallback ----------
 const voice = { on: true, chosen: null };
 try {
-  voice.on = localStorage.getItem("tia.voice") !== "off";
+  const saved = localStorage.getItem("tia.voice");
+  voice.on = saved ? saved !== "off" : !document.querySelector('meta[name="tia-guest"]');
 } catch {}
 function pickVoice() {
   if (!window.speechSynthesis) return;
@@ -116,16 +117,20 @@ async function speakAloud(text) {
   if (window.tia.tts) {
     try {
       const [v, av] = await Promise.all([window.tia.tts(text), avatarReady]);
-      if (mine !== speechSeq) return; // something newer was said meanwhile
+      if (mine !== speechSeq || !voice.on) return; // something newer was said meanwhile, or the voice was switched off
       if (v && !v.error && av) {
         $("stage").classList.add("talking");
-        await av.speak(v);
+        const playing = av.speak(v);
+        // the avatar decodes the sound first – a Stop / Voice off pressed in that moment must still silence it
+        setTimeout(() => (mine !== speechSeq || !voice.on) && av.stop(), 250);
+        await playing;
         $("stage").classList.remove("talking");
         return;
       }
       if (v && !v.error) {
         // no avatar (no WebGL): just play the natural voice
         const a = new Audio(`data:${v.mime || "audio/mpeg"};base64,${v.audio}`);
+        curAudio = a;
         await new Promise((r) => {
           a.onended = r;
           a.onerror = r;
@@ -137,11 +142,25 @@ async function speakAloud(text) {
   }
   return browserSpeak(text);
 }
+let curAudio = null;
 function stopSpeaking() {
   speechSeq++;
-  if (window.speechSynthesis) speechSynthesis.cancel();
-  if (avatar) avatar.stop();
-  $("stage").classList.remove("talking");
+  const seq = speechSeq;
+  const hush = () => {
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    if (avatar) avatar.stop();
+    if (curAudio) {
+      try {
+        curAudio.pause();
+      } catch {}
+      curAudio = null;
+    }
+    $("stage").classList.remove("talking");
+  };
+  hush();
+  // a voice that was still loading when Stop was pressed starts a moment later – silence it again
+  setTimeout(() => seq === speechSeq && hush(), 300);
+  setTimeout(() => seq === speechSeq && hush(), 900);
 }
 function say(text, { speak = true } = {}) {
   $("speechText").textContent = text;
@@ -165,7 +184,9 @@ function setVoice(on, persist = true) {
   $("voiceBtn").textContent = on ? "Voice on" : "Voice off";
   $("voiceBtn").classList.toggle("off", !on);
   if (!on) stopSpeaking();
+  window.dispatchEvent(new CustomEvent("tia-voice", { detail: { on } })); // the Tia box on the app pages shows it too
 }
+window.TiaVoice = { on: () => voice.on, toggle: () => setVoice(!voice.on) };
 function setMode(kind, text) {
   $("mode").className = `mode ${kind}`;
   $("modeText").textContent = text;
@@ -420,6 +441,12 @@ async function openPair(ip) {
   $("appQr").innerHTML = res.appSvg || "";
   $("openBlock").hidden = !res.appSvg;
   document.querySelector(".pair-alt").open = !res.appSvg;
+  // public demo: only the visitor's own QR (their phone joins their demo desk)
+  document.querySelector(".pair-alt").hidden = !!res.guest;
+  document.querySelectorAll("#pairModal .pair-foot").forEach((f) => f.id !== "webLinkRow" && (f.hidden = !!res.guest));
+  $("pairModal").querySelector("h2").textContent = res.guest ? "Try Tia on your phone" : "Connect the owner's phone";
+  const steps = $("openBlock").querySelector(".pair-steps");
+  if (res.guest && steps) steps.innerHTML = "<li>Scan with the phone's <b>camera</b> – a page opens.</li><li>Tap <b>Open in the Tia app</b> (free <b>Expo Go</b>, links on the page) or <b>Open Tia in the browser</b>.</li><li>Your phone joins <b>this</b> demo desk – talk to Tia there and watch this screen.</li>";
   const list = $("addrList");
   list.innerHTML = "";
   for (const a of res.addresses || []) {
@@ -724,7 +751,8 @@ async function init() {
 $("runBtn").onclick = () => start("auto");
 if (window.TIA_GUEST) {
   document.body.classList.add("guest");
-  for (const id of ["pairBtn", "resetBtn"]) if ($(id)) $(id).hidden = true;
+  if ($("resetBtn")) $("resetBtn").hidden = true;
+  if ($("pairBtn")) $("pairBtn").lastChild.textContent = "Try it on your phone";
   const b = document.createElement("div");
   b.className = "guest-banner";
   b.innerHTML = 'Public demo · <b>Oakline Studio</b> is a fictional business · nothing is sent anywhere · <a href="/tia/" target="_top">Download Tia</a> to connect your own apps';

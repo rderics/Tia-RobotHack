@@ -497,7 +497,8 @@ async function quick(cfg, text) {
     return { say: `On it – I'm searching for ${title || "new leads"} and adding the good ones to your CRM.`, item };
   }
   if (/instagram/.test(t) && /(review|stat|improv|analy|numbers|doing|insight)/.test(t) && GUEST()) {
-    return { say: "Instagram isn't connected in the public demo. Download Tia and connect your own account – then I review your real numbers." };
+    emit({ type: "ui", tab: "instagram", igReview: true }); // the demo account's numbers and review are on the screen
+    return { say: "Oakline Studio's Instagram scores 72 out of 100 – reels and before-and-after posts work best. The fixes and your next post are on the right." };
   }
   if (/instagram/.test(t) && /(review|stat|improv|analy|numbers|doing|insight)/.test(t)) {
     emit({ type: "ui", tab: "instagram", igReview: true });

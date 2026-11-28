@@ -293,6 +293,9 @@ button, input, textarea { font: inherit; color: inherit; }
 .btn.stop:hover { background: #E5484D; color: #fff; border-color: #E5484D; }
 
 /* public demo banner */
-.guest-banner { position: fixed; left: 50%; top: 6px; transform: translateX(-50%); z-index: 300; background: #241D3A; color: #ECEAF2; border: 1px solid #4A3F72; border-radius: 999px; padding: 5px 16px; font: 13px "Segoe UI", system-ui, sans-serif; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.guest-banner { position: fixed; left: 0; right: 0; top: 0; height: 26px; z-index: 300; background: #241D3A; color: #ECEAF2; border-bottom: 1px solid #4A3F72; text-align: center; line-height: 26px; font: 12.5px/26px "Segoe UI", system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the public demo's banner takes its own row - the apps start under it, nothing is covered */
+body.guest { padding-top: 26px; }
+body.guest .chview, body.guest .apprail { top: 26px !important; }
 .guest-banner a { color: #B9A3F2; font-weight: 700; }
-@media (max-width: 900px) { .guest-banner { white-space: normal; width: calc(100% - 24px); text-align: center; border-radius: 12px; } }
+@media (max-width: 900px) { .guest-banner { font-size: 11px; } }

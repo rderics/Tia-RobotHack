@@ -49,14 +49,16 @@
     document.body.appendChild(box);
     box.querySelector("input").focus();
   }
-  if (remote && !token) {
+  // the public demo has no login (the server marks its page) – only the owner's own Tia asks for the Tia code
+  const guestPage = !!document.querySelector('meta[name="tia-guest"]');
+  if (remote && !token && !guestPage) {
     document.addEventListener("DOMContentLoaded", () => showLogin());
   }
 
   const withToken = (url) => (remote && token ? `${url}${url.includes("?") ? "&" : "?"}t=${encodeURIComponent(token)}` : url);
   const headers = (extra = {}) => (remote && token ? { ...extra, "x-tia-token": token } : extra);
   async function check(res) {
-    if (res.status === 401 && remote) {
+    if (res.status === 401 && remote && !guestPage) {
       try {
         localStorage.removeItem(KEY);
       } catch {}
@@ -128,6 +130,6 @@
   // Public demo (the server marks the page): no accounts, settings, keys, printing, files on the PC or phone pairing
   if (document.querySelector('meta[name="tia-guest"]')) {
     window.TIA_GUEST = true;
-    for (const k of ["live", "livePost", "liveImg", "settings", "settingsTest", "settingsSave", "composioLogin", "joinTeam", "checkUpdate", "aiSignin", "restartTia", "vaultSave", "docPrint", "docEmail", "docOpen", "pair", "webLink", "feedback"]) delete window.tia[k];
+    for (const k of ["live", "livePost", "liveImg", "settings", "settingsTest", "settingsSave", "composioLogin", "joinTeam", "checkUpdate", "aiSignin", "restartTia", "vaultSave", "docPrint", "docEmail", "docOpen", "webLink", "feedback"] /* "pair" stays: the visitor's phone joins the visitor's demo desk */) delete window.tia[k];
   }
 })();

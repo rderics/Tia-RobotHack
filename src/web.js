@@ -103,8 +103,8 @@ ${links.tiaAndroidApk ? `<div class="step only-android"><h2>Android · 1 tap ins
 <div class="step ${links.tiaAndroidApk ? "only-ios" : ""}"><h2>${links.tiaAndroidApk ? "iPhone · in Expo Go" : "1 · Open the Tia app"}</h2><p>Opens Tia on your phone and connects it to this desk – no typing. It runs inside the free <b>Expo Go</b> app: install it first if you don't have it, then come back and tap the button.</p>
 <a class="b" href="${esc(app)}">Open in the Tia app</a>
 <div class="row"><a class="b ghost" href="${esc(links.expoGoIos)}">Expo Go – iPhone</a><a class="b ghost" href="${esc(links.expoGoAndroid)}">Expo Go – Android</a></div></div>
-<div class="step"><h2>Or use the browser</h2><p>The same desk in your phone's browser.</p><a class="b ghost" href="${esc(base)}/#t=${esc(token)}">Open Tia in the browser</a></div>
-<p class="small">This link holds your Tia code – don't share it. Scan the QR on Tia's screen again for a fresh one.</p>`
+<div class="step"><h2>Or use the browser</h2><p>The same desk in your phone's browser.</p><a class="b ghost" href="${esc(base)}/${GUEST ? "?t=" : "#t="}${esc(token)}">Open Tia in the browser</a></div>
+<p class="small">${GUEST ? "Public demo: your phone joins the same demo desk as your computer (fictional business, nothing is sent). The link works for 24 hours." : "This link holds your Tia code – don't share it. Scan the QR on Tia's screen again for a fresh one."}</p>`
   : `<p class="bad">This link has no Tia code. Open Tia on the computer → <b>Connect phone</b> → scan the QR code.</p>`}
 <script>var A=/android/i.test(navigator.userAgent),I=/iphone|ipad|ipod/i.test(navigator.userAgent);document.querySelectorAll(A?".only-ios":I?".only-android":"._none").forEach(function(e){e.remove()})</script>
 </main></body></html>`;
@@ -181,8 +181,8 @@ function docPage(c) {
 }
 
 // ---------- routes ----------
-async function phoneApi(req, res, route, url) {
-  if (!hasToken(req, url)) return sendJson(res, 401, { error: "Not paired – scan the QR code on Tia's screen again." });
+async function phoneApi(req, res, route, url, trusted = false) {
+  if (!trusted && !hasToken(req, url)) return sendJson(res, 401, { error: "Not paired – scan the QR code on Tia's screen again." });
 
   if (req.method === "GET" && route === "/api/m/hello") { const i = engine.info(); return sendJson(res, 200, { ok: true, business: i.business, owner: i.owner }); }
   if (req.method === "GET" && route === "/api/m/state") {
@@ -337,6 +337,7 @@ async function localApi(req, res, route, url) {
         if (app === "suggest") return sendJson(res, 200, await L.suggest(cfg, body));
         if (app === "linkedin/write") return sendJson(res, 200, await L.linkedinPost(cfg, body));
         if (app === "ads/review") return sendJson(res, 200, await L.reviewAd(cfg, body));
+        if (app === "mail/categorize") return sendJson(res, 200, await L.categorizeMail(cfg, body));
         if (app === "instagram/review") return sendJson(res, 200, await L.instagramReview(cfg, !!body.fresh));
       }
       return sendJson(res, 404, { error: "unknown live route" });
@@ -654,14 +655,65 @@ const GUEST_GET = new Set(["/api/state", "/api/info", "/api/events", "/api/docs"
 const GUEST_POST = new Set(["/api/say", "/api/voice", "/api/run", "/api/decide", "/api/reset", "/api/stop", "/api/tts", "/api/demo/act"]);
 const GUEST_AI = { "/api/say": 1, "/api/voice": 1, "/api/run": 6, "/api/tts": 0 }; // AI cost of a request (rate limit)
 const SECURITY_HEADERS = { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-frame-options": "SAMEORIGIN" };
+// A visitor's phone joins the visitor's own demo desk: "Connect phone" gives a random phone code for that desk
+// (kept in memory for 24 h, nothing personal). The phone app sends it as x-tia-token, the phone's browser as ?t=.
+const guestPhone = new Map(); // code → { sid, exp }
+function guestPhoneCode(sid) {
+  const now = Date.now();
+  for (const [t, v] of guestPhone) {
+    if (v.exp < now) guestPhone.delete(t);
+    else if (v.sid === sid) return t;
+  }
+  if (guestPhone.size > 20000) guestPhone.delete(guestPhone.keys().next().value);
+  const t = crypto.randomBytes(12).toString("hex");
+  guestPhone.set(t, { sid, exp: now + 864e5 });
+  return t;
+}
+const guestSidFor = (t) => {
+  const v = t && guestPhone.get(t);
+  return v && v.exp > Date.now() ? v.sid : null;
+};
+const GUEST_PHONE = new Set(["GET /api/m/hello", "GET /api/m/state", "POST /api/m/say", "POST /api/m/voice", "POST /api/m/decide", "POST /api/m/run", "POST /api/m/reset", "POST /api/m/stop", "POST /api/m/log"]);
 async function guestGate(req, res, url, route) {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
-  // own desk per visitor: a random id in a cookie (no login, nothing personal)
+  const code = String(req.headers["x-tia-token"] || url.searchParams.get("t") || "").replace(/[^a-f0-9]/g, "").slice(0, 24);
+  const phoneSid = guestSidFor(code);
+  // the phone app (any origin, token in a header)
+  if (route.startsWith("/api/m/")) {
+    res.setHeader("access-control-allow-origin", "*");
+    res.setHeader("access-control-allow-headers", "x-tia-token, content-type");
+    res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+    if (req.method === "OPTIONS") return res.writeHead(204), res.end();
+    if (!phoneSid) return sendJson(res, 401, { error: "This phone link has expired – open the demo on the computer and press Connect phone again." });
+    const ok = GUEST_PHONE.has(`${req.method} ${route}`) || (req.method === "GET" && /^\/api\/m\/doc\/\w+$/.test(route));
+    if (!ok) return sendJson(res, 403, { error: "Not part of the public demo." });
+    return hub.runInSession(phoneSid, async () => {
+      const cost = { "/api/m/say": 1, "/api/m/voice": 1, "/api/m/run": 6 }[route] || 0;
+      let allowed = true;
+      for (let i = 0; i < cost; i++) allowed = allowed && hub.allowCall();
+      if (!allowed) return sendJson(res, 429, { error: "That's enough for this hour in the public demo – download Tia to keep going." });
+      if (route === "/api/m/run") return hub.runDay("auto").catch(() => {}), sendJson(res, 200, { ok: true });
+      return await phoneApi(req, res, route, url, true);
+    });
+  }
+  // own desk per visitor: a random id in a cookie (no login, nothing personal); a phone link joins that desk
   let sid = ((req.headers.cookie || "").match(/(?:^|;\s*)tia_s=([a-f0-9]{24})/) || [])[1];
+  if (phoneSid && sid !== phoneSid) sid = null;
   if (!sid) {
-    sid = crypto.randomBytes(12).toString("hex");
+    sid = phoneSid || crypto.randomBytes(12).toString("hex");
     res.setHeader("set-cookie", `tia_s=${sid}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400`);
   }
+  // "Connect phone": the QR for this visitor's desk
+  if (req.method === "GET" && route === "/api/pair") {
+    const sameOrigin = !req.headers.origin || req.headers.origin === (process.env.TIA_GUEST_URL ? new URL(process.env.TIA_GUEST_URL).origin : "");
+    if (!sameOrigin) return sendJson(res, 403, { error: "forbidden origin" });
+    const base = (process.env.TIA_GUEST_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
+    const t = guestPhoneCode(sid);
+    const connect = `${base}/connect?t=${t}`;
+    const appSvg = await QRCode.toString(connect, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#111013", light: "#ffffff" } });
+    return sendJson(res, 200, { guest: true, addresses: [], appSvg, svg: "", connect, appLink: appLink(base, t), webLink: "" });
+  }
+  if (req.method === "GET" && route === "/connect") return connectPage(req, res, url);
   const origin = req.headers.origin;
   const pub = process.env.TIA_GUEST_URL ? new URL(process.env.TIA_GUEST_URL).origin : "";
   // the website (rderics.id.lv/tia-try) may only ask "are you on?" – nothing else from another origin
