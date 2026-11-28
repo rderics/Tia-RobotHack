@@ -53,6 +53,7 @@ async function check(onUpdated) {
 }
 
 function start(cfg, onUpdated) {
+  if (process.env.TIA_GUEST === "1") return;
   state.enabled = cfg.autoUpdate !== false && process.env.TIA_AUTO_UPDATE !== "0";
   version().then((v) => (state.version = v));
   if (!state.enabled) return;

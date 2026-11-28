@@ -14,39 +14,74 @@ const { offerHtml, contractHtml } = require("./actions/documents");
 
 const URGENT_CATEGORIES = new Set(["payment_change", "complaint"]);
 
-const desk = {
-  version: 1,
-  items: [], // inbox results and proposals from commands
-  feed: [], // conversation: { who: "owner" | "tia", text, at, via }
-  run: { running: false, done: 0, total: 0, mode: null },
-  thinking: false,
-};
+// One desk per screen session. The owner's Tia has one (MAIN); the public demo (TIA_GUEST=1) gives every visitor
+// their own desk, event stream and state – picked per request with AsyncLocalStorage (web.js runInSession).
+const { AsyncLocalStorage } = require("async_hooks");
+const als = new AsyncLocalStorage();
+const GUEST = () => process.env.TIA_GUEST === "1";
+const newDesk = () => ({ version: 1, items: [], feed: [], run: { running: false, done: 0, total: 0, mode: null }, thinking: false });
+const MAIN = { desk: newDesk(), listeners: new Set(), waiters: new Set(), seen: Date.now(), calls: [] };
+const sessions = new Map();
+const cur = () => als.getStore() || MAIN;
+const desk = new Proxy({}, {
+  get: (_, k) => cur().desk[k],
+  set: (_, k, v) => ((cur().desk[k] = v), true),
+});
+function session(id) {
+  let s = sessions.get(id);
+  if (!s) {
+    if (sessions.size >= 300) {
+      const oldest = [...sessions.entries()].sort((a, b) => a[1].seen - b[1].seen)[0];
+      if (oldest) sessions.delete(oldest[0]);
+    }
+    s = { desk: newDesk(), listeners: new Set(), waiters: new Set(), seen: Date.now(), calls: [] };
+    sessions.set(id, s);
+  }
+  s.seen = Date.now();
+  return s;
+}
+const runInSession = (id, fn) => als.run(session(id), fn);
+setInterval(() => {
+  for (const [id, s] of sessions) if (Date.now() - s.seen > 45 * 60e3 && !s.listeners.size) sessions.delete(id);
+}, 10 * 60e3).unref();
+// public demo: at most N AI requests per visitor per hour, and per hour for everyone together
+function allowCall(perVisitor = 30, all = 400) {
+  const s = cur();
+  const hour = Date.now() - 3600e3;
+  s.calls = s.calls.filter((t) => t > hour);
+  let total = 0;
+  for (const x of sessions.values()) total += x.calls.filter((t) => t > hour).length;
+  if (s.calls.length >= perVisitor || total >= all) return false;
+  s.calls.push(Date.now());
+  return true;
+}
 let seq = 0;
-const listeners = new Set(); // desktop event streams
-const waiters = new Set(); // phone long-polls
 
 function bump() {
   desk.version++;
-  for (const w of waiters) w();
-  waiters.clear();
+  const ws = cur().waiters;
+  for (const w of ws) w();
+  ws.clear();
 }
 function emit(ev) {
-  for (const fn of listeners) fn(ev);
+  for (const fn of cur().listeners) fn(ev);
 }
 function onEvent(fn) {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+  const ls = cur().listeners;
+  ls.add(fn);
+  return () => ls.delete(fn);
 }
 function waitForChange(sinceVersion, ms) {
   if (desk.version !== sinceVersion) return Promise.resolve();
+  const W = cur().waiters;
   return new Promise((resolve) => {
     const done = () => {
       clearTimeout(t);
-      waiters.delete(done);
+      W.delete(done);
       resolve();
     };
     const t = setTimeout(done, ms);
-    waiters.add(done);
+    W.add(done);
   });
 }
 function say(text, via) {
@@ -166,14 +201,16 @@ async function decide({ id, verdict, editedText, via }) {
     } else {
       if (verdict === "edit" && editedText) p.message_text = editedText;
       logActivity(cfg.notesDir, `Owner approved ${p.kind}: ${p.title}${p.total_eur ? ` (${p.total_eur} €)` : ""}`);
-      if (p.kind === "whatsapp" && p.message_text) {
+      if (p.kind === "whatsapp" && p.message_text && GUEST()) {
+        line = `In the public demo nothing is sent – this is the WhatsApp Tia would send to ${p.to} from your number, after your tap.`;
+      } else if (p.kind === "whatsapp" && p.message_text) {
         // the owner approved it → it goes out from the business WhatsApp number (or wa.me if this PC can't send)
         const W = require("./connectors/whatsapp");
         const digits = String(p.to || "").replace(/[^\d]/g, "");
         const chat = digits.length >= 8 && !(cfg.whatsappOnly || []).length ? { waId: digits, name: p.to } : W.findChat(cfg, p.to);
         const WL = require("./connectors/wa-link");
         const allowed = chat && W.allowedChat(cfg, chat.waId);
-        if (chat && allowed && !WL.connected() && listeners.size) {
+        if (chat && allowed && !WL.connected() && cur().listeners.size) {
           // the owner's WhatsApp Web inside the desktop app: Tia opens the chat on screen, types it and presses Send
           line = `Sending it to ${chat.name || p.to} in WhatsApp now.`;
           act(item, async (step) => {
@@ -389,6 +426,12 @@ function contactFor(cfg, name) {
 // "write a draft to …" – the owner asked, so the draft is made right away (a draft is never sent)
 function draftNow(cfg, item, app, text) {
   const p = item.proposal;
+  if (GUEST()) {
+    // public demo: no mail account is connected – the draft is shown on Tia's card, nothing leaves this server
+    item.state = "approved";
+    act(item, async (step) => step({ step: "draft", status: "done", detail: `Draft ready (public demo – nothing is sent). With your own Tia it lands in your ${app === "gmail" ? "Gmail" : "Outlook"} drafts.` }));
+    return;
+  }
   const who = contactFor(cfg, p.to);
   const id = `cmd_${Date.now()}`;
   item.state = "approved";
@@ -453,6 +496,9 @@ async function quick(cfg, text) {
     leadSearch(cfg, item, `${title} ${text}`);
     return { say: `On it – I'm searching for ${title || "new leads"} and adding the good ones to your CRM.`, item };
   }
+  if (/instagram/.test(t) && /(review|stat|improv|analy|numbers|doing|insight)/.test(t) && GUEST()) {
+    return { say: "Instagram isn't connected in the public demo. Download Tia and connect your own account – then I review your real numbers." };
+  }
   if (/instagram/.test(t) && /(review|stat|improv|analy|numbers|doing|insight)/.test(t)) {
     emit({ type: "ui", tab: "instagram", igReview: true });
     const L = require("./connectors/live");
@@ -507,7 +553,7 @@ async function command(text, via) {
       if (p.kind === "reply" && p.message_text) {
         const app = /outlook/i.test(text) ? "outlook" : "gmail";
         draftNow(cfg, item, app, text);
-        res.say = app === "gmail" ? `Writing to ${p.to} now – the draft goes into Gmail, Drafts. Nothing is sent until you press Send.` : `Outlook is opening – I'm typing the email to ${p.to}. It stays a draft, you press Send.`;
+        res.say = GUEST() ? `Here's my email to ${p.to} – it's on the card. In the public demo nothing is sent.` : app === "gmail" ? `Writing to ${p.to} now – the draft goes into Gmail, Drafts. Nothing is sent until you press Send.` : `Outlook is opening – I'm typing the email to ${p.to}. It stays a draft, you press Send.`;
       } else if (p.kind === "contract" || p.kind === "offer") {
         contractNow(cfg, item);
         res.say = `${p.lines && p.lines.length ? `The contract for ${p.to}` : `A referral partnership agreement for ${p.to}`} is ready in Docs, made from the template in your vault. Say "email it" and I'll put it in an Outlook draft.`;
@@ -518,7 +564,7 @@ async function command(text, via) {
           chat = require("./connectors/whatsapp").findChat(cfg, p.to);
         } catch {}
         emit({ type: "ui", tab: "whatsapp", chat: chat && chat.waId, number: chat && chat.number });
-        res.say = `Here's my WhatsApp to ${p.to}${chat ? "" : " – I don't have their chat yet"}. Tap Send and it goes out from your number.`;
+        res.say = GUEST() ? `Here's my WhatsApp to ${p.to}. In the public demo nothing is sent – with your own Tia it goes out from your number after your tap.` : `Here's my WhatsApp to ${p.to}${chat ? "" : " – I don't have their chat yet"}. Tap Send and it goes out from your number.`;
       }
     }
     say(res.say, via);
@@ -663,4 +709,4 @@ function getItem(id) {
 
 const rawItem = (id) => desk.items.find((x) => x.id === id) || null;
 
-module.exports = { emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange, screenResult, stop };
+module.exports = { runInSession, allowCall, emit, runDay, decide, command, chat, reset, snapshot, getItem, rawItem, onEvent, waitForChange, screenResult, stop };

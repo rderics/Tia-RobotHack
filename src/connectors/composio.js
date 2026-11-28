@@ -10,6 +10,7 @@ const path = require("path");
 const NEVER = /SEND|POST_MESSAGE|REPLY_TO_THREAD|DELETE|TRASH|FORWARD/i; // hard guard, whatever the caller asks
 
 function cli() {
+  if (process.env.TIA_GUEST === "1") throw new Error("App connections are not part of the public demo – download Tia to connect your own apps.");
   const exe = path.join(os.homedir(), ".composio", process.platform === "win32" ? "composio.exe" : "composio");
   return fs.existsSync(exe) ? exe : "composio";
 }

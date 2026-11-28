@@ -125,4 +125,9 @@
     stop: () => post("api/stop"),
     onEvent: (fn) => listeners.push(fn),
   };
+  // Public demo (the server marks the page): no accounts, settings, keys, printing, files on the PC or phone pairing
+  if (document.querySelector('meta[name="tia-guest"]')) {
+    window.TIA_GUEST = true;
+    for (const k of ["live", "livePost", "liveImg", "settings", "settingsTest", "settingsSave", "composioLogin", "joinTeam", "checkUpdate", "aiSignin", "restartTia", "vaultSave", "docPrint", "docEmail", "docOpen", "pair", "webLink", "feedback"]) delete window.tia[k];
+  }
 })();

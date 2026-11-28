@@ -63,7 +63,8 @@ function Save-Env($pairs) {
   Set-Content -Path $envFile -Value $lines -Encoding ascii
 }
 if (-not $haveCode -and -not $teamFile -and -not $testRun) {
-  $code = (Read-Host "Team code from Rinalds (press Enter to skip)").Trim()
+  Write-Host "Only the Tia team has a team code. Everyone else: just press Enter - you add your own free AI key in Tia." -ForegroundColor Cyan
+  $code = (Read-Host "Team code (or press Enter)").Trim()
   if ($code) {
     try {
       $r = Invoke-RestMethod -Method Post -Uri "https://rderics.id.lv/tia-team" -ContentType "application/json" -Body (@{ code = $code } | ConvertTo-Json)
@@ -72,7 +73,7 @@ if (-not $haveCode -and -not $teamFile -and -not $testRun) {
       Save-Env $pairs
       Write-Host "Joined the team - $($pairs.Count - 1) keys saved on this PC. Tia keeps them up to date." -ForegroundColor Green
     } catch { Write-Host "That code didn't work ($($_.Exception.Message)). You can type it later in Tia -> Settings -> Join the team." -ForegroundColor Yellow }
-  } else { Write-Host "Skipped - type the team code later in Tia -> Settings -> Join the team." -ForegroundColor Yellow }
+  } else { Write-Host "OK - no team keys. In Tia: Settings -> AI -> add your own free key (Groq or Google Gemini, 'Get a key' opens the page). Settings -> Connected apps connects YOUR own Gmail, Calendar, Slack..." -ForegroundColor Yellow }
 } elseif ($teamFile) {
   $pairs = @{}
   Get-Content $teamFile | ForEach-Object { if ($_ -match "^\s*([A-Z0-9_]+)=(.+)$") { $pairs[$Matches[1]] = $Matches[2].Trim() } }

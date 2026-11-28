@@ -48,7 +48,7 @@ function run(cmd, args, { timeoutMs = 120000, json = false } = {}) {
 // Opens a file or link with its usual program (PDF viewer, browser, WhatsApp).
 // Recording the demo video (TIA_SIMULATE_ACTIONS=1): every step shows on the screen exactly as in real use, but
 // nothing prints, no Outlook/WhatsApp window opens. Never set on a real desk.
-const SIM = () => process.env.TIA_SIMULATE_ACTIONS === "1";
+const SIM = () => process.env.TIA_SIMULATE_ACTIONS === "1" || process.env.TIA_GUEST === "1"; // public demo: nothing real
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 async function simulated(onStep, step, start, done, ms = 1800) {
   onStep({ step, status: "start", detail: start });

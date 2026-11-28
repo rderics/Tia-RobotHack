@@ -616,7 +616,7 @@ function serveStatic(req, res, route, url) {
     return true;
   }
   if (route === "/crm" || route === "/crm/data" || route === "/crm/data.csv") {
-    if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
+    if (!GUEST && !isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
     const { loadCrm } = require("./leads/finder");
     if (route === "/crm/data") return sendJson(res, 200, loadCrm(loadConfig()));
     if (route === "/crm/data.csv") {
@@ -629,7 +629,7 @@ function serveStatic(req, res, route, url) {
   }
   const doc = route.match(/^\/doc\/(\w+)$/);
   if (doc) {
-    if (!isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
+    if (!GUEST && !isLocal(req) && !hasToken(req, url)) return sendJson(res, 401, { error: "Log in first." });
     const c = hub.getItem(doc[1]);
     if (!c) return sendJson(res, 404, { error: "not found" });
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
@@ -640,8 +640,54 @@ function serveStatic(req, res, route, url) {
   if (!file.startsWith(STATIC_DIR + path.sep)) return sendJson(res, 403, { error: "forbidden" });
   fs.readFile(file, (err, buf) => {
     if (err) return sendJson(res, 404, { error: "not found" });
+    if (GUEST && rel === "index.html") buf = Buffer.from(String(buf).replace("<head>", '<head>\n  <meta name="tia-guest" content="1" />'));
     res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream", "cache-control": "no-store" });
     res.end(buf);
+  });
+}
+
+// ---------- the PUBLIC demo (TIA_GUEST=1): anyone on the internet, so an allow-list – everything else is refused ----------
+// Only the fictional business: talk, voice, the demo inbox, decisions, Stop, reading the vault, documents, the CRM.
+// No settings, keys, app connections (Composio), Outlook, printer, files on this PC, phone pairing, WhatsApp, vault edits.
+const GUEST = process.env.TIA_GUEST === "1";
+const GUEST_GET = new Set(["/api/state", "/api/info", "/api/events", "/api/docs", "/api/docs/file", "/api/vault/tree", "/api/vault/note", "/api/vault/search", "/api/vault/graph", "/api/demo/inbox", "/crm", "/crm/data", "/crm/data.csv"]);
+const GUEST_POST = new Set(["/api/say", "/api/voice", "/api/run", "/api/decide", "/api/reset", "/api/stop", "/api/tts", "/api/demo/act"]);
+const GUEST_AI = { "/api/say": 1, "/api/voice": 1, "/api/run": 6, "/api/tts": 0 }; // AI cost of a request (rate limit)
+const SECURITY_HEADERS = { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-frame-options": "SAMEORIGIN" };
+async function guestGate(req, res, url, route) {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+  // own desk per visitor: a random id in a cookie (no login, nothing personal)
+  let sid = ((req.headers.cookie || "").match(/(?:^|;\s*)tia_s=([a-f0-9]{24})/) || [])[1];
+  if (!sid) {
+    sid = crypto.randomBytes(12).toString("hex");
+    res.setHeader("set-cookie", `tia_s=${sid}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400`);
+  }
+  const origin = req.headers.origin;
+  const pub = process.env.TIA_GUEST_URL ? new URL(process.env.TIA_GUEST_URL).origin : "";
+  // the website (rderics.id.lv/tia-try) may only ask "are you on?" – nothing else from another origin
+  if (origin === "https://rderics.id.lv" && req.method === "GET" && route === "/api/info") {
+    res.setHeader("access-control-allow-origin", origin);
+    return sendJson(res, 200, { ok: true, business: "Oakline Studio" });
+  }
+  if (origin && ![pub, `http://localhost:${PORT}`].includes(origin)) return sendJson(res, 403, { error: "forbidden origin" });
+  const isApi = route.startsWith("/api/") || route.startsWith("/crm") || route.startsWith("/doc/") || route.startsWith("/webhooks/") || route === "/connect";
+  if (isApi) {
+    const ok = req.method === "GET" ? GUEST_GET.has(route) || /^\/doc\/\w+$/.test(route) : req.method === "POST" && GUEST_POST.has(route);
+    if (!ok) return sendJson(res, 403, { error: "Not part of the public demo – download Tia to use it with your own apps." });
+  }
+  return hub.runInSession(sid, async () => {
+    if (GUEST_AI[route] !== undefined && GUEST_AI[route] > 0) {
+      let allowed = true;
+      for (let i = 0; i < GUEST_AI[route]; i++) allowed = allowed && hub.allowCall();
+      if (!allowed) return sendJson(res, 429, { error: "busy", say: "That's enough for this hour in the public demo – download Tia to keep going with your own free AI key." });
+    }
+    if (route === "/api/run") {
+      // the demo inbox only, sorted live by the free AI
+      return hub.runDay("auto").catch(() => {}), sendJson(res, 200, { ok: true });
+    }
+    if (route.startsWith("/api/")) return await localApi(req, res, route, url);
+    if (route.startsWith("/crm") || route.startsWith("/doc/")) return serveStatic(req, res, route, url);
+    return serveStatic(req, res, route, url);
   });
 }
 
@@ -649,6 +695,13 @@ function start() {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     const route = url.pathname;
+    if (GUEST) {
+      try {
+        return await guestGate(req, res, url, route);
+      } catch (e) {
+        return sendJson(res, 500, { error: "Something went wrong" }); // no details to the public
+      }
+    }
     const origin = req.headers.origin;
     // Phone routes are protected by the pairing token, so any origin may call them (the phone app, or the
     // same app running in a browser for testing). Browsers first ask with OPTIONS.
@@ -706,7 +759,8 @@ function start() {
       console.log(`Tia is running: http://localhost:${PORT}  (Ctrl+C to stop)`);
       if (first) console.log(`Phone: scan the QR code on Tia's screen (phone connects to ${first.url})`);
       if (loadConfig().stt !== false) stt.start(loadConfig()); // warm up speech-to-text in the background
-      startOnline().catch((e) => console.warn(`[online] ${e.message || e}`));
+      if (GUEST) console.log("Public demo (TIA_GUEST=1): fictional business only – no accounts, no keys, nothing sent");
+      else startOnline().catch((e) => console.warn(`[online] ${e.message || e}`));
       resolve(server);
     });
   });
@@ -718,8 +772,34 @@ const linkedMessages = (fresh) => {
 };
 // Public address + WhatsApp: on a PC without config.publicUrl, open a quick tunnel; then tell the WhatsApp relay
 // "send messages here" and fetch anything it kept while this PC was off. The Tia that starts last receives WhatsApp.
+// The public demo next to the owner's Tia (config.json "guestServer": true): a separate process on its own port,
+// started with a CLEAN environment – only the free AI key, none of the owner's keys or tokens – restarted if it stops.
+function startGuestServer(cfg) {
+  const keep = ["SystemRoot", "windir", "PATH", "Path", "PATHEXT", "COMSPEC", "TEMP", "TMP", "OS", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE",
+    "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "SystemDrive"];
+  const env = {};
+  for (const k of keep) if (process.env[k]) env[k] = process.env[k];
+  Object.assign(env, { TIA_GUEST: "1", TIA_PORT: String(cfg.guestPort || 4848), TIA_GUEST_URL: cfg.guestUrl || "https://tia-try.rderics.id.lv", TIA_AUTO_UPDATE: "0", TIA_QUICK_TUNNEL: "0" });
+  if (process.env.GROQ_API_KEY) env.GROQ_API_KEY = process.env.GROQ_API_KEY;
+  const { spawn } = require("child_process");
+  const logs = path.join(cfg.dataDir, "logs");
+  fs.mkdirSync(logs, { recursive: true });
+  // inside the desktop app process.execPath is Electron – the demo runs on plain Node
+  const nodeExe = process.versions.electron ? "node" : process.execPath;
+  let child = null;
+  const run = () => {
+    const out = fs.openSync(path.join(logs, "guest.log"), "a");
+    child = spawn(nodeExe, [path.join(__dirname, "web.js")], { cwd: path.join(__dirname, ".."), env, stdio: ["ignore", out, out], windowsHide: true });
+    child.on("exit", (code) => code !== 0 && code !== null && setTimeout(run, 5000)); // e.g. port busy: try again later
+  };
+  process.on("exit", () => child && child.kill());
+  run();
+  console.log(`[guest] public demo on port ${env.TIA_PORT} -> ${env.TIA_GUEST_URL}`);
+}
+
 async function startOnline() {
   const cfg = loadConfig();
+  if (cfg.guestServer) setTimeout(() => startGuestServer(loadConfig()), 8000); // after the team keys are loaded
   // auto-update from GitHub (every 15 min) – the screen shows "Tia was updated"
   require("./updater").start(cfg, (u) => hub.emit({ type: "update", ...u }));
   // team keys (free AI, WhatsApp Business) from the team code – refreshed at every start

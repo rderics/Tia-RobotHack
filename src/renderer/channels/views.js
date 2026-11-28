@@ -45,7 +45,7 @@
     ["calendar", "Calendar"],
     ["instagram", "Instagram"],
     ["settings", "Settings"],
-  ];
+  ].filter(([k]) => !(window.TIA_GUEST && k === "settings"));
   const COLORS = ["#4F6BED", "#C239B3", "#E3008C", "#038387", "#CA5010", "#8764B8", "#498205", "#0078D4", "#986F0B", "#D13438"];
   const color = (s) => COLORS[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
   const initials = (s) => String(s || "?").replace(/[@#]/g, "").split(/[\s._–-]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";

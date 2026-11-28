@@ -21,6 +21,7 @@ function writeEnv(updates) {
 }
 
 async function sync(code = process.env.TIA_TEAM_CODE) {
+  if (process.env.TIA_GUEST === "1") return { ok: false, error: "public demo" };
   if (!code) return { ok: false, error: "no team code" };
   try {
     const r = await fetch(URL_, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }), signal: AbortSignal.timeout(15000) });

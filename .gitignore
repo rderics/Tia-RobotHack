@@ -20,3 +20,5 @@ design/
 **/.obsidian/app.json
 **/.obsidian/appearance.json
 **/.obsidian/core-plugins*.json
+data-guest/
+data-guest-test.log

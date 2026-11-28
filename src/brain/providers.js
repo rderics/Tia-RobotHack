@@ -25,6 +25,7 @@ function viaClaudeCode(cfg, prompt, system = systemPrompt(), schema = DECISION_S
     "--json-schema", JSON.stringify(schema),
   ];
   return new Promise((resolve, reject) => {
+    if (process.env.TIA_GUEST === "1") return reject(new Error("not part of the public demo")); // never the owner's subscriptions
     const child = spawn(cfg.claudePath || "claude", args, { cwd, windowsHide: true });
     let out = "";
     let err = "";
@@ -88,6 +89,7 @@ function viaCodex(cfg, prompt, system = systemPrompt(), schema = DECISION_SCHEMA
   }
   args.push("-");
   return new Promise((resolve, reject) => {
+    if (process.env.TIA_GUEST === "1") return reject(new Error("not part of the public demo")); // never the owner's subscriptions
     // On Windows "codex" is a .cmd wrapper; run its JavaScript entry with Node directly (no command shell).
     const entry = cfg.codexPath || codexEntry();
     const child = entry.endsWith(".js")
@@ -121,6 +123,7 @@ function viaClaudeText(cfg, prompt, system) {
   fs.mkdirSync(cwd, { recursive: true });
   const args = ["-p", "--output-format", "json", "--model", cfg.model, "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--no-session-persistence", "--system-prompt", system];
   return new Promise((resolve, reject) => {
+    if (process.env.TIA_GUEST === "1") return reject(new Error("not part of the public demo")); // never the owner's subscriptions
     const child = spawn(cfg.claudePath || "claude", args, { cwd, windowsHide: true });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
@@ -235,6 +238,7 @@ ${JSON.stringify(schema)}` : system;
 // fallback, then every free API whose key is present. A provider that fails is skipped for 10 minutes.
 // kind "talk" (chat + voice commands) may use its own list, e.g. Hermes Agent first; inbox sorting stays fast.
 function providerChain(cfg, kind = "inbox") {
+  if (process.env.TIA_GUEST === "1") return isConfigured(cfg, "groq") ? ["groq"] : []; // public demo: never the owner's Claude/ChatGPT
   const list = kind === "talk" && Array.isArray(cfg.talkProviders) && cfg.talkProviders.length ? cfg.talkProviders : cfg.providers;
   if (Array.isArray(list) && list.length) return list.filter((n) => !OPENAI_STYLE.includes(n) || isConfigured(cfg, n, list));
   const chain = [cfg.provider === "api" ? "api" : "claude-code"];
@@ -343,6 +347,7 @@ ${text.slice(-16000)}`;
   if (schema) args.push("--json-schema", JSON.stringify(schema));
   args.push(`-p=${text}`);
   return new Promise((resolve, reject) => {
+    if (process.env.TIA_GUEST === "1") return reject(new Error("not part of the public demo")); // never the owner's subscriptions
     const child = spawn(exe, args, { cwd: dir, windowsHide: true });
     let out = "";
     let err = "";

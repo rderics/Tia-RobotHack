@@ -93,8 +93,8 @@
       right.append(
         h("div", { class: "dx-bar" },
           h("b", {}, sel.replace(/\.pdf$/i, "")), h("span", { class: "sp" }),
-          h("button", { class: "dx-primary", disabled: !!busy[sel], onclick: () => run(sel, "Printing…", () => T().docPrint(sel)) }, I("record"), busy[sel] === "Printing…" ? "Printing…" : "Print"),
-          h("button", { class: "dx-btn", disabled: !!busy[sel], onclick: () => run(sel, "Writing the email…", () => T().docEmail(sel, "")) }, I("mail"), "Email as draft")),
+          T().docPrint ? h("button", { class: "dx-primary", disabled: !!busy[sel], onclick: () => run(sel, "Printing…", () => T().docPrint(sel)) }, I("record"), busy[sel] === "Printing…" ? "Printing…" : "Print") : "",
+          T().docEmail ? h("button", { class: "dx-btn", disabled: !!busy[sel], onclick: () => run(sel, "Writing the email…", () => T().docEmail(sel, "")) }, I("mail"), "Email as draft") : ""),
         msg[sel] ? h("div", { class: "dx-bar sub" }, h("span", { class: "dx-msg" }, msg[sel])) : "",
         fr);
     } else right.append(h("div", { class: "ch-empty" }, "Your contracts and offers show here."));

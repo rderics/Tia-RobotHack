@@ -32,10 +32,14 @@ const DEFAULTS = {
 };
 
 // Secrets (free AI keys etc.) live in .env next to package.json – never committed. KEY=value per line.
+// The public demo (TIA_GUEST=1) takes only the free AI key – never WhatsApp, relay, Claude or other keys.
+const GUEST = () => process.env.TIA_GUEST === "1";
+const GUEST_KEYS = new Set(["GROQ_API_KEY", "GEMINI_API_KEY"]);
 function loadDotEnv() {
   try {
     for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split(/\r?\n/)) {
       const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+      if (m && GUEST() && !GUEST_KEYS.has(m[1])) continue;
       if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
     }
   } catch {}
@@ -52,6 +56,16 @@ function loadConfig() {
   for (const k of ["vaultDir", "inboxFile", "replayFile", "dataDir"]) cfg[k] = path.resolve(ROOT, cfg[k]);
   cfg.notesDir = cfg.notesDir ? path.resolve(ROOT, cfg.notesDir) : path.join(cfg.vaultDir, "Tia");
   if (cfg.profile === "owner" && !user.replayFile) cfg.replayFile = path.join(cfg.dataDir, "owner-replay.json"); // never mix with the demo recording
+  if (GUEST()) {
+    // public demo: the fictional business only, its own data folder and notes, the free AI only, nothing real goes out
+    Object.assign(cfg, DEFAULTS, {
+      provider: "groq", providers: ["groq"], talkProviders: ["groq"], profile: "stand", inboxSource: "demo",
+      vaultDir: path.resolve(ROOT, DEFAULTS.vaultDir), inboxFile: path.resolve(ROOT, DEFAULTS.inboxFile), replayFile: path.resolve(ROOT, DEFAULTS.replayFile),
+      dataDir: path.resolve(ROOT, "data-guest"), notesDir: path.resolve(ROOT, "data-guest", "notes"),
+      publicUrl: process.env.TIA_GUEST_URL || null, whatsappOnly: [], outlookAccount: "", instagramAccount: "", autoUpdate: false,
+    });
+    fs.mkdirSync(cfg.notesDir, { recursive: true });
+  }
   fs.mkdirSync(cfg.dataDir, { recursive: true });
   return cfg;
 }

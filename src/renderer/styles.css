@@ -291,3 +291,8 @@ button, input, textarea { font: inherit; color: inherit; }
 /* Stop – always there, red, stops everything Tia is doing */
 .btn.stop { background: #3A1518; color: #FF8A8F; border: 1px solid #6B2228; font-weight: 700; }
 .btn.stop:hover { background: #E5484D; color: #fff; border-color: #E5484D; }
+
+/* public demo banner */
+.guest-banner { position: fixed; left: 50%; top: 6px; transform: translateX(-50%); z-index: 300; background: #241D3A; color: #ECEAF2; border: 1px solid #4A3F72; border-radius: 999px; padding: 5px 16px; font: 13px "Segoe UI", system-ui, sans-serif; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.guest-banner a { color: #B9A3F2; font-weight: 700; }
+@media (max-width: 900px) { .guest-banner { white-space: normal; width: calc(100% - 24px); text-align: center; border-radius: 12px; } }

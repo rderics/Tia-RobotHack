@@ -151,7 +151,7 @@ const linkedOn = () => {
     return false;
   }
 };
-const canSend = () => linkedOn() || !!(process.env.WHATSAPP_TOKEN && allowedNumbers()[0]);
+const canSend = () => process.env.TIA_GUEST !== "1" && (linkedOn() || !!(process.env.WHATSAPP_TOKEN && allowedNumbers()[0]));
 // Demo safety (config.json "whatsappOnly"): Tia may message ONLY these chats – everyone else is refused in code.
 function allowedChat(cfg, waId) {
   const only = cfg.whatsappOnly;
@@ -160,6 +160,7 @@ function allowedChat(cfg, waId) {
   return only.some((o) => [o.waId, o.number].filter(Boolean).map(String).includes(id));
 }
 async function send(cfg, waId, text) {
+  if (process.env.TIA_GUEST === "1") throw new Error("Nothing is sent from the public demo.");
   if (!allowedChat(cfg, waId)) throw new Error(`For the demo Tia only messages ${(cfg.whatsappOnly || []).map((o) => o.name).join(", ")} on WhatsApp`);
   // a chat from the owner's linked WhatsApp goes out through that phone; others through the Business API
   const known = read(cfg).chats[String(waId).replace(/^\+/, "")];

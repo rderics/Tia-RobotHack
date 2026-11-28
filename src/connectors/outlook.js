@@ -6,6 +6,7 @@ const path = require("path");
 const SCRIPT = path.join(__dirname, "outlook.py");
 
 function run(cfg, args, timeoutMs = 180000) {
+  if (process.env.TIA_GUEST === "1") return Promise.reject(new Error("Outlook is not part of the public demo."));
   return new Promise((resolve, reject) => {
     const child = spawn(cfg.pythonPath || "python", ["-X", "utf8", SCRIPT, ...args], { windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8" } });
     let out = "";

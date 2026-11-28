@@ -59,6 +59,7 @@ function store(cfg, list, { live }) {
 }
 
 async function start(cfg, onMessages) {
+  if (process.env.TIA_GUEST === "1") return; // public demo: no WhatsApp at all
   if (sock) return state;
   if (starting) return starting;
   starting = (async () => {
@@ -146,6 +147,7 @@ async function resolveNumbers(cfg) {
   return n;
 }
 async function send(jid, text) {
+  if (process.env.TIA_GUEST === "1") throw new Error("Nothing is sent from the public demo.");
   if (!sock || state.status !== "connected") throw new Error("Your WhatsApp isn't linked right now");
   const r = await sock.sendMessage(jid, { text });
   return { ok: true, id: r && r.key && r.key.id };
