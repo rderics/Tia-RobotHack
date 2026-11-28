@@ -393,7 +393,7 @@ async function localApi(req, res, route, url) {
       }
       return sendJson(res, 200, await U.check((u) => hub.emit({ type: "update", ...u })));
     }
-    if (req.method === "POST" && route === "/api/settings/team") {
+    if (req.method === "POST" && route === "/api/settings/team" && false) { // team code removed 28.11
       if (!isLocal(req)) return sendJson(res, 403, { error: "Join the team on the PC Tia runs on." });
       const body = await readJson(req);
       const r = await require("./team").sync(String(body.code || "").trim());
@@ -799,12 +799,10 @@ function startGuestServer(cfg) {
 
 async function startOnline() {
   const cfg = loadConfig();
-  if (cfg.guestServer) setTimeout(() => startGuestServer(loadConfig()), 8000); // after the team keys are loaded
+  if (cfg.guestServer) setTimeout(() => startGuestServer(loadConfig()), 8000);
   // auto-update from GitHub (every 15 min) – the screen shows "Tia was updated"
   require("./updater").start(cfg, (u) => hub.emit({ type: "update", ...u }));
-  // team keys (free AI, WhatsApp Business) from the team code – refreshed at every start
-  const team = await require("./team").sync().catch(() => null);
-  if (team && team.ok) console.log(`Team keys synced (${team.keys})`);
+  // (28.11: no team code any more – every PC uses its own keys in .env / Settings)
   const W = require("./connectors/whatsapp");
   const tunnel = require("./tunnel");
   const onMessages = (fresh) => {

@@ -103,7 +103,7 @@
           h("span", {}, st === "connected" ? (conn[k] || {}).name || "connected" : st === "pending" ? (conn[k] || {}).name || "waiting" : "not connected"),
           canLink ? h("button", { class: "st-btn", onclick: (e) => connect(k, e.target) }, "Connect") : st === "connected" && CONNECTABLE[k] ? h("span", { class: "st-ok" }, "✓") : "");
       })),
-      h("div", { class: "st-desc" }, "Classic Outlook works directly on this PC – just be signed in to classic Outlook. WhatsApp Business and the free AI come with the team code."));
+      h("div", { class: "st-desc" }, "Classic Outlook works directly on this PC – just be signed in to classic Outlook. WhatsApp: the WhatsApp tab → scan the QR with your phone."));
     const biz = h("div", { class: "st-card" },
       h("div", { class: "st-h" }, "Business"),
       h("div", { class: "st-kv" }, h("span", {}, "Business"), h("b", {}, s.business.name), h("span", {}, "Owner"), h("b", {}, s.business.owner), h("span", {}, "Vault"), h("b", {}, s.business.vault), h("span", {}, "Phone address"), h("b", {}, s.publicUrl || "this network only")));
@@ -111,7 +111,6 @@
       h("div", { class: "st-top" }, h("div", { class: "st-title" }, "Settings"), h("span", { class: "sp" }), edit ? h("button", { class: "st-save", onclick: save }, "Save") : h("span", { class: "st-desc" }, "View only – change settings on the PC Tia runs on"), saved ? h("span", { class: "st-saved" }, saved) : ""),
       h("div", { class: "st-cols" },
         h("div", {},
-          teamCard(h, edit),
           aiOptions(h, P, edit, keyInput),
           h("div", { class: "st-card" },
             h("div", { class: "st-h" }, "Order"),

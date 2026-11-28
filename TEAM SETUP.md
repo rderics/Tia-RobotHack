@@ -4,20 +4,18 @@ Everything is clicks. Windows 10/11. Do the steps in order.
 
 ---
 
-## Step 1 · Get the team code (1 min)
-Rinalds sends you the **team code** in a Discord DM (it looks like `oakline-river-maple-1234`).
-The installer asks for it once – Tia then fetches the shared keys (free AI, WhatsApp Business) by herself and keeps
-them up to date. **Don't post the code in a public channel.**
+## Step 1 · Nothing to prepare
+No code, no files. You use your **own free AI key** (Groq or Google Gemini) – the installer opens the page for it.
 
 ---
 
 ## Step 2 · Install Tia (5–10 min, mostly waiting)
-1. Open **https://rderics.id.lv/tia-get**
+1. Open **https://rderics.id.lv/tia** → **Download the installer**
 2. Click **Download the installer** and open **Install-Tia.cmd**.
    Windows warns you → click **More info → Run anyway**.
 3. A blue window installs everything by itself (Node.js, Python, ffmpeg, Obsidian, Cloudflare, Composio).
-   When it asks **"Team code from Rinalds"** → paste the code → Enter.
-   (If it then asks for a Groq key, just press **Enter**.)
+   It opens **console.groq.com/keys** → sign in → **Create API Key** → copy it → paste it in the blue window → Enter.
+   (Or just press Enter and add the key later in Tia → Settings → AI.)
 4. Wait for **"Done!"** and close the window.
 
 On your desktop you now have:
@@ -39,7 +37,6 @@ On your desktop you now have:
    - **Claude** or **ChatGPT** – press **Sign in** and sign in with your own account
    - **Claude API / ChatGPT API** – paste a paid key · **Google Antigravity** – sign in in the Antigravity app
    Then **Use first** (or **Add** as a backup) and **Test** → it should say **"Works"**.
-   The team code already gives everyone Groq, so Tia works even if you skip this.
 
 ---
 
@@ -65,7 +62,6 @@ Tia types reply drafts into it in front of you; you press Send.
    - **✦** = Tia writes a reply · **➤** = send it from your number (only when *you* tap).
    - Remove it any time: phone → Linked devices → Tia → Log out, or **Unlink** in Tia.
 
-The team's **WhatsApp Business** number works through the team code (no setup needed).
 
 ---
 

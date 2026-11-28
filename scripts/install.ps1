@@ -3,7 +3,7 @@
 # or double-click "Install Tia.cmd" from https://rderics.id.lv/tia-get/
 #
 # What it does: downloads Tia to %USERPROFILE%\Tia (git if available, else a zip), installs Node/Python/ffmpeg/
-# cloudflared/Obsidian with winget, Tia's packages, the team keys (tia-team.env from Downloads/Desktop), registers both
+# cloudflared/Obsidian with winget, Tia's packages, the user's own free AI key, registers both
 # Obsidian vaults, and puts a "Tia" icon on the desktop. Running it again updates Tia and keeps your .env and data.
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -51,35 +51,26 @@ if (Test-Path (Join-Path $dest ".git")) {
 Write-Host "Tia is in $dest"
 Set-Location $dest
 
-Say "2/6 Team keys"
-# The shared keys (free AI, WhatsApp Business) come from the TEAM CODE (Rinalds shares it in Discord) – no file needed.
-# Tia refreshes them at every start. (An old tia-team.env in Downloads still works too.)
+Say "2/6 Free AI key"
+# Tia thinks with a free AI of the user's own (Groq). No team code, no shared keys: everyone uses their own key,
+# stored only in .env on this PC. Skippable – Tia -> Settings -> AI takes it later.
 $envFile = Join-Path $dest ".env"
-$haveCode = (Test-Path $envFile) -and ((Get-Content $envFile -Raw) -match "(?m)^TIA_TEAM_CODE=\S+")
-$teamFile = @((Join-Path $env:USERPROFILE "Downloads\tia-team.env"), (Join-Path $env:USERPROFILE "Desktop\tia-team.env")) | Where-Object { Test-Path $_ } | Select-Object -First 1
 function Save-Env($pairs) {
   $lines = @(); if (Test-Path $envFile) { $lines = @(Get-Content $envFile) }
   foreach ($k in $pairs.Keys) { $lines = @($lines | Where-Object { $_ -notmatch "^$k=" }); $lines += "$k=$($pairs[$k])" }
   Set-Content -Path $envFile -Value $lines -Encoding ascii
 }
-if (-not $haveCode -and -not $teamFile -and -not $testRun) {
-  Write-Host "Only the Tia team has a team code. Everyone else: just press Enter - you add your own free AI key in Tia." -ForegroundColor Cyan
-  $code = (Read-Host "Team code (or press Enter)").Trim()
-  if ($code) {
-    try {
-      $r = Invoke-RestMethod -Method Post -Uri "https://rderics.id.lv/tia-team" -ContentType "application/json" -Body (@{ code = $code } | ConvertTo-Json)
-      $pairs = @{ TIA_TEAM_CODE = $code }
-      foreach ($l in ($r.env -split "`r?`n")) { if ($l -match "^([A-Z0-9_]+)=(.+)$") { $pairs[$Matches[1]] = $Matches[2].Trim() } }
-      Save-Env $pairs
-      Write-Host "Joined the team - $($pairs.Count - 1) keys saved on this PC. Tia keeps them up to date." -ForegroundColor Green
-    } catch { Write-Host "That code didn't work ($($_.Exception.Message)). You can type it later in Tia -> Settings -> Join the team." -ForegroundColor Yellow }
-  } else { Write-Host "OK - no team keys. In Tia: Settings -> AI -> add your own free key (Groq or Google Gemini, 'Get a key' opens the page). Settings -> Connected apps connects YOUR own Gmail, Calendar, Slack..." -ForegroundColor Yellow }
-} elseif ($teamFile) {
-  $pairs = @{}
-  Get-Content $teamFile | ForEach-Object { if ($_ -match "^\s*([A-Z0-9_]+)=(.+)$") { $pairs[$Matches[1]] = $Matches[2].Trim() } }
-  Save-Env $pairs
-  Write-Host "Team keys from $teamFile." -ForegroundColor Green
-} else { Write-Host "Team keys already set up." -ForegroundColor Green }
+$hasKey = (Test-Path $envFile) -and ((Get-Content $envFile -Raw) -match "(?m)^(GROQ_API_KEY|GEMINI_API_KEY)=\S+")
+if ($hasKey) { Write-Host "AI key already set up." -ForegroundColor Green }
+elseif (-not $testRun) {
+  Write-Host "Tia needs a free AI key (1 minute). A page opens: sign in (Google is fine) -> 'Create API Key' -> copy it." -ForegroundColor Cyan
+  try { Start-Process "https://console.groq.com/keys" } catch {}
+  $k = (Read-Host "Paste the key here (or press Enter to add it later in Tia -> Settings -> AI)").Trim()
+  if ($k -match "^gsk_\S+$") { Save-Env @{ GROQ_API_KEY = $k }; Write-Host "Saved on this PC (only here)." -ForegroundColor Green }
+  elseif ($k -match "^AIza\S+$") { Save-Env @{ GEMINI_API_KEY = $k }; Write-Host "Google Gemini key saved on this PC (only here)." -ForegroundColor Green }
+  elseif ($k) { Write-Host "That doesn't look like a Groq (gsk_...) or Gemini (AIza...) key - add it later in Tia -> Settings -> AI." -ForegroundColor Yellow }
+  else { Write-Host "OK - add it later in Tia -> Settings -> AI ('Get a key' opens the page)." -ForegroundColor Yellow }
+}
 
 Say "3/6 Tools (Node, Python, ffmpeg, cloudflared, Obsidian)"
 if (-not $testRun) {

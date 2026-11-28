@@ -11,7 +11,7 @@ Everything slow (lead search, AI) is sped up in the edit.
 - Start **Tia** from the desktop icon. Press **F11**.
 - One-time sign-ins inside Tia (they stay logged in): **Instagram** (log in), **WhatsApp** (phone → Linked devices → scan the QR), **Slack** (workspace → sign in **with email** – Google sign-in is blocked inside apps). Calendar needs nothing (your events come through Composio).
 - In WhatsApp / Slack: open a chat → **Let Tia write** → **Put it in WhatsApp/Slack** → you press Enter.
-- **Outlook** (classic) open in the background and signed in – Tia uses the RTU mailbox (Rinalds-Henrijs.Derics@edu.rtu.lv), not su.external.
+- **Outlook** (classic) open in the background and signed in – Tia uses the owner's own mailbox (set in config.json).
 - Check **Settings → AI** shows a working AI (Test → "Works").
 - Delete old test drafts if you want a clean Drafts folder.
 
