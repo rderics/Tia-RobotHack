@@ -727,7 +727,7 @@ if (window.TIA_GUEST) {
   for (const id of ["pairBtn", "resetBtn"]) if ($(id)) $(id).hidden = true;
   const b = document.createElement("div");
   b.className = "guest-banner";
-  b.innerHTML = 'Public demo · <b>Oakline Studio</b> is a fictional business · nothing is sent anywhere · <a href="https://rderics.id.lv/tia-try/" target="_blank" rel="noopener">Download Tia</a> to connect your own apps';
+  b.innerHTML = 'Public demo · <b>Oakline Studio</b> is a fictional business · nothing is sent anywhere · <a href="/tia/" target="_top">Download Tia</a> to connect your own apps';
   document.body.prepend(b);
 }
 // Stop: the server stops reading, the screen drops what it was still animating, Tia stops talking
