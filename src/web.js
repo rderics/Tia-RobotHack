@@ -779,7 +779,7 @@ function startGuestServer(cfg) {
     "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "SystemDrive"];
   const env = {};
   for (const k of keep) if (process.env[k]) env[k] = process.env[k];
-  Object.assign(env, { TIA_GUEST: "1", TIA_PORT: String(cfg.guestPort || 4848), TIA_GUEST_URL: cfg.guestUrl || "https://tia-try.rderics.id.lv", TIA_AUTO_UPDATE: "0", TIA_QUICK_TUNNEL: "0" });
+  Object.assign(env, { TIA_GUEST: "1", TIA_PORT: String(cfg.guestPort || 4848), TIA_GUEST_URL: cfg.guestUrl || "https://rderics.id.lv/tia/app", TIA_AUTO_UPDATE: "0", TIA_QUICK_TUNNEL: "0" });
   if (process.env.GROQ_API_KEY) env.GROQ_API_KEY = process.env.GROQ_API_KEY;
   const { spawn } = require("child_process");
   const logs = path.join(cfg.dataDir, "logs");
